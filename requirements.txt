@@ -1,0 +1,16 @@
+fastapi
+sqlalchemy
+pydantic
+pydantic[email]
+pyjwt
+cryptography
+argon2-cffi
+python-multipart
+uvicorn
+asyncpg
+alembic
+icecream
+httpx
+python-dotenv
+pyrebase4
+setuptools
