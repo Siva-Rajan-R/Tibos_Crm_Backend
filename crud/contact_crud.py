@@ -13,12 +13,11 @@ from typing import Optional,List
 
 class ContactsCrud:
     """on this calss have a multiple methods"""
-    def __init__(self,session:AsyncSession,user_email:EmailStr,user_role:UserRoles):
+    def __init__(self,session:AsyncSession,user_role:UserRoles):
         self.session=session
-        self.user_email=user_email
         self.user_role=user_role
 
-        if self.user_email!="" or self.user_role!=UserRoles.ADMIN:
+        if self.user_role==UserRoles.USER:
             raise HTTPException(
                 status_code=401,
                 detail="Not a valid user"
@@ -55,7 +54,7 @@ class ContactsCrud:
     async def update(self,contact_id:str,name:str,customer_id:str,mobile_no:str,email:EmailStr):
         try:
             async with self.session.begin():
-                contact_toupdate=update(Contacts).where(Contacts.id==contact_id).values(
+                contact_toupdate=update(Contacts).where(Contacts.id==contact_id,Contacts.customer_id==customer_id).values(
                     customer_id=customer_id,
                     name=name,
                     mobile_number=mobile_no,
@@ -67,7 +66,7 @@ class ContactsCrud:
                 if not contact_id:
                     raise HTTPException(
                         status_code=404,
-                        detail="Invalid Contact Id"
+                        detail="Invalid Contact or Customer Id"
                     )
                 
                 return "Contact Update Successfully"
@@ -82,17 +81,17 @@ class ContactsCrud:
                 detail=f"Something went wrong while updating Contact {e}"
             )
         
-    async def delete(self,contact_id:str):
+    async def delete(self,customer_id:str,contact_id:str):
         try:
             async with self.session.begin():
-                contact_todelete=delete(Contacts).where(Contacts.id==contact_id).returning(Contacts.id)
+                contact_todelete=delete(Contacts).where(Contacts.id==contact_id,Contacts.customer_id==customer_id).returning(Contacts.id)
 
                 contact_id=(await self.session.execute(contact_todelete)).scalar_one_or_none()
 
                 if not contact_id:
                     raise HTTPException(
                         status_code=404,
-                        detail="Invalid Contact Id"
+                        detail="Invalid Contact or Customer Id"
                     )
                 
                 return "Contact Deleted Successfully"
@@ -113,13 +112,14 @@ class ContactsCrud:
                 select(
                     Contacts.id,
                     Contacts.customer_id,
-                    Contacts.name,Contacts.email,
-                    Contacts.mobile_number,
-                    Customers.name,
-                    Customers.email,
-                    Customers.website_url  
+                    Contacts.name.label('contact_name'),
+                    Contacts.email.label('contact_email'),
+                    Contacts.mobile_number.label('contact_mobile'),
+                    Customers.name.label('customer_name'),
+                    Customers.email.label('customer_email'),
+                    Customers.website_url.label('customer_website')  
                 )
-                .join(Customers,Customers.id==Contacts.customer_id,isouter=True,full=True)
+                .join(Customers,Customers.id==Contacts.customer_id,isouter=True)
             )).mappings().all()
 
             return {'contacts':queried_contacts}
@@ -134,21 +134,22 @@ class ContactsCrud:
                 detail=f"Something went wrong while fetching all contacts {e}"
             )
         
-    async def get_by_id(self,contact_id:str):
+    async def get_by_contact_id(self,contact_id:str):
         try:
             queried_contacts=(await self.session.execute(
                 select(
                     Contacts.id,
                     Contacts.customer_id,
-                    Contacts.name,Contacts.email,
-                    Contacts.mobile_number,
-                    Customers.name,
-                    Customers.email,
-                    Customers.website_url  
+                    Contacts.name.label('contact_name'),
+                    Contacts.email.label('contact_email'),
+                    Contacts.mobile_number.label('contact_mobile'),
+                    Customers.name.label('customer_name'),
+                    Customers.email.label('customer_email'),
+                    Customers.website_url.label('customer_website')  
                 )
-                .join(Customers,Customers.id==Contacts.customer_id,isouter=True,full=True)
+                .join(Customers,Customers.id==Contacts.customer_id,isouter=True)
                 .where(Contacts.id==contact_id)
-            )).mappings().all()
+            )).mappings().one_or_none()
 
             return {'contact':queried_contacts}
         
@@ -160,6 +161,35 @@ class ContactsCrud:
             raise HTTPException(
                 status_code=500,
                 detail=f"Something went wrong while fetching single contact {e}"
+            )
+    
+    async def get_by_customer_id(self,customer_id:str):
+        try:
+            queried_contacts=(await self.session.execute(
+                select(
+                    Contacts.id,
+                    Contacts.customer_id,
+                    Contacts.name.label('contact_name'),
+                    Contacts.email.label('contact_email'),
+                    Contacts.mobile_number.label('contact_mobile'),
+                    Customers.name.label('customer_name'),
+                    Customers.email.label('customer_email'),
+                    Customers.website_url.label('customer_website')  
+                )
+                .join(Customers,Customers.id==Contacts.customer_id,isouter=True)
+                .where(customer_id==Contacts.customer_id)
+            )).mappings().all()
+
+            return {'contacts':queried_contacts}
+        
+        except HTTPException:
+            raise
+        
+        except Exception as e:
+            ic(f"Something went wrong while fetching Cusotmer contact {e}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Something went wrong while fetching Cusotmer contact {e}"
             )
 
 

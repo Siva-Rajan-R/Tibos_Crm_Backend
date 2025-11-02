@@ -18,7 +18,7 @@ async def init_pg_db():
     try:
         ic("🔃 Initializing Pg DB...")
         async with PG_ENGINE.begin() as conn:
-            conn.run_sync(PG_BASE.metadata.create_all)
+            await conn.run_sync(PG_BASE.metadata.create_all)
         ic("✅ Pg Database Initialized Successfully")
     except Exception as e:
         ic(f"❌ Error Initializing Pg Database {e}")

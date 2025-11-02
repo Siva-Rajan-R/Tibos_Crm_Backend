@@ -10,12 +10,11 @@ from pydantic import EmailStr
 
 
 class ProductsCrud:
-    def __init__(self,session:AsyncSession,user_email:EmailStr,user_role:UserRoles):
+    def __init__(self,session:AsyncSession,user_role:UserRoles):
         self.session=session
-        self.user_email=user_email
         self.user_role=user_role
 
-        if self.user_email!="" or self.user_role!=UserRoles.ADMIN:
+        if self.user_role==UserRoles.USER:
             raise HTTPException(
                 status_code=401,
                 detail="Not a valid user"

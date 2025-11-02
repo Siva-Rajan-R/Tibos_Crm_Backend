@@ -14,7 +14,6 @@ router=APIRouter(
 async def add_customer(data:AddCustomerSchema,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await CustomersCrud(
         session=session,
-        user_email=user['id'],
         user_role=user['role']
     ).add(
         name=data.name,
@@ -34,7 +33,6 @@ async def add_customer(data:AddCustomerSchema,user:dict=Depends(verify_user),ses
 async def update_customer(data:UpdateCustomerSchema,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await CustomersCrud(
         session=session,
-        user_email=user['id'],
         user_role=user['role']
     ).update(
         customer_id=data.customer_id,
@@ -43,7 +41,7 @@ async def update_customer(data:UpdateCustomerSchema,user:dict=Depends(verify_use
         email=data.email,
         web_url=data.website_url,
         no_of_emply=data.no_of_employee,
-        gst_no=data.no_of_employee,
+        gst_no=data.gst_number,
         industry=data.industry,
         sector=data.sector,
         primary_contact=data.primary_contact,
@@ -55,7 +53,6 @@ async def update_customer(data:UpdateCustomerSchema,user:dict=Depends(verify_use
 async def delete_customer(customer_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await CustomersCrud(
         session=session,
-        user_email=user['id'],
         user_role=user['role']
     ).delete(
         customer_id=customer_id
@@ -66,7 +63,6 @@ async def delete_customer(customer_id:str,user:dict=Depends(verify_user),session
 async def get_all_customer(user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await CustomersCrud(
         session=session,
-        user_email=user['id'],
         user_role=user['role']
     ).get()
 
@@ -75,6 +71,5 @@ async def get_all_customer(user:dict=Depends(verify_user),session:AsyncSession=D
 async def get_customer_by_id(customer_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await CustomersCrud(
         session=session,
-        user_email=user['id'],
         user_role=user['role']
     ).get_by_id(customer_id=customer_id)

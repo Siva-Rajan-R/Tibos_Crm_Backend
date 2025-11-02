@@ -1,6 +1,6 @@
 from configs.symme_config import symme
 from icecream import ic
-from gloabals.fastapi_globals import HTTPException
+from globals.fastapi_globals import HTTPException
 
 
 def encrypt_data(data:str)->str:

@@ -1,8 +1,9 @@
-from configs.pyjwt_config import jwt_token
+from configs.pyjwt_config import jwt_token,DecodeError,ExpiredSignatureError
 from icecream import ic
 from globals.fastapi_globals import HTTPException
 from datetime import datetime,timedelta,timezone
-import os
+from security.symm_encryption import encrypt_data,decrypt_data
+import os,json
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -17,17 +18,20 @@ def generate_jwt_token(data:dict,secret:str,alg:str,exp_min:int=0,exp_day:int=0,
     try:
         data['exp']=datetime.now(timezone.utc)+timedelta(days=exp_day,minutes=exp_min,seconds=exp_sec)
         data['iss']="DeB-Auth"
-        return jwt_token.encode(
+        encrypted_data=encrypt_data(data=json.dumps(data['data']))
+        data['data']=encrypted_data
+        token=jwt_token.encode(
             payload=data,
             key=secret,
             algorithm=alg
         )
+        return token
 
     except Exception as e:
-        ic(f"something went wrong while generating jwt token")
+        ic(f"something went wrong while generating jwt token {e}")
         raise HTTPException(
             status_code=500,
-            detail=f"something went wrong while generating jwt token"
+            detail=f"something went wrong while generating jwt token {e}"
         )
     
 
@@ -35,12 +39,26 @@ def decode_jwt_token(token:str,secret:str,alg:str)->dict:
     """it will get a jwt token, secret, alg to validate the data"""
 
     try:
-        return jwt_token.decode(
+        decoded_token=jwt_token.decode(
             jwt=token,
             key=secret,
             algorithms=alg
         )
+
+        decrypted_data=json.loads(decrypt_data(encrypted_data=decoded_token['data'])) #{email:...,role:...}
+
+        return decrypted_data
+    except ExpiredSignatureError:
+        raise HTTPException(
+            status_code=401,
+            detail=f"Token has expired"
+        )
     
+    except DecodeError:
+        raise HTTPException(
+            status_code=401,
+            detail=f"Invalid Token"
+        )
     except Exception as e:
         raise HTTPException(
             status_code=500,

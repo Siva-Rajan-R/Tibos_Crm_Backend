@@ -1,7 +1,9 @@
 from fastapi import FastAPI
 from api.routes import auth,contact,customer,order,product
+from crud.auth_crud import AuthCrud
 from fastapi.middleware.cors import CORSMiddleware
 from database.configs.pg_config import init_pg_db
+from services.email_service import check_email_service_health
 from icecream import ic
 import sys,subprocess,asyncio
 from contextlib import asynccontextmanager
@@ -27,7 +29,9 @@ if sys.platform!="win32":
 async def api_lifespan(app:FastAPI):
     try:
         ic("🏎️ Executing API Lifespan... ")
-        # init_pg_db()
+        # await init_pg_db()
+        AuthCrud().init_superadmin()
+        await check_email_service_health()
         yield
     except Exception as e:
         ic(f"❌ Error At Executing API Lifespan {e}")

@@ -15,8 +15,9 @@ class Customers(PG_BASE):
     gst_number=Column(String,nullable=True)
     industry=Column(Enum(CustomerIndustries),nullable=False)
     sector=Column(Enum(CustomerSectors),nullable=False)
-    primary_contact=Column(ARRAY(String),ForeignKey("contacts.id"))
+    primary_contact=Column(String,nullable=False)
     address=Column(String,nullable=True)
+
 
     contact=relationship("Contacts",back_populates="customer",cascade="all, delete-orphan")
     order=relationship("Orders",back_populates="customer")

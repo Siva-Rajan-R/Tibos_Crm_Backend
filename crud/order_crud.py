@@ -13,12 +13,11 @@ from pydantic import EmailStr
 
 
 class OrdersCrud:
-    def __init__(self,session:AsyncSession,user_email:EmailStr,user_role:UserRoles):
+    def __init__(self,session:AsyncSession,user_role:UserRoles):
         self.session=session
-        self.user_email=user_email
         self.user_role=user_role
 
-        if self.user_email!="" or self.user_role!=UserRoles.ADMIN:
+        if self.user_role==UserRoles.USER:
             raise HTTPException(
                 status_code=401,
                 detail="Not a valid user"
@@ -56,7 +55,7 @@ class OrdersCrud:
     async def update(self,order_id:str,customer_id:str,product_id:str,qty:int,total_price:float,discount_price:float,final_price:float,delivery_info:DeliveryInfo):
         try:
             async with self.session.begin():
-                order_toupdate=update(Orders).where(Orders.id==order_id).values(
+                order_toupdate=update(Orders).where(Orders.id==order_id,Orders.customer_id==customer_id).values(
                     product_id=product_id,
                     customer_id=customer_id,
                     quantity=qty,
@@ -71,7 +70,7 @@ class OrdersCrud:
                 if not order_id:
                     raise HTTPException(
                         status_code=404,
-                        detail="Invalid Order Id"
+                        detail="Invalid Order or Customer Id"
                     )
                 
                 # need to implement invoice generation process + email sending
@@ -87,17 +86,17 @@ class OrdersCrud:
                 detail=f"Something went wrong while updating Order {e}"
             )
         
-    async def delete(self,order_id:str):
+    async def delete(self,order_id:str,customer_id:str):
         try:
             async with self.session.begin():
-                order_todelete=delete(Orders).where(Orders.id==order_id).returning(Orders.id)
+                order_todelete=delete(Orders).where(Orders.id==order_id,Orders.customer_id==customer_id).returning(Orders.id)
 
                 order_id=(await self.session.execute(order_todelete)).scalar_one_or_none()
 
                 if not order_id:
                     raise HTTPException(
                         status_code=404,
-                        detail="Invalid Order Id"
+                        detail="Invalid Order or Customer Id"
                     )
                 
                 # need to implement email sending "Your orders has been stoped from CRM"
@@ -125,14 +124,14 @@ class OrdersCrud:
                     Orders.discount_price,
                     Orders.final_price,
                     Orders.delivery_info,
-                    Products.name,
+                    Products.name.label('product_name'),
                     Products.product_type,
                     Products.description,
-                    Customers.name,
+                    Customers.name.label('customer_name'),
                     Customers.mobile_number  
                 )
-                .join(Products,Products.id==Orders.product_id,isouter=True,full=True)
-                .join(Customers,Customers.id==Orders.customer_id,isouter=True,full=True)
+                .join(Products,Products.id==Orders.product_id,isouter=True)
+                .join(Customers,Customers.id==Orders.customer_id,isouter=True)
             )).mappings().all()
 
             return {'orders':queried_orders}
@@ -147,7 +146,7 @@ class OrdersCrud:
                 detail=f"Something went wrong while fetching all orders {e}"
             )
         
-    async def get_by_id(self,order_id:str):
+    async def get_by_order_id(self,order_id:str):
         try:
             queried_orders=(await self.session.execute(
                 select(
@@ -165,8 +164,8 @@ class OrdersCrud:
                     Customers.name,
                     Customers.mobile_number  
                 )
-                .join(Products,Products.id==Orders.product_id,isouter=True,full=True)
-                .join(Customers,Customers.id==Orders.customer_id,isouter=True,full=True)
+                .join(Products,Products.id==Orders.product_id,isouter=True)
+                .join(Customers,Customers.id==Orders.customer_id,isouter=True)
                 .where(Orders.id==order_id)
             )).mappings().one_or_none()
 
@@ -180,6 +179,41 @@ class OrdersCrud:
             raise HTTPException(
                 status_code=500,
                 detail=f"Something went wrong while fetching single order {e}"
+            )
+    
+    async def get_by_customer_id(self,customer_id:str):
+        try:
+            queried_orders=(await self.session.execute(
+                select(
+                    Orders.id,
+                    Orders.customer_id,
+                    Orders.product_id,
+                    Orders.quantity,
+                    Orders.total_price,
+                    Orders.discount_price,
+                    Orders.final_price,
+                    Orders.delivery_info,
+                    Products.name,
+                    Products.product_type,
+                    Products.description,
+                    Customers.name,
+                    Customers.mobile_number  
+                )
+                .join(Products,Products.id==Orders.product_id,isouter=True)
+                .join(Customers,Customers.id==Orders.customer_id,isouter=True)
+                .where(Orders.customer_id==customer_id)
+            )).mappings().all()
+
+            return {'orders':queried_orders}
+        
+        except HTTPException:
+            raise
+        
+        except Exception as e:
+            ic(f"Something went wrong while fetching customer order {e}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Something went wrong while fetching customer order {e}"
             )
 
 

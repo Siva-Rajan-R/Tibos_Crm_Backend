@@ -7,6 +7,7 @@ class ProductTypes(Enum):
 class CustomerIndustries(Enum):
     IT="It"
     AGRICULTURE="agriculture"
+    MANUFACTURING="manufacturing"
 
 class CustomerSectors(Enum):
     PRIVATE="private"

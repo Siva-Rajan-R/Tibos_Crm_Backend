@@ -11,18 +11,17 @@ from typing import Optional,List
 
 
 class CustomersCrud:
-    def __init__(self,session:AsyncSession,user_email:EmailStr,user_role:UserRoles):
+    def __init__(self,session:AsyncSession,user_role:UserRoles):
         self.session=session
-        self.user_email=user_email
         self.user_role=user_role
 
-        if self.user_email!="" or self.user_role!=UserRoles.ADMIN:
+        if self.user_role==UserRoles.USER:
             raise HTTPException(
                 status_code=401,
                 detail="Not a valid user"
             )
 
-    async def add(self,name:str,mobile_no:str,email:EmailStr,web_url:Optional[str],no_of_emply:int,gst_no:Optional[str],industry:CustomerIndustries,sector:CustomerSectors,primary_contact:List[str],address:str):
+    async def add(self,name:str,mobile_no:str,email:EmailStr,web_url:Optional[str],no_of_emply:int,gst_no:Optional[str],industry:CustomerIndustries,sector:CustomerSectors,primary_contact:str,address:str):
         try:
             async with self.session.begin():
                 customer_id=generate_uuid(data=name)
@@ -54,7 +53,7 @@ class CustomersCrud:
                 detail=f"Something went wrong while adding customer {e}"
             )
         
-    async def update(self,customer_id:str,name:str,mobile_no:str,email:EmailStr,web_url:Optional[str],no_of_emply:int,gst_no:Optional[str],industry:CustomerIndustries,sector:CustomerSectors,primary_contact:List[str],address:str):
+    async def update(self,customer_id:str,name:str,mobile_no:str,email:EmailStr,web_url:Optional[str],no_of_emply:int,gst_no:Optional[str],industry:CustomerIndustries,sector:CustomerSectors,primary_contact:str,address:str):
         try:
             async with self.session.begin():
                 customer_toupdate=update(Customers).where(Customers.id==customer_id).values(

@@ -14,7 +14,6 @@ router=APIRouter(
 async def add_product(data:AddProductSchema,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await ProductsCrud(
         session=session,
-        user_email=user['id'],
         user_role=user['role']
     ).add(
         name=data.name,
@@ -29,7 +28,6 @@ async def add_product(data:AddProductSchema,user:dict=Depends(verify_user),sessi
 async def update_product(data:UpdateProductSchema,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await ProductsCrud(
         session=session,
-        user_email=user['id'],
         user_role=user['role']
     ).update(
         product_id=data.product_id,
@@ -45,7 +43,6 @@ async def update_product(data:UpdateProductSchema,user:dict=Depends(verify_user)
 async def delete_product(product_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await ProductsCrud(
         session=session,
-        user_email=user['id'],
         user_role=user['role']
     ).delete(
         product_id=product_id
@@ -56,7 +53,6 @@ async def delete_product(product_id:str,user:dict=Depends(verify_user),session:A
 async def get_all_product(user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await ProductsCrud(
         session=session,
-        user_email=user['id'],
         user_role=user['role']
     ).get()
 
@@ -65,6 +61,5 @@ async def get_all_product(user:dict=Depends(verify_user),session:AsyncSession=De
 async def get_product_by_id(product_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await ProductsCrud(
         session=session,
-        user_email=user['id'],
         user_role=user['role']
     ).get_by_id(product_id=product_id)

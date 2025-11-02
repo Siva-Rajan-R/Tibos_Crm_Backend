@@ -1,7 +1,7 @@
 from configs.argon2_config import hasher,VerifyMismatchError,VerificationError
 
 from icecream import ic
-from gloabals.fastapi_globals import HTTPException
+from globals.fastapi_globals import HTTPException
 
 
 

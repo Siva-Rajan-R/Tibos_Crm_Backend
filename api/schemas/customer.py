@@ -11,7 +11,7 @@ class AddCustomerSchema(BaseModel):
     gst_number:Optional[str]
     industry:CustomerIndustries
     sector:CustomerSectors
-    primary_contact:List[str]
+    primary_contact:str
     address:str
 
 class UpdateCustomerSchema(BaseModel):
@@ -24,5 +24,5 @@ class UpdateCustomerSchema(BaseModel):
     gst_number:Optional[str]
     industry:CustomerIndustries
     sector:CustomerSectors
-    primary_contact:List[str]
+    primary_contact:str
     address:str

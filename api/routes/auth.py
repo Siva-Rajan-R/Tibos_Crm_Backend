@@ -1,7 +1,8 @@
 from fastapi import APIRouter,Depends,HTTPException
 from fastapi.responses import RedirectResponse
-from pydantic import BaseModel,EmailStr
-from crud.auth_crud import AuthCrud,UserRoles
+from api.schemas.auth import UserRoleUpdateSchema,EmailStr
+from crud.auth_crud import AuthCrud,UserRoles,generate_jwt_token,ACCESS_JWT_KEY,JWT_ALG
+from api.dependencies.token_verification import verify_user
 import httpx,os
 from configs.pyjwt_config import jwt_token
 from icecream import ic
@@ -16,11 +17,8 @@ TEMP_DATA={}
 
 DEB_AUTH_APIKEY=os.getenv("DEB_AUTH_APIKEY")
 DEB_AUTH_CLIENT_SECRET=os.getenv("DEB_AUTH_CLIENT_SECRET")
+AUTHCRUD_OBJ=AuthCrud()
 
-class AuthSchema(BaseModel):
-    email:EmailStr
-    name:str
-    role:UserRoles
 
 @router.get('/auth')
 async def auth_user():
@@ -65,15 +63,27 @@ async def auth_redirect(code:str):
     )
 
 
+@router.get('/auth/token/new')
+async def get_new_access_token(user:dict=Depends(verify_user)):
+    return {'access_token':generate_jwt_token(
+        data={'data':{'email':user['email'],'role':user['role']}},
+        secret=ACCESS_JWT_KEY,
+        alg=JWT_ALG,
+        exp_day=7
+    )}
+
 @router.get('/user')
-async def get_users():
-    return AuthCrud().get()
+async def get_users(user:dict=Depends(verify_user)):
+    return AUTHCRUD_OBJ.get(user_role=user['role'])
 
-@router.get('/user/{user_email}')
-async def get_user_by_email(user_email:EmailStr):
-    return AuthCrud().get_by_email(user_email)
+@router.get('/user/{email}')
+async def get_user_by_email(email:EmailStr,user:dict=Depends(verify_user)):
+    return AUTHCRUD_OBJ.get_by_email(email_toget=email,user_role=user['role'])
 
-@router.delete('/user/{user_email}')
-async def delete_user(user_email:EmailStr):
-    email="siva967763@gmail.com"
-    return AuthCrud().delete(user_email=email,email_toremove=user_email)
+@router.put('/user/role')
+async def update_user_role(data:UserRoleUpdateSchema,user:dict=Depends(verify_user)):
+    return AUTHCRUD_OBJ.update_role(user_role=user['role'],email_toupdate=data.email,role_toupdate=data.role)
+
+@router.delete('/user/{email}')
+async def delete_user(email:EmailStr,user:dict=Depends(verify_user)):
+    return AUTHCRUD_OBJ.delete(user_role=user['role'],email_toremove=email)
