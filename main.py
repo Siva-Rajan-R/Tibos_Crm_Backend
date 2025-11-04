@@ -1,4 +1,4 @@
-from fastapi import FastAPI
+from fastapi import FastAPI,Request
 from api.routes import auth,contact,customer,order,product
 from crud.auth_crud import AuthCrud
 from fastapi.middleware.cors import CORSMiddleware
@@ -56,6 +56,9 @@ if ENVIRONMENT=="production":
 app=FastAPI(lifespan=api_lifespan,openapi_url=openapi_url,docs_url=docs,redoc_url=redoc,debug=debug)
 
 # Routers
+@app.get('/')
+def home_root(request:Request):
+    return {"accesss token":request.headers.get("X-Access-Token"),'refresh_token':request.headers.get("X-Refresh-Token")}
 app.include_router(auth.router)
 app.include_router(contact.router)
 app.include_router(customer.router)

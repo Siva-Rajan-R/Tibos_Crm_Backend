@@ -169,3 +169,10 @@ class AuthCrud:
                 status_code=500,
                 detail=f"Something went wrong while getting single user {e}"
             )
+    
+    def get_by_role(self,role_toget:UserRoles):
+        users=fdb.child(USER_MODEL).order_by_child('role').equal_to(role_toget.value).get().val()
+        ic(f"{role_toget.name} : {users}")
+        if users!=[]:
+            return [val['email'] for key,val in users.items()]
+        return []

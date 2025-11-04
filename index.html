@@ -1,0 +1,71 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+
+  <title>Registration Accepted</title>
+
+  <!-- Tailwind CDN -->
+  <script src="https://cdn.tailwindcss.com"></script>
+</head>
+
+<body class="bg-slate-50 min-h-screen flex items-center justify-center p-6">
+
+  <div class="w-full max-w-lg bg-white rounded-3xl shadow-xl p-8 border border-slate-100">
+
+    <!-- Header -->
+    <div class="text-center mb-6">
+      <h1 class="text-3xl font-extrabold text-slate-800">Registration Accepted</h1>
+      <p class="text-slate-500 mt-1">Your account has been successfully approved.</p>
+    </div>
+
+    <!-- Profile Picture -->
+    <div class="flex justify-center mb-6">
+      {% if profile_pic %}
+      <div class="w-20 h-20 rounded-full overflow-hidden shadow-md">
+        <img src="{{ profile_pic }}" class="w-full h-full object-cover" />
+      </div>
+      {% else %}
+      <div class="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center text-3xl font-bold text-emerald-700 shadow-md">
+        {{ name[0] }}
+      </div>
+      {% endif %}
+    </div>
+
+    <!-- User Details -->
+    <div class="grid grid-cols-1 gap-4">
+      
+      <div class="p-4 bg-slate-50 rounded-xl border border-slate-200">
+        <div class="text-xs text-slate-500 font-medium">Name</div>
+        <div class="text-base font-semibold text-slate-700">{{ name }}</div>
+      </div>
+
+      <div class="p-4 bg-slate-50 rounded-xl border border-slate-200">
+        <div class="text-xs text-slate-500 font-medium">Email</div>
+        <div class="text-base font-semibold text-slate-700">{{ email }}</div>
+      </div>
+
+      <div class="p-4 bg-slate-50 rounded-xl border border-slate-200">
+        <div class="text-xs text-slate-500 font-medium">Role</div>
+        <div class="text-base font-semibold text-slate-700 capitalize">{{ role }}</div>
+      </div>
+
+    </div>
+
+    <!-- Actions -->
+    <div class="mt-8 flex justify-end gap-3">
+      <a href="{{ dashboard_link }}"
+         class="px-5 py-2.5 bg-emerald-600 text-white rounded-xl font-medium hover:opacity-95 shadow">
+         Go to Dashboard
+      </a>
+    </div>
+
+    <p class="text-center text-xs text-slate-400 mt-6">
+      Thank you for joining our community.
+    </p>
+
+  </div>
+
+</body>
+</html>

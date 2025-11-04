@@ -1,0 +1,73 @@
+<!-- need to pass name,email,role,details_link -->
+
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="utf-8" />
+  <meta name="viewport" content="width=device-width,initial-scale=1" />
+  <title>You Are Accepted — Offer</title>
+
+  <!-- Tailwind Play CDN (online) -->
+  <script src="https://cdn.tailwindcss.com"></script>
+
+  <style>
+    /* Small email-like card shadow for nicer print */
+    .card-shadow { box-shadow: 0 6px 18px rgba(15,23,42,0.12); }
+  </style>
+</head>
+<body class="min-h-screen bg-slate-50 flex items-center justify-center p-6">
+  <main class="w-full max-w-xl">
+    <!-- Header -->
+    <header class="text-center mb-8">
+      <h1 class="text-3xl sm:text-4xl font-extrabold text-slate-800">You Are Accepted</h1>
+      <p class="mt-2 text-sm text-slate-500">{{ name }} - Registeration Accepted Successfully</p>
+    </header>
+
+    <!-- Acceptance card -->
+    <section class="bg-white rounded-2xl p-6 sm:p-8 card-shadow border border-slate-100">
+      <div class="flex items-center gap-4">
+        <div class="w-16 h-16 rounded-full overflow-hidden">
+          <img 
+              src="{{ profile_pic_link }}" 
+              alt="Profile Picture"
+              class="w-full h-full object-cover"
+          />
+      </div>
+        <div>
+          <h2 class="text-lg font-semibold text-slate-800" id="user-name">{{ name }}</h2>
+          <p class="text-sm text-slate-500" id="user-role">{{ role }}</p>
+        </div>
+      </div>
+
+      <dl class="mt-6 grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm">
+        <div class="p-4 bg-slate-50 rounded-lg">
+          <dt class="text-xs font-medium text-slate-500">Name</dt>
+          <dd class="mt-1 text-sm font-medium text-slate-700" id="field-name">{{ name }}</dd>
+        </div>
+
+        <div class="p-4 bg-slate-50 rounded-lg">
+          <dt class="text-xs font-medium text-slate-500">Email</dt>
+          <dd class="mt-1 text-sm font-medium text-slate-700" id="field-email">{{ email }}</dd>
+        </div>
+
+        <div class="p-4 bg-slate-50 rounded-lg sm:col-span-2">
+          <dt class="text-xs font-medium text-slate-500">Role</dt>
+          <dd class="mt-1 text-sm font-medium text-slate-700" id="field-role">{{ role }}</dd>
+        </div>
+      </dl>
+
+      <div class="mt-6 flex justify-end gap-3">
+        <a href="{{ details_link }}" class="inline-block px-4 py-2 rounded-lg border border-emerald-600 text-emerald-700 font-medium hover:bg-emerald-50">View details</a>
+      </div>
+    </section>
+
+    <footer class="mt-6 text-center text-xs text-slate-400">
+      This is a preview page. For email clients use an inline-CSS version (no external CSS/JS).
+    </footer>
+  </main>
+
+  <!-- tiny script to demo filling values from query params (works in browser preview, not in email clients) -->
+  <script>
+  </script>
+</body>
+</html>
