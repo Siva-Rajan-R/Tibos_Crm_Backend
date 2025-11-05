@@ -8,6 +8,7 @@ argon2-cffi
 python-multipart
 uvicorn
 asyncpg
+redis
 alembic
 icecream
 httpx

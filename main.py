@@ -3,6 +3,7 @@ from api.routes import auth,contact,customer,order,product
 from crud.auth_crud import AuthCrud
 from fastapi.middleware.cors import CORSMiddleware
 from database.configs.pg_config import init_pg_db
+from database.configs.redis_config import check_redis_health,redis_client
 from services.email_service import check_email_service_health
 from icecream import ic
 import sys,subprocess,asyncio
@@ -32,6 +33,7 @@ async def api_lifespan(app:FastAPI):
         # await init_pg_db()
         AuthCrud().init_superadmin()
         await check_email_service_health()
+        await check_redis_health()
         yield
     except Exception as e:
         ic(f"❌ Error At Executing API Lifespan {e}")

@@ -15,6 +15,8 @@ SENDER_EMAIL= os.getenv("SENDER_EMAIL")
 EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
 
 
+
+
 async def check_email_service_health():
     """A simple health check function to verify email service connectivity."""
     try:

@@ -86,7 +86,7 @@ def get_user_accept_email_content(user_name:str,user_email:EmailStr,user_role:Us
                 </a>
               </td>
             </tr>
-            <strong style="font-size:12px; color:#64748b;">If it looks supicious, Just leave it.</strong>
+            <strong style="font-size:12px; color:#64748b;">If it looks supicious, Just leave it. will be expired in 5 mins</strong>
           </table>
           <!-- END CARD -->
 
