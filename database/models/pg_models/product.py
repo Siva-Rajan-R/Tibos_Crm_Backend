@@ -13,4 +13,4 @@ class Products(PG_BASE):
     available_qty=Column(Integer,nullable=False)
     product_type=Column(Enum(ProductTypes),nullable=False)
 
-    order=relationship("Orders",back_populates="product")
+    order=relationship("Orders",back_populates="product",cascade="all, delete-orphan")

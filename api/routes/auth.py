@@ -101,7 +101,7 @@ async def auth_redirect(code:str,request:Request,bgt:BackgroundTasks):
             return {
                 'msg':'Authentication successfull waiting for confirmation'
             }
-        access_token=generate_jwt_token(data={'data':{'email':decoded_token['email'],'role':user_data['role']}},secret=ACCESS_JWT_KEY,alg=JWT_ALG,exp_min=15)
+        access_token=generate_jwt_token(data={'data':{'email':decoded_token['email'],'role':user_data['role']}},secret=ACCESS_JWT_KEY,alg=JWT_ALG,exp_day=7)
         refresh_token=generate_jwt_token(data={'data':{'email':decoded_token['email'],'role':user_data['role']}},secret=REFRESH_JWT_KEY,alg=JWT_ALG,exp_day=7)
         ic(f"Auth tokens : {access_token} {refresh_token}")
         

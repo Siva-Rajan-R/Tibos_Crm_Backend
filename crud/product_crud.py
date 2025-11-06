@@ -110,7 +110,7 @@ class ProductsCrud:
                     Products.id,
                     Products.name,
                     Products.description,
-                    Products.available_qty,
+                    Products.available_qty.label('quantity'),
                     Products.price,
                     Products.product_type
                 ).order_by(Products.name)
@@ -135,7 +135,7 @@ class ProductsCrud:
                     Products.id,
                     Products.name,
                     Products.description,
-                    Products.available_qty,
+                    Products.available_qty.label('quantity'),
                     Products.price,
                     Products.product_type
                 )

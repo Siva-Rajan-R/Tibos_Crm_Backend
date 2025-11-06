@@ -8,7 +8,7 @@ class Orders(PG_BASE):
     __tablename__="orders"
     id=Column(String,primary_key=True)
     customer_id=Column(String,ForeignKey("customers.id"))
-    product_id=Column(String,ForeignKey("products.id"))
+    product_id=Column(String,ForeignKey("products.id",ondelete="CASCADE"))
     quantity=Column(Integer,nullable=False)
     total_price=Column(Float,nullable=False)
     discount_price=Column(Float,nullable=False)

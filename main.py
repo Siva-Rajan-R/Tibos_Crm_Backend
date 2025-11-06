@@ -30,7 +30,7 @@ if sys.platform!="win32":
 async def api_lifespan(app:FastAPI):
     try:
         ic("🏎️ Executing API Lifespan... ")
-        # await init_pg_db()
+        await init_pg_db()
         AuthCrud().init_superadmin()
         await check_email_service_health()
         await check_redis_health()

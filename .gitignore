@@ -1,6 +1,7 @@
 __pycache__
 .env
 myvenv
+.venv
 mylogs.txt
 alembic
 alembic.ini

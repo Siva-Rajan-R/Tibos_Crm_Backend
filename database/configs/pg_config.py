@@ -11,7 +11,7 @@ PG_ENGINE=create_async_engine(url=PG_DB_URL)
 
 PG_BASE=declarative_base()
 
-AsyncLocalSession=async_sessionmaker(PG_ENGINE)
+AsyncLocalSession=async_sessionmaker(PG_ENGINE,class_=AsyncSession,expire_on_commit=False)
 
 
 async def init_pg_db():
