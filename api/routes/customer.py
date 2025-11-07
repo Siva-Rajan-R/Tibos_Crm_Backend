@@ -24,7 +24,6 @@ async def add_customer(data:AddCustomerSchema,user:dict=Depends(verify_user),ses
         gst_no=data.gst_number,
         industry=data.industry,
         sector=data.sector,
-        primary_contact=data.primary_contact,
         address=data.address
     )
 
@@ -44,7 +43,6 @@ async def update_customer(data:UpdateCustomerSchema,user:dict=Depends(verify_use
         gst_no=data.gst_number,
         industry=data.industry,
         sector=data.sector,
-        primary_contact=data.primary_contact,
         address=data.address
     )
 

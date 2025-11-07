@@ -21,7 +21,7 @@ class CustomersCrud:
                 detail="Not a valid user"
             )
 
-    async def add(self,name:str,mobile_no:str,email:EmailStr,web_url:Optional[str],no_of_emply:int,gst_no:Optional[str],industry:CustomerIndustries,sector:CustomerSectors,primary_contact:str,address:str):
+    async def add(self,name:str,mobile_no:str,email:EmailStr,web_url:Optional[str],no_of_emply:int,gst_no:Optional[str],industry:CustomerIndustries,sector:CustomerSectors,address:str):
         try:
             async with self.session.begin():
                 customer_id=generate_uuid(data=name)
@@ -35,7 +35,6 @@ class CustomersCrud:
                     gst_number=gst_no,
                     industry=industry,
                     sector=sector,
-                    primary_contact=primary_contact,
                     address=address
                 )
 
@@ -53,7 +52,7 @@ class CustomersCrud:
                 detail=f"Something went wrong while adding customer {e}"
             )
         
-    async def update(self,customer_id:str,name:str,mobile_no:str,email:EmailStr,web_url:Optional[str],no_of_emply:int,gst_no:Optional[str],industry:CustomerIndustries,sector:CustomerSectors,primary_contact:str,address:str):
+    async def update(self,customer_id:str,name:str,mobile_no:str,email:EmailStr,web_url:Optional[str],no_of_emply:int,gst_no:Optional[str],industry:CustomerIndustries,sector:CustomerSectors,address:str):
         try:
             async with self.session.begin():
                 customer_toupdate=update(Customers).where(Customers.id==customer_id).values(
@@ -65,7 +64,6 @@ class CustomersCrud:
                     gst_number=gst_no,
                     industry=industry,
                     sector=sector,
-                    primary_contact=primary_contact,
                     address=address
                 ).returning(Customers.id)
 
@@ -127,7 +125,6 @@ class CustomersCrud:
                     Customers.website_url,
                     Customers.industry,
                     Customers.sector,
-                    Customers.primary_contact,
                     Customers.address
                 )
             )).mappings().all()
@@ -157,7 +154,6 @@ class CustomersCrud:
                     Customers.website_url,
                     Customers.industry,
                     Customers.sector,
-                    Customers.primary_contact,
                     Customers.address
                 )
                 .where(Customers.id==customer_id)

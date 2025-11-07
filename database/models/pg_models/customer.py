@@ -15,7 +15,6 @@ class Customers(PG_BASE):
     gst_number=Column(String,nullable=True)
     industry=Column(Enum(CustomerIndustries),nullable=False)
     sector=Column(Enum(CustomerSectors),nullable=False)
-    primary_contact=Column(String,nullable=False)
     address=Column(String,nullable=True)
 
 
