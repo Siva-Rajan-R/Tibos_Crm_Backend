@@ -66,7 +66,7 @@ async def verify_user(request:Request,credentials:HTTPAuthorizationCredentials=D
 
     ic('verified and returned via pg')
     ic("decoded token : ",decoded_token['email'])
-
+    await session.close()
     return decoded_token
 
     
