@@ -29,12 +29,13 @@ class UserCrud(UserCrudModel):
 
     async def init_superadmin(self):
         try:
-            ic("🔃 Creating Default Super-Admin... ")
-            await self.add(
-                email=DEFAULT_SUPERADMIN_INFO['email'],
-                name=DEFAULT_SUPERADMIN_INFO['name'],
-                role=UserRoles.SUPER_ADMIN
-            )
+            ic(f"🔃 Creating Default Super-Admin... {DEFAULT_SUPERADMIN_INFO} {type(DEFAULT_SUPERADMIN_INFO)}")
+            for superadmins in DEFAULT_SUPERADMIN_INFO:
+                await self.add(
+                    email=superadmins['email'],
+                    name=superadmins['name'],
+                    role=UserRoles.SUPER_ADMIN
+                )
             ic("✅ Default Super-Admin Created Successfully")
 
         except Exception as e:
