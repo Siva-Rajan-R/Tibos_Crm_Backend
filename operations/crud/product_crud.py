@@ -5,16 +5,16 @@ from sqlalchemy import select,delete,update
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
 from data_formats.enums.common_enums import UserRoles
-from pydantic import EmailStr
+from operations.abstract_models.crud_model import BaseCrud
 
 
 
-class ProductsCrud:
+class ProductsCrud(BaseCrud):
     def __init__(self,session:AsyncSession,user_role:UserRoles):
         self.session=session
         self.user_role=user_role
 
-        if self.user_role==UserRoles.USER:
+        if self.user_role==UserRoles.USER.value:
             raise HTTPException(
                 status_code=401,
                 detail="Not a valid user"

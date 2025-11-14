@@ -1,11 +1,12 @@
 from fastapi import FastAPI,Request
-from api.routes import auth,contact,customer,order,product
-from crud.auth_crud import AuthCrud
+from api.routes import auth,contact,customer,order,product,user
 from fastapi.middleware.cors import CORSMiddleware
+from operations.crud.user_crud import UserCrud
 from database.configs.pg_config import init_pg_db
 from database.configs.redis_config import check_redis_health,redis_client
 from services.email_service import check_email_service_health
 from icecream import ic
+from database.configs.pg_config import AsyncLocalSession
 import sys,subprocess,asyncio
 from contextlib import asynccontextmanager
 import os
@@ -31,7 +32,8 @@ async def api_lifespan(app:FastAPI):
     try:
         ic("🏎️ Executing API Lifespan... ")
         await init_pg_db()
-        AuthCrud().init_superadmin()
+        async with AsyncLocalSession() as session:
+            await UserCrud(session=session).init_superadmin()
         await check_email_service_health()
         await check_redis_health()
         yield
@@ -61,6 +63,8 @@ app=FastAPI(lifespan=api_lifespan,openapi_url=openapi_url,docs_url=docs,redoc_ur
 @app.get('/')
 def home_root(request:Request):
     return {"accesss token":request.headers.get("X-Access-Token"),'refresh_token':request.headers.get("X-Refresh-Token")}
+
+app.include_router(user.router)
 app.include_router(auth.router)
 app.include_router(contact.router)
 app.include_router(customer.router)

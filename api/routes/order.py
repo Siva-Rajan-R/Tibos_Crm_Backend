@@ -2,7 +2,7 @@ from fastapi import Depends,APIRouter
 from api.schemas.order import AddOrderSchema,UpdateOrderSchema
 from database.configs.pg_config import get_pg_db_session,AsyncSession
 from api.dependencies.token_verification import verify_user
-from crud.order_crud import OrdersCrud
+from operations.crud.order_crud import OrdersCrud
 
 
 router=APIRouter(
@@ -73,7 +73,7 @@ async def get_order_by_order_id(order_id:str,user:dict=Depends(verify_user),sess
     return await OrdersCrud(
         session=session,
         user_role=user['role']
-    ).get_by_order_id(order_id=order_id)
+    ).get_by_id(order_id=order_id)
 
 @router.get('/order/customer/{customer_id}')
 async def get_order_by_customer_id(customer_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):

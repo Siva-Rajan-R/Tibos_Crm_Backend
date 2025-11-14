@@ -1,5 +1,5 @@
 from pydantic import BaseModel,EmailStr
-from data_formats.dicts.pg_dicts import DeliveryInfo
+from data_formats.typed_dicts.pg_dict import DeliveryInfo
 
 class AddOrderSchema(BaseModel):
     customer_id:str

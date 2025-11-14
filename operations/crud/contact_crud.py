@@ -8,16 +8,17 @@ from icecream import ic
 from data_formats.enums.common_enums import UserRoles
 from pydantic import EmailStr
 from typing import Optional,List
+from operations.abstract_models.crud_model import BaseCrud
 
 
 
-class ContactsCrud:
+class ContactsCrud(BaseCrud):
     """on this calss have a multiple methods"""
     def __init__(self,session:AsyncSession,user_role:UserRoles):
         self.session=session
         self.user_role=user_role
 
-        if self.user_role==UserRoles.USER:
+        if self.user_role==UserRoles.USER.value:
             raise HTTPException(
                 status_code=401,
                 detail="Not a valid user"
@@ -134,7 +135,7 @@ class ContactsCrud:
                 detail=f"Something went wrong while fetching all contacts {e}"
             )
         
-    async def get_by_contact_id(self,contact_id:str):
+    async def get_by_id(self,contact_id:str):
         try:
             queried_contacts=(await self.session.execute(
                 select(

@@ -7,17 +7,17 @@ from sqlalchemy import select,delete,update
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
 from data_formats.enums.common_enums import UserRoles
-from data_formats.dicts.pg_dicts import DeliveryInfo
-from pydantic import EmailStr
+from data_formats.typed_dicts.pg_dict import DeliveryInfo
+from operations.abstract_models.crud_model import BaseCrud
 
 
 
-class OrdersCrud:
+class OrdersCrud(BaseCrud):
     def __init__(self,session:AsyncSession,user_role:UserRoles):
         self.session=session
         self.user_role=user_role
 
-        if self.user_role==UserRoles.USER:
+        if self.user_role==UserRoles.USER.value:
             raise HTTPException(
                 status_code=401,
                 detail="Not a valid user"
@@ -146,7 +146,7 @@ class OrdersCrud:
                 detail=f"Something went wrong while fetching all orders {e}"
             )
         
-    async def get_by_order_id(self,order_id:str):
+    async def get_by_id(self,order_id:str):
         try:
             queried_orders=(await self.session.execute(
                 select(

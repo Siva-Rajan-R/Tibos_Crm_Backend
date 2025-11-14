@@ -2,7 +2,7 @@ from fastapi import Depends,APIRouter
 from api.schemas.customer import AddCustomerSchema,UpdateCustomerSchema
 from database.configs.pg_config import get_pg_db_session,AsyncSession
 from api.dependencies.token_verification import verify_user
-from crud.customer_crud import CustomersCrud
+from operations.crud.customer_crud import CustomersCrud
 
 
 router=APIRouter(

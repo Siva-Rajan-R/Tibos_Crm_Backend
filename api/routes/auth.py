@@ -1,16 +1,18 @@
 from fastapi import APIRouter,Depends,HTTPException,Request,BackgroundTasks
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
-from api.schemas.auth import UserRoleUpdateSchema,EmailStr
 from services.email_service import send_email
 from templates.email.user_accept import get_user_accept_email_content
 from templates.email.accepted import get_accepted_email_content
-from crud.auth_crud import AuthCrud,UserRoles,generate_jwt_token,ACCESS_JWT_KEY,REFRESH_JWT_KEY,JWT_ALG
+from operations.crud.auth_crud import AuthCrud
+from security.jwt_token import generate_jwt_token,ACCESS_JWT_KEY,REFRESH_JWT_KEY,JWT_ALG
+from data_formats.enums.common_enums import UserRoles
 from api.dependencies.token_verification import verify_user
 from utils.uuid_generator import generate_uuid
 from database.configs.redis_config import get_redis,set_redis,unlink_redis
-import httpx,os
-from configs.pyjwt_config import jwt_token
+from database.configs.pg_config import get_pg_db_session
+import os
+from operations.crud.user_crud import UserCrud
 from icecream import ic
 from dotenv import load_dotenv
 load_dotenv()
@@ -34,75 +36,31 @@ async def auth_user(request:Request):
             detail=f"Authentication request already in process..."
         )
     
-    async with httpx.AsyncClient(timeout=90) as client:
-        response=await client.post(
-            url="https://deb-auth-api.onrender.com/auth",
-            json={'apikey':DEB_AUTH_APIKEY}
-        )
-        if response.status_code==200:
-            return response.json()
-    raise HTTPException(
-        status_code=response.status_code,
-        detail=response.text
-    )
+    return await AUTHCRUD_OBJ.get_login_link()
+    
+    
 
 
 @router.get('/auth/redirect')
-async def auth_redirect(code:str,request:Request,bgt:BackgroundTasks):
-    async with httpx.AsyncClient(timeout=90) as client:
-        response=await client.post(
-            url="https://deb-auth-api.onrender.com/auth/authenticated-user",
-            json={'code':code,'client_secret':DEB_AUTH_CLIENT_SECRET}
+async def auth_redirect(code:str,request:Request,bgt:BackgroundTasks,session=Depends(get_pg_db_session)):
+    # getting authenticated user details from deb-auth-api
+    decoded_token:dict=await AUTHCRUD_OBJ.get_authenticated_user(code=code)
+
+    # checking the email on the waiting list
+    if await get_redis(decoded_token['email']):
+        raise HTTPException(
+            status_code=400,
+            detail="Authentication request already in process for this email"
         )
-
-        if response.status_code!=200:
-            raise HTTPException(
-                status_code=response.status_code,
-                detail=response.text
-            )
-        
-        decoded_token:dict=jwt_token.decode(response.json()['token'],options={'verify_signature':False})
-        ic(decoded_token)
-        # checking the email on the waiting list
-        if await get_redis(decoded_token['email']):
-            raise HTTPException(
-                status_code=400,
-                detail="Authentication request already in process for this email"
-            )
-        
-        user_data=AUTHCRUD_OBJ.check_email_isexists(email=decoded_token['email'])
-        if not user_data:
-            auth_id=generate_uuid(data="Authentication id")
-
-            # confirmation email to super admin
-            decoded_token['ip']=request.client.host
-            email_content=get_user_accept_email_content(
-                user_name=decoded_token['name'],
-                user_email=decoded_token['email'],
-                user_role=UserRoles.USER.value,
-                accept_link=str(request.base_url)+f'auth/accept/{auth_id}',
-                profile_pic_link=decoded_token['profile_picture']
-            )
-
-            bgt.add_task(
-                send_email,
-                reciver_emails=AUTHCRUD_OBJ.get_by_role(role_toget=UserRoles.SUPER_ADMIN),
-                subject="User Registeration Accept",
-                is_html=True,
-                body=email_content
-            )
-
-            # setting authentication configuration for 5 minutes
-            await set_redis(key=auth_id,value=decoded_token,expire=300)
-            await set_redis(key=request.client.host,value=auth_id,expire=300)
-            await set_redis(key=decoded_token['email'],value=auth_id,expire=300)
-        
-            ic('Authentication successfull waiting for confirmation')
-            return {
-                'msg':'Authentication successfull waiting for confirmation'
-            }
-        access_token=generate_jwt_token(data={'data':{'email':decoded_token['email'],'role':user_data['role']}},secret=ACCESS_JWT_KEY,alg=JWT_ALG,exp_day=7)
-        refresh_token=generate_jwt_token(data={'data':{'email':decoded_token['email'],'role':user_data['role']}},secret=REFRESH_JWT_KEY,alg=JWT_ALG,exp_day=7)
+    
+    # chcecking is the user already exists
+    user_obj=UserCrud(session=session)
+    user_data=user_obj.isuser_exists(user_id_email=decoded_token['email'])
+    
+    # if user present means sending the auth tokens
+    if user_data:
+        access_token=generate_jwt_token(data={'data':{'email':decoded_token['email'],'role':user_data['role'],'id':user_data['id']}},secret=ACCESS_JWT_KEY,alg=JWT_ALG,exp_day=7)
+        refresh_token=generate_jwt_token(data={'data':{'email':decoded_token['email'],'role':user_data['role'],'id':user_data['id']}},secret=REFRESH_JWT_KEY,alg=JWT_ALG,exp_day=7)
         ic(f"Auth tokens : {access_token} {refresh_token}")
         
         return RedirectResponse(
@@ -113,9 +71,50 @@ async def auth_redirect(code:str,request:Request,bgt:BackgroundTasks):
                 'X-Refresh-Token':refresh_token
             }
         )
+    
+    # if user not means sending confirmation email to super admins
+    # generating temporary authentication id
+    auth_id=generate_uuid(data="Authentication id")
+
+    # confirmation email to super admin
+
+    # setting ip to the token
+    decoded_token['ip']=request.client.host
+
+    # generating accept email content
+    email_content=get_user_accept_email_content(
+        user_name=decoded_token['name'],
+        user_email=decoded_token['email'],
+        user_role=UserRoles.USER.value,
+        accept_link=str(request.base_url)+f'auth/accept/{auth_id}',
+        profile_pic_link=decoded_token['profile_picture']
+    )
+
+    # sending email to super admins
+    bgt.add_task(
+        send_email,
+        reciver_emails=user_obj.get_by_role(user_role=UserRoles.SUPER_ADMIN,userrole_toget=UserRoles.SUPER_ADMIN),
+        subject="User Registeration Accept",
+        is_html=True,
+        body=email_content
+    )
+
+    # setting authentication configuration for 5 minutes in redis
+    await set_redis(key=auth_id,value=decoded_token,expire=300)
+    await set_redis(key=request.client.host,value=auth_id,expire=300)
+    await set_redis(key=decoded_token['email'],value=auth_id,expire=300)
+
+    ic('Authentication successfull waiting for confirmation')
+    return {
+        'msg':'Authentication successfull waiting for confirmation'
+    }
+    
+    
+
 
 @router.get('/auth/accept/{auth_id}')
-async def accept_authenticated_user(auth_id:str,request:Request,bgt:BackgroundTasks):
+async def accept_authenticated_user(auth_id:str,request:Request,bgt:BackgroundTasks,session=Depends(get_pg_db_session)):
+    # cchecking is authentication request/id present
     auth_data=await get_redis(auth_id)
     if auth_data is None:
         raise HTTPException(
@@ -123,12 +122,15 @@ async def accept_authenticated_user(auth_id:str,request:Request,bgt:BackgroundTa
             detail="Authentication request not found"
         )
     
-    auth_tokens=AuthCrud().add_update(
+    # if it present adding user to the db and getting auth tokens
+    auth_tokens=UserCrud(session=session).add(
         email=auth_data['email'],
         name=auth_data['name'],
         role=UserRoles.USER
     )
     ic(f"Auth tokens : {auth_tokens}")
+
+    # Then sending accepted email to the registered user
     email_content=get_accepted_email_content(
         user_name=auth_data['name'],
         user_email=auth_data['email'],
@@ -143,9 +145,10 @@ async def accept_authenticated_user(auth_id:str,request:Request,bgt:BackgroundTa
         is_html=True,
         body=email_content
     )
-    ic("vefore unlink : ",get_redis(auth_data['ip']))
+
+    # removing all the redis keys related to this authentication
     await unlink_redis(key=[auth_id,auth_data['ip'],auth_data['email']])
-    ic("after unlink : ",get_redis(auth_data['ip']))
+
     return template.TemplateResponse(
         'user_accepted.html',
         context={
@@ -168,22 +171,3 @@ async def get_new_access_token(user:dict=Depends(verify_user)):
         exp_day=7
     )}
 
-@router.get('/user')
-async def get_users(user:dict=Depends(verify_user)):
-    return AUTHCRUD_OBJ.get(user_role=user['role'])
-
-@router.get('/user/{email}')
-async def get_user_by_email(email:EmailStr,user:dict=Depends(verify_user)):
-    return AUTHCRUD_OBJ.get_by_email(email_toget=email,user_role=user['role'])
-
-@router.get('/user/role/{role}')
-async def get_users_by_role(role:UserRoles):
-    return AUTHCRUD_OBJ.get_by_role(role_toget=role)
-
-@router.put('/user/role')
-async def update_user_role(data:UserRoleUpdateSchema,user:dict=Depends(verify_user)):
-    return AUTHCRUD_OBJ.update_role(user_role=user['role'],email_toupdate=data.email,role_toupdate=data.role)
-
-@router.delete('/user/{email}')
-async def delete_user(email:EmailStr,user:dict=Depends(verify_user)):
-    return AUTHCRUD_OBJ.delete(user_role=user['role'],email_toremove=email)

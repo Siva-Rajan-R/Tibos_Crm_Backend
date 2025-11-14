@@ -2,7 +2,7 @@ from fastapi import Depends,APIRouter
 from api.schemas.product import AddProductSchema,UpdateProductSchema
 from database.configs.pg_config import get_pg_db_session,AsyncSession
 from api.dependencies.token_verification import verify_user
-from crud.product_crud import ProductsCrud
+from operations.crud.product_crud import ProductsCrud
 
 
 router=APIRouter(

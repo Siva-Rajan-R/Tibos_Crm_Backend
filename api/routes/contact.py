@@ -2,7 +2,7 @@ from fastapi import Depends,APIRouter
 from api.schemas.contact import AddContactSchema,UpdateContactSchema
 from database.configs.pg_config import get_pg_db_session,AsyncSession
 from api.dependencies.token_verification import verify_user
-from crud.contact_crud import ContactsCrud
+from operations.crud.contact_crud import ContactsCrud
 
 
 router=APIRouter(
@@ -61,7 +61,7 @@ async def get_contact_by_contact_id(contact_id:str,user:dict=Depends(verify_user
     return await ContactsCrud(
         session=session,
         user_role=user['role']
-    ).get_by_contact_id(contact_id=contact_id)
+    ).get_by_id(contact_id=contact_id)
 
 @router.get('/contact/customer/{customer_id}')
 async def get_contact_by_customer_id(customer_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
