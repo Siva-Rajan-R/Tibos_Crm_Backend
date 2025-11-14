@@ -9,6 +9,7 @@ from icecream import ic
 import os,json
 from operations.response_models.user_response import UserAddResponse
 from operations.abstract_models.crud_model import UserCrudModel
+from typing import Optional
 
 DEFAULT_SUPERADMIN_INFO=json.loads(os.getenv('DEFAULT_SUPERADMIN_INFO'))
 
@@ -22,7 +23,8 @@ class UserCrud(UserCrudModel):
                 Users.id,
                 Users.email,
                 Users.name,
-                Users.role
+                Users.role,
+                Users.profile_url
             ).where(or_(Users.email==user_id_email,Users.id==user_id_email))
         )).mappings().one_or_none()
     
@@ -34,7 +36,8 @@ class UserCrud(UserCrudModel):
                 await self.add(
                     email=superadmins['email'],
                     name=superadmins['name'],
-                    role=UserRoles.SUPER_ADMIN
+                    role=UserRoles.SUPER_ADMIN,
+                    profile_url=superadmins['profie_url']
                 )
             ic("✅ Default Super-Admin Created Successfully")
 
@@ -43,7 +46,7 @@ class UserCrud(UserCrudModel):
                 f"❌ Error : Creating Default Super-Admin {e}"
             )
 
-    async def add(self,name:str,email:EmailStr,role:UserRoles)->UserAddResponse:
+    async def add(self,name:str,email:EmailStr,role:UserRoles,profile_url:Optional[str]=None)->UserAddResponse:
         try:
             async with self.session.begin():
                 user_id=(await self.session.execute(select(Users.id).where(Users.email==email))).scalar_one_or_none()
@@ -53,7 +56,8 @@ class UserCrud(UserCrudModel):
                         id=user_id,
                         name=name,
                         email=email,
-                        role=role
+                        role=role,
+                        profile_url=profile_url
                     )
 
                     self.session.add(user_toadd)
@@ -158,7 +162,8 @@ class UserCrud(UserCrudModel):
                     Users.id,
                     Users.email,
                     Users.name,
-                    Users.role
+                    Users.role,
+                    Users.profile_url
                 )
             )).mappings().all()
 
@@ -187,7 +192,8 @@ class UserCrud(UserCrudModel):
                 Users.id,
                 Users.name,
                 Users.email,
-                Users.role
+                Users.role,
+                Users.profile_url
             ).where(
                 userid_toget==Users.id
             )
@@ -219,7 +225,8 @@ class UserCrud(UserCrudModel):
                 Users.id,
                 Users.name,
                 Users.email,
-                Users.role
+                Users.role,
+                Users.profile_url
             ).where(
                 userrole_toget==Users.role
             )

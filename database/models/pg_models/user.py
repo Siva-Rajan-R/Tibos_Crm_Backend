@@ -8,3 +8,4 @@ class Users(PG_BASE):
     email=Column(String,nullable=False)
     name=Column(String,nullable=False)
     role=Column(Enum(UserRoles),nullable=False)
+    profile_url=Column(String,nullable=False)

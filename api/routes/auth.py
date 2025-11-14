@@ -23,6 +23,7 @@ router=APIRouter(
 
 DEB_AUTH_APIKEY=os.getenv("DEB_AUTH_APIKEY")
 DEB_AUTH_CLIENT_SECRET=os.getenv("DEB_AUTH_CLIENT_SECRET")
+FRONTEND_URL=os.getenv('FRONTEND_URL')
 AUTHCRUD_OBJ=AuthCrud()
 
 template=Jinja2Templates("templates/site")
@@ -64,7 +65,7 @@ async def auth_redirect(code:str,request:Request,bgt:BackgroundTasks,session=Dep
         ic(f"Auth tokens : {access_token} {refresh_token}")
         
         return RedirectResponse(
-            url="http://127.0.0.1:8000/",
+            url=F"{FRONTEND_URL}?auth=true&access_token={access_token}&refresh_token={refresh_token}&user_name={user_data.name}&profile_url={user_data.profile_url}",
             status_code=302,
             headers={
                 'X-Access-Token':access_token,
@@ -126,10 +127,12 @@ async def accept_authenticated_user(auth_id:str,request:Request,bgt:BackgroundTa
         )
     
     # if it present adding user to the db and getting auth tokens
+    ic(auth_data)
     auth_tokens=(await UserCrud(session=session).add(
         email=auth_data['email'],
         name=auth_data['name'],
-        role=UserRoles.USER
+        role=UserRoles.USER,
+        profile_url=auth_data['profile_picture']
     ))
     ic(f"Auth tokens : {auth_tokens}")
 
@@ -138,7 +141,7 @@ async def accept_authenticated_user(auth_id:str,request:Request,bgt:BackgroundTa
         user_name=auth_data['name'],
         user_email=auth_data['email'],
         user_role=UserRoles.USER.value,
-        dashboard_link='http://127.0.0.1:8000/',
+        dashboard_link=FRONTEND_URL,
         profile_pic_link=auth_data['profile_picture']
     )
     bgt.add_task(
@@ -159,7 +162,7 @@ async def accept_authenticated_user(auth_id:str,request:Request,bgt:BackgroundTa
             'name':auth_data['name'],
             'email':auth_data['email'],
             'role':UserRoles.USER.value,
-            'details_link':'http://127.0.0.1:8000/',
+            'details_link':FRONTEND_URL,
             'profile_pic_link':auth_data['profile_picture']
         }
     )
