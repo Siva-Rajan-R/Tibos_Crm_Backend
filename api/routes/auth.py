@@ -30,7 +30,7 @@ template=Jinja2Templates("templates/site")
 @router.get('/auth')
 async def auth_user(request:Request):
     # checking if the ip is on waiting list
-    if await get_redis(request.client.host):
+    if await get_redis(f"auth-ip-{request.client.host}"):
         raise HTTPException(
             status_code=400,
             detail=f"Authentication request already in process..."
@@ -55,12 +55,12 @@ async def auth_redirect(code:str,request:Request,bgt:BackgroundTasks,session=Dep
     
     # chcecking is the user already exists
     user_obj=UserCrud(session=session)
-    user_data=user_obj.isuser_exists(user_id_email=decoded_token['email'])
+    user_data=(await user_obj.isuser_exists(user_id_email=decoded_token['email']))
     
     # if user present means sending the auth tokens
     if user_data:
-        access_token=generate_jwt_token(data={'data':{'email':decoded_token['email'],'role':user_data['role'],'id':user_data['id']}},secret=ACCESS_JWT_KEY,alg=JWT_ALG,exp_day=7)
-        refresh_token=generate_jwt_token(data={'data':{'email':decoded_token['email'],'role':user_data['role'],'id':user_data['id']}},secret=REFRESH_JWT_KEY,alg=JWT_ALG,exp_day=7)
+        access_token=generate_jwt_token(data={'data':{'email':decoded_token['email'],'role':user_data['role'].value,'id':user_data['id']}},secret=ACCESS_JWT_KEY,alg=JWT_ALG,exp_day=7)
+        refresh_token=generate_jwt_token(data={'data':{'email':decoded_token['email'],'role':user_data['role'].value,'id':user_data['id']}},secret=REFRESH_JWT_KEY,alg=JWT_ALG,exp_day=7)
         ic(f"Auth tokens : {access_token} {refresh_token}")
         
         return RedirectResponse(
@@ -79,7 +79,8 @@ async def auth_redirect(code:str,request:Request,bgt:BackgroundTasks,session=Dep
     # confirmation email to super admin
 
     # setting ip to the token
-    decoded_token['ip']=request.client.host
+    auth_ip=f"auth-ip-{request.client.host}"
+    decoded_token['ip']=auth_ip
 
     # generating accept email content
     email_content=get_user_accept_email_content(
@@ -91,9 +92,11 @@ async def auth_redirect(code:str,request:Request,bgt:BackgroundTasks,session=Dep
     )
 
     # sending email to super admins
+    super_admin_emails=[emails['email'] for emails in (await user_obj.get_by_role(user_role=UserRoles.SUPER_ADMIN.value,userrole_toget=UserRoles.SUPER_ADMIN))['user']]
+    ic("super admins : ",super_admin_emails)
     bgt.add_task(
         send_email,
-        reciver_emails=user_obj.get_by_role(user_role=UserRoles.SUPER_ADMIN,userrole_toget=UserRoles.SUPER_ADMIN),
+        reciver_emails=super_admin_emails,
         subject="User Registeration Accept",
         is_html=True,
         body=email_content
@@ -101,7 +104,7 @@ async def auth_redirect(code:str,request:Request,bgt:BackgroundTasks,session=Dep
 
     # setting authentication configuration for 5 minutes in redis
     await set_redis(key=auth_id,value=decoded_token,expire=300)
-    await set_redis(key=request.client.host,value=auth_id,expire=300)
+    await set_redis(key=auth_ip,value=auth_id,expire=300)
     await set_redis(key=decoded_token['email'],value=auth_id,expire=300)
 
     ic('Authentication successfull waiting for confirmation')
@@ -123,11 +126,11 @@ async def accept_authenticated_user(auth_id:str,request:Request,bgt:BackgroundTa
         )
     
     # if it present adding user to the db and getting auth tokens
-    auth_tokens=UserCrud(session=session).add(
+    auth_tokens=(await UserCrud(session=session).add(
         email=auth_data['email'],
         name=auth_data['name'],
         role=UserRoles.USER
-    )
+    ))
     ic(f"Auth tokens : {auth_tokens}")
 
     # Then sending accepted email to the registered user
