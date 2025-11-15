@@ -15,10 +15,10 @@ load_dotenv()
 
 # changing event loop for better permformance *It works only on (linux,macos)
 if sys.platform!="win32":
-    uvloop_install_cmd=["pip","install","uvloop"]
-    uvloop_exc_process=subprocess.Popen(uvloop_install_cmd)
-    uvloop_exc_process.wait()
-    ic("✅ Uvloop Installed Successfully")
+    # uvloop_install_cmd=["pip","install","uvloop"]
+    # uvloop_exc_process=subprocess.Popen(uvloop_install_cmd)
+    # uvloop_exc_process.wait()
+    # ic("✅ Uvloop Installed Successfully")
 
     import uvloop
     asyncio.set_event_loop_policy(uvloop.EventLoopPolicy())

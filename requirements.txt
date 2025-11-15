@@ -13,4 +13,5 @@ icecream
 httpx
 python-dotenv
 aiosmtplib
+uvloop
 jinja2
