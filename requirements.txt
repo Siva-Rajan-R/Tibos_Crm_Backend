@@ -9,12 +9,8 @@ python-multipart
 uvicorn
 asyncpg
 redis
-alembic
 icecream
 httpx
 python-dotenv
-pyrebase4
-setuptools
-alembic
 aiosmtplib
 jinja2
