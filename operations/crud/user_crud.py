@@ -37,7 +37,7 @@ class UserCrud(UserCrudModel):
                     email=superadmins['email'],
                     name=superadmins['name'],
                     role=UserRoles.SUPER_ADMIN,
-                    profile_url=superadmins['profie_url']
+                    profile_url=superadmins['profile_url']
                 )
             ic("✅ Default Super-Admin Created Successfully")
 
