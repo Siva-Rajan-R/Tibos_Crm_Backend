@@ -3,7 +3,7 @@ from database.models.pg_models.order import Orders
 from database.models.pg_models.product import Products
 from database.models.pg_models.customer import Customers
 from utils.uuid_generator import generate_uuid
-from sqlalchemy import select,delete,update
+from sqlalchemy import select,delete,update,or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
 from data_formats.enums.common_enums import UserRoles
@@ -112,7 +112,7 @@ class OrdersCrud(BaseCrud):
                 detail=f"Something went wrong while Deleting Order {e}"
             )
         
-    async def get(self):
+    async def get(self,offset:int,limit:int):
         try:
             queried_orders=(await self.session.execute(
                 select(
@@ -132,6 +132,7 @@ class OrdersCrud(BaseCrud):
                 )
                 .join(Products,Products.id==Orders.product_id,isouter=True)
                 .join(Customers,Customers.id==Orders.customer_id,isouter=True)
+                .offset(offset).limit(limit)
             )).mappings().all()
 
             return {'orders':queried_orders}
@@ -144,6 +145,43 @@ class OrdersCrud(BaseCrud):
             raise HTTPException(
                 status_code=500,
                 detail=f"Something went wrong while fetching all orders {e}"
+            )
+    
+    async def search(self,query:str):
+        try:
+            search_term=f"%{query.lower()}%"
+            queried_orders=(await self.session.execute(
+                select(
+                    Orders.id,
+                    Orders.customer_id,
+                    Orders.product_id,
+                    Orders.quantity,
+                    Orders.total_price,
+                    Orders.discount_price,
+                    Orders.final_price,
+                    Orders.delivery_info,
+                    Products.name.label('product_name'),
+                    Products.product_type,
+                    Products.description,
+                    Customers.name.label('customer_name'),
+                    Customers.mobile_number  
+                )
+                .join(Products,Products.id==Orders.product_id,isouter=True)
+                .join(Customers,Customers.id==Orders.customer_id,isouter=True)
+                .where(or_(Orders.id.like(search_term),Products.name.like(search_term),Customers.name.like(search_term)))
+                .limit(5)
+            )).mappings().all()
+
+            return {'orders':queried_orders}
+        
+        except HTTPException:
+            raise
+        
+        except Exception as e:
+            ic(f"Something went wrong while searching orders {e}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Something went wrong while searching orders {e}"
             )
         
     async def get_by_id(self,order_id:str):
@@ -181,7 +219,7 @@ class OrdersCrud(BaseCrud):
                 detail=f"Something went wrong while fetching single order {e}"
             )
     
-    async def get_by_customer_id(self,customer_id:str):
+    async def get_by_customer_id(self,customer_id:str,offset:int,limit:int):
         try:
             queried_orders=(await self.session.execute(
                 select(
@@ -202,6 +240,8 @@ class OrdersCrud(BaseCrud):
                 .join(Products,Products.id==Orders.product_id,isouter=True)
                 .join(Customers,Customers.id==Orders.customer_id,isouter=True)
                 .where(Orders.customer_id==customer_id)
+                .offset(offset)
+                .limit(limit)
             )).mappings().all()
 
             return {'orders':queried_orders}

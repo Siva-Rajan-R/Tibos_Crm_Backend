@@ -30,6 +30,7 @@ async def verify_user(request:Request,credentials:HTTPAuthorizationCredentials=D
         ic('redis response',res)
         # if this both conditions met it will return the decoded token
         if res['count']>=3 and res['token']==bearer_token:
+            # *important need to revoke if the role was change after 3 attempts
             ic('verified and returned via redis')
             return decoded_token
         else:

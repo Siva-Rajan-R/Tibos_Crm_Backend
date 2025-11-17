@@ -1,8 +1,9 @@
-from fastapi import Depends,APIRouter
+from fastapi import Depends,APIRouter,Query
 from api.schemas.order import AddOrderSchema,UpdateOrderSchema
 from database.configs.pg_config import get_pg_db_session,AsyncSession
 from api.dependencies.token_verification import verify_user
 from operations.crud.order_crud import OrdersCrud
+from typing import Optional
 
 
 router=APIRouter(
@@ -61,11 +62,19 @@ async def delete_order(customer_id:str,order_id:str,user:dict=Depends(verify_use
 
 
 @router.get('/order')
-async def get_all_order(user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+async def get_all_order(offset:Optional[int]=Query(0),limit:Optional[int]=Query(10),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await OrdersCrud(
         session=session,
         user_role=user['role']
-    ).get()
+    ).get(offset=offset,limit=limit)
+
+
+@router.get('/order/search')
+async def get_all_order(q:str=Query(...),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+    return await OrdersCrud(
+        session=session,
+        user_role=user['role']
+    ).search(query=q)
 
 
 @router.get('/order/{order_id}')
@@ -75,9 +84,11 @@ async def get_order_by_order_id(order_id:str,user:dict=Depends(verify_user),sess
         user_role=user['role']
     ).get_by_id(order_id=order_id)
 
+
+
 @router.get('/order/customer/{customer_id}')
-async def get_order_by_customer_id(customer_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+async def get_order_by_customer_id(customer_id:str,user:dict=Depends(verify_user),offset:Optional[int]=Query(0),limit:Optional[int]=Query(10),session:AsyncSession=Depends(get_pg_db_session)):
     return await OrdersCrud(
         session=session,
         user_role=user['role']
-    ).get_by_customer_id(customer_id=customer_id)
+    ).get_by_customer_id(customer_id=customer_id,offset=offset,limit=limit)

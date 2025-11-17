@@ -12,7 +12,8 @@ from operations.abstract_models.crud_model import UserCrudModel
 from typing import Optional
 
 DEFAULT_SUPERADMIN_INFO=json.loads(os.getenv('DEFAULT_SUPERADMIN_INFO'))
-
+ 
+ 
 class UserCrud(UserCrudModel):
     def __init__(self,session:AsyncSession):
         self.session=session
@@ -82,9 +83,6 @@ class UserCrud(UserCrudModel):
                 detail=f"Something went wrong while add-update user {e}"
             )
         
-    async def update():
-        # this is just for abstract this method doesnot do anything
-        pass
 
     async def update_role(self,user_role:UserRoles,user_toupdate_id:str,role_toupdate:UserRoles):
         try:
@@ -244,3 +242,12 @@ class UserCrud(UserCrudModel):
                 status_code=500,
                 detail=f"Something went wrong while get-user-by-role {e}"
             )
+    
+
+    async def update():
+        """this is just for abstract this method doesnot do anything"""
+        pass
+
+    async def search():
+        """this is just for abstract this method doesnot do anything"""
+        pass

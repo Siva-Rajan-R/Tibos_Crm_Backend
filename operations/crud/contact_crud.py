@@ -107,7 +107,7 @@ class ContactsCrud(BaseCrud):
                 detail=f"Something went wrong while Deleting contact {e}"
             )
         
-    async def get(self):
+    async def get(self,offset:int,limit:int):
         try:
             queried_contacts=(await self.session.execute(
                 select(
@@ -120,7 +120,7 @@ class ContactsCrud(BaseCrud):
                     Customers.email.label('customer_email'),
                     Customers.website_url.label('customer_website')  
                 )
-                .join(Customers,Customers.id==Contacts.customer_id,isouter=True)
+                .join(Customers,Customers.id==Contacts.customer_id,isouter=True).offset(offset).limit(limit)
             )).mappings().all()
 
             return {'contacts':queried_contacts}
@@ -133,6 +133,30 @@ class ContactsCrud(BaseCrud):
             raise HTTPException(
                 status_code=500,
                 detail=f"Something went wrong while fetching all contacts {e}"
+            )
+        
+    async def search(self,query:str):
+        try:
+            search_term=f"%{query.lower()}%"
+            queried_contacts=(await self.session.execute(
+                select(
+                    Contacts.id,
+                    Contacts.name.label('contact_name'), 
+                ).where(
+                    Contacts.name.like(search_term)
+                ).limit(5)
+            )).mappings().all()
+
+            return {'contacts':queried_contacts}
+        
+        except HTTPException:
+            raise
+        
+        except Exception as e:
+            ic(f"Something went wrong while searching contacts {e}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Something went wrong while searching contacts {e}"
             )
         
     async def get_by_id(self,contact_id:str):
@@ -164,7 +188,7 @@ class ContactsCrud(BaseCrud):
                 detail=f"Something went wrong while fetching single contact {e}"
             )
     
-    async def get_by_customer_id(self,customer_id:str):
+    async def get_by_customer_id(self,customer_id:str,offset:int,limit:int):
         try:
             queried_contacts=(await self.session.execute(
                 select(
@@ -179,6 +203,8 @@ class ContactsCrud(BaseCrud):
                 )
                 .join(Customers,Customers.id==Contacts.customer_id,isouter=True)
                 .where(customer_id==Contacts.customer_id)
+                .offset(offset)
+                .limit(limit)
             )).mappings().all()
 
             return {'contacts':queried_contacts}

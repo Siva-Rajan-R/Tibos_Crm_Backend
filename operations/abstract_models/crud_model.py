@@ -22,6 +22,10 @@ class BaseCrud(ABC):
     @abstractmethod
     async def get_by_id(self,*args,**kwargs):
         ...
+    
+    @abstractmethod
+    async def search(self,*args,**kwargs):
+        ...
 
 
 class UserCrudModel(BaseCrud):

@@ -113,7 +113,7 @@ class CustomersCrud(BaseCrud):
                 detail=f"Something went wrong while Deleting customer {e}"
             )
         
-    async def get(self):
+    async def get(self,offset:int,limit:int):
         try:
             queried_customers=(await self.session.execute(
                 select(
@@ -127,7 +127,7 @@ class CustomersCrud(BaseCrud):
                     Customers.industry,
                     Customers.sector,
                     Customers.address
-                )
+                ).offset(offset).limit(limit)
             )).mappings().all()
 
             return {'customers':queried_customers}
@@ -140,6 +140,29 @@ class CustomersCrud(BaseCrud):
             raise HTTPException(
                 status_code=500,
                 detail=f"Something went wrong while fetching all customers {e}"
+            )
+    
+    async def search(self,query:str):
+        try:
+            search_term=f"%{query.lower()}%"
+            queried_customers=(await self.session.execute(
+                select(
+                    Customers.id,
+                    Customers.name,
+                ).where(Customers.name.like(search_term))
+                .limit(5)
+            )).mappings().all()
+
+            return {'customers':queried_customers}
+        
+        except HTTPException:
+            raise
+        
+        except Exception as e:
+            ic(f"Something went wrong while searching customers {e}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Something went wrong while searching customers {e}"
             )
         
     async def get_by_id(self,customer_id:str):

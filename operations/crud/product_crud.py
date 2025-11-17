@@ -1,7 +1,7 @@
 from globals.fastapi_globals import HTTPException
 from database.models.pg_models.product import Products,ProductTypes
 from utils.uuid_generator import generate_uuid
-from sqlalchemy import select,delete,update
+from sqlalchemy import select,delete,update,or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
 from data_formats.enums.common_enums import UserRoles
@@ -103,7 +103,7 @@ class ProductsCrud(BaseCrud):
                 detail=f"Something went wrong while Deleting product {e}"
             )
         
-    async def get(self):
+    async def get(self,offset:int,limit:int):
         try:
             queried_products=(await self.session.execute(
                 select(
@@ -113,7 +113,10 @@ class ProductsCrud(BaseCrud):
                     Products.available_qty.label('quantity'),
                     Products.price,
                     Products.product_type
-                ).order_by(Products.name)
+                )
+                .offset(offset)
+                .limit(limit)
+                .order_by(Products.name)
             )).mappings().all()
 
             return {'products':queried_products}
@@ -127,9 +130,36 @@ class ProductsCrud(BaseCrud):
                 status_code=500,
                 detail=f"Something went wrong while fetching all product {e}"
             )
+    
+    async def search(self,query:str):
+        try:
+            ic(query)
+            search_term=f"%{query.lower()}%"
+            queried_products=(await self.session.execute(
+                select(
+                    Products.id,
+                    Products.name,
+                )
+                .where(or_(Products.name.like(search_term),Products.description.like(search_term)))
+                .limit(5)
+                .order_by(Products.name)
+            )).mappings().all()
+
+            return {'products':queried_products}
+        
+        except HTTPException:
+            raise
+        
+        except Exception as e:
+            ic(f"Something went wrong while searching product {e}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Something went wrong while searching product {e}"
+            )
         
     async def get_by_id(self,product_id:str):
         try:
+            ic("pro6t6t6")
             queried_products=(await self.session.execute(
                 select(
                     Products.id,

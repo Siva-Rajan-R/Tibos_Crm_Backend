@@ -1,8 +1,9 @@
-from fastapi import Depends,APIRouter
+from fastapi import Depends,APIRouter,Query
 from api.schemas.product import AddProductSchema,UpdateProductSchema
 from database.configs.pg_config import get_pg_db_session,AsyncSession
 from api.dependencies.token_verification import verify_user
 from operations.crud.product_crud import ProductsCrud
+from typing import Optional
 
 
 router=APIRouter(
@@ -50,12 +51,18 @@ async def delete_product(product_id:str,user:dict=Depends(verify_user),session:A
 
 
 @router.get('/product')
-async def get_all_product(user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+async def get_all_product(offset:Optional[int]=Query(0),limit:Optional[int]=Query(10),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await ProductsCrud(
         session=session,
         user_role=user['role']
-    ).get()
+    ).get(offset=offset,limit=limit)
 
+@router.get('/product/search')
+async def get_searched_product(q:str=Query(...),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+    return await ProductsCrud(
+        session=session,
+        user_role=user['role']
+    ).search(query=q)
 
 @router.get('/product/{product_id}')
 async def get_product_by_id(product_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
