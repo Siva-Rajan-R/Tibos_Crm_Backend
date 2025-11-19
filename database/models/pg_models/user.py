@@ -6,6 +6,6 @@ class Users(PG_BASE):
     __tablename__="users"
     id=Column(String,primary_key=True)
     email=Column(String,nullable=False)
+    password=Column(String,nullable=False)
     name=Column(String,nullable=False)
     role=Column(Enum(UserRoles),nullable=False)
-    profile_url=Column(String,nullable=False)

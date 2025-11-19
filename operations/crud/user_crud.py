@@ -10,6 +10,8 @@ import os,json
 from operations.response_models.user_response import UserAddResponse
 from operations.abstract_models.crud_model import UserCrudModel
 from typing import Optional
+from security.data_hashing import verfiy_hashed,hash_data
+from secrets import token_urlsafe
 
 DEFAULT_SUPERADMIN_INFO=json.loads(os.getenv('DEFAULT_SUPERADMIN_INFO'))
  
@@ -23,9 +25,10 @@ class UserCrud(UserCrudModel):
             select(
                 Users.id,
                 Users.email,
+                Users.password,
                 Users.name,
                 Users.role,
-                Users.profile_url
+
             ).where(or_(Users.email==user_id_email,Users.id==user_id_email))
         )).mappings().one_or_none()
     
@@ -35,10 +38,11 @@ class UserCrud(UserCrudModel):
             ic(f"🔃 Creating Default Super-Admin... {DEFAULT_SUPERADMIN_INFO} {type(DEFAULT_SUPERADMIN_INFO)}")
             for superadmins in DEFAULT_SUPERADMIN_INFO:
                 await self.add(
+                    user_role_tocheck=UserRoles.SUPER_ADMIN.value,
                     email=superadmins['email'],
                     name=superadmins['name'],
                     role=UserRoles.SUPER_ADMIN,
-                    profile_url=superadmins['profile_url']
+                    password=token_urlsafe(32)
                 )
             ic("✅ Default Super-Admin Created Successfully")
 
@@ -47,31 +51,40 @@ class UserCrud(UserCrudModel):
                 f"❌ Error : Creating Default Super-Admin {e}"
             )
 
-    async def add(self,name:str,email:EmailStr,role:UserRoles,profile_url:Optional[str]=None)->UserAddResponse:
+    async def add(self,user_role_tocheck:UserRoles,name:str,email:EmailStr,password:str,role:UserRoles):
         try:
             async with self.session.begin():
-                user_id=(await self.session.execute(select(Users.id).where(Users.email==email))).scalar_one_or_none()
-                if not user_id:
-                    user_id=generate_uuid(name)
-                    user_toadd=Users(
-                        id=user_id,
-                        name=name,
-                        email=email,
-                        role=role,
-                        profile_url=profile_url
+                if not user_role_tocheck==UserRoles.SUPER_ADMIN.value:
+                    raise HTTPException(
+                        status_code=401,
+                        detail="Your'e not allowed"
                     )
+                
+                user_id=(await self.session.execute(select(Users.id).where(Users.email==email))).scalar_one_or_none()
+                if user_id:
+                    raise HTTPException(
+                        status_code=409,
+                        detail="User already exists"
+                    )
+                
+                user_id=generate_uuid(name)
+                hashed_pwd=hash_data(password)
+                user_toadd=Users(
+                    id=user_id,
+                    name=name,
+                    email=email,
+                    role=role,
+                    password=hashed_pwd
+                )
 
-                    self.session.add(user_toadd)
+                self.session.add(user_toadd)
                 
                 data={'email':email,'role':role.value,'id':user_id}
                 ic(data)
                 access_token=generate_jwt_token(data={'data':data},secret=ACCESS_JWT_KEY,alg=JWT_ALG,exp_day=7)
                 refresh_token=generate_jwt_token(data={'data':data},secret=REFRESH_JWT_KEY,alg=JWT_ALG,exp_day=7)
                 ic(f"super admin tokens : {access_token} , {refresh_token}")
-                return UserAddResponse(
-                    access_token=access_token,
-                    refresh_token=refresh_token
-                )
+                return "User Created Successfully"
         
         except HTTPException:
             raise
@@ -81,6 +94,44 @@ class UserCrud(UserCrudModel):
             raise HTTPException(
                 status_code=500,
                 detail=f"Something went wrong while add-update user {e}"
+            )
+    
+    async def update(self,user_role:UserRoles,user_toupdate_id:str,user_toupdate_name:str,user_toupdate_role:UserRoles):
+        try:
+            async with self.session.begin():
+                if not user_role==UserRoles.SUPER_ADMIN.value:
+                    raise HTTPException(
+                        status_code=401,
+                        detail="Your'e not allowed"
+                    )
+                
+                username_toupdate=update(
+                    Users
+                ).where(
+                    Users.id==user_toupdate_id
+                ).values(
+                    name=user_toupdate_name,
+                    role=user_toupdate_role
+                )
+                
+                if not username_toupdate:
+                    raise HTTPException(
+                        status_code=404,
+                        detail="User not found"
+                    )
+
+                self.session.execute(username_toupdate)
+
+                return 'User name and role updated Successfully'
+        
+        except HTTPException:
+            raise
+
+        except Exception as e:
+            ic(f"Something went wrong while update user {e}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Something went wrong while update user {e}"
             )
         
 
@@ -160,8 +211,7 @@ class UserCrud(UserCrudModel):
                     Users.id,
                     Users.email,
                     Users.name,
-                    Users.role,
-                    Users.profile_url
+                    Users.role
                 )
             )).mappings().all()
 
@@ -190,8 +240,7 @@ class UserCrud(UserCrudModel):
                 Users.id,
                 Users.name,
                 Users.email,
-                Users.role,
-                Users.profile_url
+                Users.role
             ).where(
                 userid_toget==Users.id
             )
@@ -223,8 +272,7 @@ class UserCrud(UserCrudModel):
                 Users.id,
                 Users.name,
                 Users.email,
-                Users.role,
-                Users.profile_url
+                Users.role
             ).where(
                 userrole_toget==Users.role
             )
@@ -244,9 +292,7 @@ class UserCrud(UserCrudModel):
             )
     
 
-    async def update():
-        """this is just for abstract this method doesnot do anything"""
-        pass
+    
 
     async def search():
         """this is just for abstract this method doesnot do anything"""
