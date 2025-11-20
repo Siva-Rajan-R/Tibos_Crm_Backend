@@ -87,6 +87,10 @@ async def send_user_email(data:AddUserSchema,bgt:BackgroundTasks,user:dict=Depen
             detail=f"Something went wrong while adding user {e}"
         )
 
+@router.put('/user')
+async def update_user(data:UpdateUserSchema,user:dict=Depends(verify_user),session=Depends(get_pg_db_session)):
+    return await UserCrud(session=session).update(user_role=user['role'],user_toupdate_id=data.user_id,user_toupdate_name=data.name,user_toupdate_role=data.role)
+
 @router.get('/user')
 async def get_users(user:dict=Depends(verify_user),session=Depends(get_pg_db_session)):
     return await UserCrud(session=session).get(user_role=user['role'])

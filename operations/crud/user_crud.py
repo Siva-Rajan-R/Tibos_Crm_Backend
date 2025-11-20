@@ -113,15 +113,15 @@ class UserCrud(UserCrudModel):
                 ).values(
                     name=user_toupdate_name,
                     role=user_toupdate_role
-                )
-                
-                if not username_toupdate:
+                ).returning(Users.id)
+                user_id = (await self.session.execute(username_toupdate)).scalar_one_or_none()
+                if not user_id:
                     raise HTTPException(
                         status_code=404,
                         detail="User not found"
                     )
 
-                self.session.execute(username_toupdate)
+                
 
                 return 'User name and role updated Successfully'
         
