@@ -47,7 +47,8 @@ async def auth_user(data:AuthSchema,request:Request,session=Depends(get_pg_db_se
     ic(f"Auth tokens : {access_token} {refresh_token}")
     return {
         'access_token':access_token,
-        'refresh_token':refresh_token
+        'refresh_token':refresh_token,
+        'user_name':user['name']
     }
 
 
