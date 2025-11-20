@@ -52,7 +52,7 @@ async def auth_user(data:AuthSchema,request:Request,session=Depends(get_pg_db_se
 
 
 @router.post('/auth/forgot')
-async def forgot_password(data:AuthForgotEmailSchema,bgt:BackgroundTasks,request:Request,user:dict=Depends(verify_user),session=Depends(get_pg_db_session)):
+async def forgot_password(data:AuthForgotEmailSchema,bgt:BackgroundTasks,request:Request,session=Depends(get_pg_db_session)):
     try:
         forgot_req:str=await get_redis(f"forgot-req-{request.client.host}")
         if forgot_req:
