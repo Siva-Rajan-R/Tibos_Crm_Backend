@@ -4,6 +4,7 @@ from fastapi.templating import Jinja2Templates
 from services.email_service import send_email
 from templates.email.user_accept import get_user_accept_email_content
 from templates.email.accepted import get_login_credential_email_content
+from templates.email.forgot import get_forgot_password_email_content,get_password_reset_success_email
 from operations.crud.auth_crud import AuthCrud
 from security.jwt_token import generate_jwt_token,ACCESS_JWT_KEY,REFRESH_JWT_KEY,JWT_ALG
 from data_formats.enums.common_enums import UserRoles
@@ -13,7 +14,7 @@ from database.configs.redis_config import get_redis,set_redis,unlink_redis
 from database.configs.pg_config import get_pg_db_session
 import os
 from operations.crud.user_crud import UserCrud
-from api.schemas.auth import AuthSchema,AuthForgotEmailSchema
+from api.schemas.auth import AuthSchema,AuthForgotEmailSchema,AuthForgotAcceptSchema
 from security.data_hashing import verfiy_hashed,hash_data
 from icecream import ic
 from dotenv import load_dotenv
@@ -30,7 +31,7 @@ AUTHCRUD_OBJ=AuthCrud()
 
 template=Jinja2Templates("templates/site")
 
-@router.get('/auth')
+@router.post('/auth')
 async def auth_user(data:AuthSchema,request:Request,session=Depends(get_pg_db_session)):
     user=(await UserCrud(session=session).isuser_exists(user_id_email=data.email))
     if user is None:
@@ -51,25 +52,39 @@ async def auth_user(data:AuthSchema,request:Request,session=Depends(get_pg_db_se
 
 
 @router.post('/auth/forgot')
-async def forgot_password(data:AuthForgotEmailSchema,bgt:BackgroundTasks,user:dict=Depends(verify_user),session=Depends(get_pg_db_session)):
+async def forgot_password(data:AuthForgotEmailSchema,bgt:BackgroundTasks,request:Request,user:dict=Depends(verify_user),session=Depends(get_pg_db_session)):
     try:
+        forgot_req:str=await get_redis(f"forgot-req-{request.client.host}")
+        if forgot_req:
+            raise HTTPException(
+                status_code=409,
+                detail="Already in progress..."
+            )
+        
         user=(await UserCrud(session=session).isuser_exists(user_id_email=data.user_email))
+        auth_id:str=generate_uuid("Authenticayion id")
         if user is None:
             raise HTTPException(
                 status_code=401,
                 detail="invalid User"
             )
 
-        email_content=get_login_credential_email_content(user_name=user['name'],user_email=user['email'],user_role=user['role'].value,password=user['password'],dashboard_link=FRONTEND_URL)
+        email_content=get_forgot_password_email_content(
+            user_name=user['name'],
+            user_email=user['email'],
+            reset_link=f"{FRONTEND_URL}/forgot?auth_id={auth_id}"
+        )
 
         bgt.add_task(
             send_email,
             reciver_emails=[user['email']],
-            subject="Welcome To Tibos CRM — Here Are Your Login Details",
+            subject="Tibos CRM — Reset Your Password",
             is_html=True,
             body=email_content
-            
         )
+
+        await set_redis(key=f"forgot-req-{request.client.host}",value=auth_id,expire=120)
+        await set_redis(key=auth_id,value={'ip':request.client.host,'id':user['id'],'email':user['email'],'name':user['name']},expire=120)
 
         return "Sending email to user..."
     
@@ -82,7 +97,59 @@ async def forgot_password(data:AuthForgotEmailSchema,bgt:BackgroundTasks,user:di
             status_code=500,
             detail=f"Something went wrong while sending user cred {e}"
         )
+
+
+@router.post('/auth/forgot/accept')
+async def accept_new_password(data:AuthForgotAcceptSchema,bgt:BackgroundTasks,request:Request,session=Depends(get_pg_db_session)):
+    forgot_req_ip:str=await get_redis(f"forgot-req-{request.client.host}")
+    auth_info:dict=await get_redis(data.auth_id)
+
+    await unlink_redis([f"forgot-req-{request.client.host}",data.auth_id])
+
+    if not forgot_req_ip:
+        raise HTTPException(
+            status_code=403,
+            detail="Not requested forgot"
+        )
     
+    if not auth_info:
+        raise HTTPException(
+            status_code=404,
+            detail="Auth id expired"
+        )
+    
+    if auth_info['ip']!=request.client.host:
+        raise HTTPException(
+            status_code=401,
+            detail="Network interuppted"
+        )
+    
+    if data.new_password!=data.confirm_password:
+        raise HTTPException(
+            status_code=422,
+            detail="Password doesnt match"
+        )
+    
+    user=await UserCrud(session=session).update_password(user_toupdate_id=auth_info['id'],new_password=data.new_password)
+
+    email_content=get_password_reset_success_email(
+        user_email=auth_info['email'],
+        user_name=auth_info['name'],
+        dashboard_link=FRONTEND_URL
+
+    )
+
+    bgt.add_task(
+        send_email(
+            reciver_emails=[auth_info['email']],
+            subject="Tibos Crm — Password Changed Successfully",
+            is_html=True,
+            body=email_content
+        )
+    )
+
+    return user
+
 
 """ THIS IS RELATED TO DEBUGGERS AUTH SERVICE"""
 # @router.get('/auth/redirect')

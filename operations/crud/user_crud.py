@@ -42,7 +42,7 @@ class UserCrud(UserCrudModel):
                     email=superadmins['email'],
                     name=superadmins['name'],
                     role=UserRoles.SUPER_ADMIN,
-                    password=token_urlsafe(32)
+                    password=superadmins['password']
                 )
             ic("✅ Default Super-Admin Created Successfully")
 
@@ -97,6 +97,7 @@ class UserCrud(UserCrudModel):
             )
     
     async def update(self,user_role:UserRoles,user_toupdate_id:str,user_toupdate_name:str,user_toupdate_role:UserRoles):
+        """This is for full update *Name,Role can be changable"""
         try:
             async with self.session.begin():
                 if not user_role==UserRoles.SUPER_ADMIN.value:
@@ -166,6 +167,34 @@ class UserCrud(UserCrudModel):
             raise HTTPException(
                 status_code=500,
                 detail=f"Something went wrong while updating user role {e}"
+            )
+    
+    async def update_password(self,user_toupdate_id:str,new_password:str):
+        try:
+            async with self.session.begin():
+                
+                userpwd_toupdate=update(Users).where(Users.id==user_toupdate_id).values(
+                    password=hash_data(new_password)
+                ).returning(Users.id)
+
+                user_id=(await self.session.execute(userpwd_toupdate)).scalar_one_or_none()
+
+                if not user_id:
+                    raise HTTPException(
+                        status_code=404,
+                        detail="Invalid user"
+                    )
+                
+                return "User password updated successfully"
+        
+        except HTTPException:
+            raise
+
+        except Exception as e:
+            ic(f"Something went wrong while updating user password {e}")
+            raise HTTPException(
+                status_code=500,
+                detail=f"Something went wrong while updating user password {e}"
             )
 
     async def delete(self,user_role:UserRoles,userid_toremove:str):

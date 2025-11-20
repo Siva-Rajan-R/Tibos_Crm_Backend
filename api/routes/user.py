@@ -20,7 +20,7 @@ FRONTEND_URL=os.getenv("FRONTEND_URL")
 @router.post('/user')
 async def add_user(data:AddUserSchema,bgt:BackgroundTasks,user:dict=Depends(verify_user),session=Depends(get_pg_db_session)):
     try:
-        password=token_urlsafe(32)
+        password=token_urlsafe(16)
         user=await UserCrud(session=session).add(
             user_role_tocheck=user['role'],
             name=data.name,
@@ -29,7 +29,7 @@ async def add_user(data:AddUserSchema,bgt:BackgroundTasks,user:dict=Depends(veri
             password=password
         )
 
-        email_content=get_login_credential_email_content(user_name=data.name,user_email=data.email,user_role=data.role,password=password,dashboard_link=FRONTEND_URL)
+        email_content=get_login_credential_email_content(user_name=data.name,user_email=data.email,user_role=data.role.value,password=password,dashboard_link=FRONTEND_URL)
 
         bgt.add_task(
             send_email,

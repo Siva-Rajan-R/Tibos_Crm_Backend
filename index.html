@@ -1,71 +1,97 @@
 <!DOCTYPE html>
-<html lang="en">
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1" />
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <title>Reset Your Password</title>
+  </head>
 
-  <title>Registration Accepted</title>
+  <body style="margin:0; padding:0; background:#f6f7f9;">
+    
+    <table width="100%" cellpadding="0" cellspacing="0" style="padding:20px 0; background:#f6f7f9;">
+      <tr>
+        <td align="center">
 
-  <!-- Tailwind CDN -->
-  <script src="https://cdn.tailwindcss.com"></script>
-</head>
+          <table width="460" cellpadding="0" cellspacing="0" 
+                 style="background:#ffffff; border-radius:14px; 
+                        border:1px solid #e5e7eb; 
+                        padding:30px; font-family:Arial, sans-serif;">
 
-<body class="bg-slate-50 min-h-screen flex items-center justify-center p-6">
+            <!-- Heading -->
+            <tr>
+              <td align="center">
+                <h2 style="margin:0; font-size:24px; font-weight:bold; color:#1e293b;">
+                  Reset Your Password
+                </h2>
+                <p style="margin:6px 0 20px; font-size:13px; color:#64748b;">
+                  A request was made to reset your password. Click the button below to create a new one.
+                </p>
+              </td>
+            </tr>
 
-  <div class="w-full max-w-lg bg-white rounded-3xl shadow-xl p-8 border border-slate-100">
+            <!-- Profile -->
+            <tr>
+              <td align="center" style="padding-bottom:20px;">
+                <img src="{ profile_pic_link }"
+                     alt="Profile Picture"
+                     width="70" height="70"
+                     style="border-radius:50%; display:block; object-fit:cover; box-shadow:0 3px 8px rgba(0,0,0,0.12);" />
+              </td>
+            </tr>
 
-    <!-- Header -->
-    <div class="text-center mb-6">
-      <h1 class="text-3xl font-extrabold text-slate-800">Registration Accepted</h1>
-      <p class="text-slate-500 mt-1">Your account has been successfully approved.</p>
-    </div>
+            <!-- Name -->
+            <tr>
+              <td style="padding:12px; background:#f8fafc; border-radius:10px; margin-bottom:8px;">
+                <div style="font-size:11px; color:#64748b;">Name</div>
+                <div style="font-size:15px; font-weight:bold; color:#1e293b;">
+                  { user_name }
+                </div>
+              </td>
+            </tr>
 
-    <!-- Profile Picture -->
-    <div class="flex justify-center mb-6">
-      {% if profile_pic %}
-      <div class="w-20 h-20 rounded-full overflow-hidden shadow-md">
-        <img src="{{ profile_pic }}" class="w-full h-full object-cover" />
-      </div>
-      {% else %}
-      <div class="w-20 h-20 rounded-full bg-emerald-100 flex items-center justify-center text-3xl font-bold text-emerald-700 shadow-md">
-        {{ name[0] }}
-      </div>
-      {% endif %}
-    </div>
+            <!-- Email -->
+            <tr>
+              <td style="padding:12px; background:#f8fafc; border-radius:10px; margin-bottom:8px;">
+                <div style="font-size:11px; color:#64748b;">Email</div>
+                <div style="font-size:15px; font-weight:bold; color:#1e293b;">
+                  { user_email }
+                </div>
+              </td>
+            </tr>
 
-    <!-- User Details -->
-    <div class="grid grid-cols-1 gap-4">
-      
-      <div class="p-4 bg-slate-50 rounded-xl border border-slate-200">
-        <div class="text-xs text-slate-500 font-medium">Name</div>
-        <div class="text-base font-semibold text-slate-700">{{ name }}</div>
-      </div>
+            <!-- Button -->
+            <tr>
+              <td align="center" style="padding-top:25px;">
+                <a href="{ reset_link }"
+                   style="
+                     background:#059669; 
+                     color:white; 
+                     padding:12px 26px; 
+                     border-radius:8px; 
+                     text-decoration:none; 
+                     font-size:14px; 
+                     font-weight:bold;
+                     display:inline-block;
+                   ">
+                  Reset Password
+                </a>
+              </td>
+            </tr>
 
-      <div class="p-4 bg-slate-50 rounded-xl border border-slate-200">
-        <div class="text-xs text-slate-500 font-medium">Email</div>
-        <div class="text-base font-semibold text-slate-700">{{ email }}</div>
-      </div>
+            <!-- Security Notice -->
+            <tr>
+              <td align="center" style="padding-top:25px;">
+                <p style="font-size:11px; color:#94a3b8;">
+                  If you did not request this, you can safely ignore the email.<br/>
+                  This link will expire in 10 minutes.
+                </p>
+              </td>
+            </tr>
 
-      <div class="p-4 bg-slate-50 rounded-xl border border-slate-200">
-        <div class="text-xs text-slate-500 font-medium">Role</div>
-        <div class="text-base font-semibold text-slate-700 capitalize">{{ role }}</div>
-      </div>
+          </table>
 
-    </div>
+        </td>
+      </tr>
+    </table>
 
-    <!-- Actions -->
-    <div class="mt-8 flex justify-end gap-3">
-      <a href="{{ dashboard_link }}"
-         class="px-5 py-2.5 bg-emerald-600 text-white rounded-xl font-medium hover:opacity-95 shadow">
-         Go to Dashboard
-      </a>
-    </div>
-
-    <p class="text-center text-xs text-slate-400 mt-6">
-      Thank you for joining our community.
-    </p>
-
-  </div>
-
-</body>
+  </body>
 </html>

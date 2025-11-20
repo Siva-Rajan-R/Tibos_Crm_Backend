@@ -26,7 +26,7 @@ async def verify_user(request:Request,credentials:HTTPAuthorizationCredentials=D
 
     is_ipexists=False
     # checking if the incoming ip has already validated or not
-    if res:=(await get_redis(ip)):
+    if res:=(await get_redis(f"token-verify-{ip}")):
         ic('redis response',res)
         # if this both conditions met it will return the decoded token
         if res['count']>=3 and res['token']==bearer_token:
@@ -41,9 +41,9 @@ async def verify_user(request:Request,credentials:HTTPAuthorizationCredentials=D
             if res['count']<3 and res['token']==bearer_token:
                 is_ipexists=True
                 res['count']=res['count']+1
-                await set_redis(ip,res,expire=300)
+                await set_redis(f"token-verify-{ip}",res,expire=300)
             else:
-                await unlink_redis(key=[ip])
+                await unlink_redis(key=[f"token-verify-{ip}"])
 
     user_data=(await UserCrud(session=session).isuser_exists(user_id_email=decoded_token['email']))
     ic(user_data)
@@ -63,7 +63,7 @@ async def verify_user(request:Request,credentials:HTTPAuthorizationCredentials=D
 
     if not is_ipexists:
         ic('setting token,count for the ip')
-        await set_redis(ip,{'token':bearer_token,'count':0})
+        await set_redis(f"token-verify-{ip}",{'token':bearer_token,'count':0})
 
     ic('verified and returned via pg')
     ic("decoded token : ",decoded_token['email'])
