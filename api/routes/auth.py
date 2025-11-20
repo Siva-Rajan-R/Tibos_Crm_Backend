@@ -135,17 +135,16 @@ async def accept_new_password(data:AuthForgotAcceptSchema,bgt:BackgroundTasks,re
     email_content=get_password_reset_success_email(
         user_email=auth_info['email'],
         user_name=auth_info['name'],
-        dashboard_link=FRONTEND_URL
-
+        dashboard_link=f"{FRONTEND_URL}/login"
     )
 
     bgt.add_task(
-        send_email(
-            reciver_emails=[auth_info['email']],
-            subject="Tibos Crm — Password Changed Successfully",
-            is_html=True,
-            body=email_content
-        )
+        send_email,
+        reciver_emails=[auth_info['email']],
+        subject="Tibos Crm — Password Changed Successfully",
+        is_html=True,
+        body=email_content
+        
     )
 
     return user
