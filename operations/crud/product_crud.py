@@ -1,7 +1,7 @@
 from globals.fastapi_globals import HTTPException
 from database.models.pg_models.product import Products,ProductTypes
 from utils.uuid_generator import generate_uuid
-from sqlalchemy import select,delete,update,or_
+from sqlalchemy import select,delete,update,or_,cast,String
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
 from data_formats.enums.common_enums import UserRoles
@@ -123,7 +123,7 @@ class ProductsCrud(BaseCrud):
                         Products.id.ilike(search_term),
                         Products.name.ilike(search_term),
                         Products.description.ilike(search_term),
-                        Products.product_type.ilike(search_term)
+                        cast(Products.product_type,String).ilike(search_term)
                     )
                 )
             )).mappings().all()
