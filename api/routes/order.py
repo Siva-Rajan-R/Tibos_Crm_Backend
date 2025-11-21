@@ -26,7 +26,9 @@ async def add_order(data:AddOrderSchema,user:dict=Depends(verify_user),session:A
         total_price=data.total_price,
         discount_price=data.discount_price,
         final_price=data.final_price,
-        delivery_info=data.delivery_info
+        delivery_info=data.delivery_info,
+        payment_status=data.payment_status,
+        invoice_status=data.invoice_status
     )
 
 
@@ -46,7 +48,9 @@ async def update_order(data:UpdateOrderSchema,user:dict=Depends(verify_user),ses
         total_price=data.total_price,
         discount_price=data.discount_price,
         final_price=data.final_price,
-        delivery_info=data.delivery_info
+        delivery_info=data.delivery_info,
+        payment_status=data.payment_status,
+        invoice_status=data.invoice_status
     )
 
 
@@ -62,11 +66,11 @@ async def delete_order(customer_id:str,order_id:str,user:dict=Depends(verify_use
 
 
 @router.get('/order')
-async def get_all_order(offset:Optional[int]=Query(0),limit:Optional[int]=Query(10),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+async def get_all_order(q:str=Query(''),offset:Optional[int]=Query(0),limit:Optional[int]=Query(10),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await OrdersCrud(
         session=session,
         user_role=user['role']
-    ).get(offset=offset,limit=limit)
+    ).get(offset=offset,limit=limit,query=q)
 
 
 @router.get('/order/search')

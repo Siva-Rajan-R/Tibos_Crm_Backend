@@ -7,6 +7,7 @@ from sqlalchemy import select,delete,update,or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
 from data_formats.enums.common_enums import UserRoles
+from data_formats.enums.pg_enums import PaymentStatus,InvoiceStatus
 from data_formats.typed_dicts.pg_dict import DeliveryInfo
 from operations.abstract_models.crud_model import BaseCrud
 
@@ -23,7 +24,7 @@ class OrdersCrud(BaseCrud):
                 detail="Not a valid user"
             )
 
-    async def add(self,customer_id:str,product_id:str,qty:int,total_price:float,discount_price:float,final_price:float,delivery_info:DeliveryInfo):
+    async def add(self,customer_id:str,product_id:str,qty:int,total_price:float,discount_price:float,final_price:float,delivery_info:DeliveryInfo,payment_status:PaymentStatus,invoice_status:InvoiceStatus):
         try:
             async with self.session.begin():
                 order_id=generate_uuid(data=customer_id)
@@ -35,7 +36,9 @@ class OrdersCrud(BaseCrud):
                     total_price=total_price,
                     discount_price=discount_price,
                     final_price=final_price,
-                    delivery_info=delivery_info
+                    delivery_info=delivery_info,
+                    payment_status=payment_status,
+                    invoice_status=invoice_status
                 )
 
                 self.session.add(order_toadd)
@@ -52,7 +55,7 @@ class OrdersCrud(BaseCrud):
                 detail=f"Something went wrong while adding order {e}"
             )
         
-    async def update(self,order_id:str,customer_id:str,product_id:str,qty:int,total_price:float,discount_price:float,final_price:float,delivery_info:DeliveryInfo):
+    async def update(self,order_id:str,customer_id:str,product_id:str,qty:int,total_price:float,discount_price:float,final_price:float,delivery_info:DeliveryInfo,payment_status:PaymentStatus,invoice_status:InvoiceStatus):
         try:
             async with self.session.begin():
                 order_toupdate=update(Orders).where(Orders.id==order_id,Orders.customer_id==customer_id).values(
@@ -62,7 +65,9 @@ class OrdersCrud(BaseCrud):
                     total_price=total_price,
                     discount_price=discount_price,
                     final_price=final_price,
-                    delivery_info=delivery_info
+                    delivery_info=delivery_info,
+                    payment_status=payment_status,
+                    invoice_status=invoice_status
                 ).returning(Orders.id)
 
                 order_id=(await self.session.execute(order_toupdate)).scalar_one_or_none()
@@ -111,9 +116,10 @@ class OrdersCrud(BaseCrud):
                 status_code=500,
                 detail=f"Something went wrong while Deleting Order {e}"
             )
-        
-    async def get(self,offset:int,limit:int):
+       
+    async def get(self,offset:int,limit:int,query:str=''):
         try:
+            search_term=f"%{query.lower()}%"
             queried_orders=(await self.session.execute(
                 select(
                     Orders.id,
@@ -124,6 +130,8 @@ class OrdersCrud(BaseCrud):
                     Orders.discount_price,
                     Orders.final_price,
                     Orders.delivery_info,
+                    Orders.payment_status,
+                    Orders.invoice_status,
                     Products.name.label('product_name'),
                     Products.product_type,
                     Products.description,
@@ -133,6 +141,15 @@ class OrdersCrud(BaseCrud):
                 .join(Products,Products.id==Orders.product_id,isouter=True)
                 .join(Customers,Customers.id==Orders.customer_id,isouter=True)
                 .offset(offset).limit(limit)
+                .where(
+                    or_(
+                        Orders.id.ilike(search_term),
+                        Products.name.ilike(search_term),
+                        Products.id.ilike(search_term),
+                        Customers.name.ilike(search_term),
+                        Customers.email.ilike(search_term)
+                    )
+                )
             )).mappings().all()
 
             return {'orders':queried_orders}
@@ -160,6 +177,8 @@ class OrdersCrud(BaseCrud):
                     Orders.discount_price,
                     Orders.final_price,
                     Orders.delivery_info,
+                    Orders.invoice_status,
+                    Orders.payment_status,
                     Products.name.label('product_name'),
                     Products.product_type,
                     Products.description,
@@ -168,7 +187,7 @@ class OrdersCrud(BaseCrud):
                 )
                 .join(Products,Products.id==Orders.product_id,isouter=True)
                 .join(Customers,Customers.id==Orders.customer_id,isouter=True)
-                .where(or_(Orders.id.like(search_term),Products.name.like(search_term),Customers.name.like(search_term)))
+                .where(or_(Orders.id.ilike(search_term),Products.name.ilike(search_term),Customers.name.ilike(search_term)))
                 .limit(5)
             )).mappings().all()
 
@@ -196,6 +215,8 @@ class OrdersCrud(BaseCrud):
                     Orders.discount_price,
                     Orders.final_price,
                     Orders.delivery_info,
+                    Orders.payment_status,
+                    Orders.invoice_status,
                     Products.name,
                     Products.product_type,
                     Products.description,
@@ -231,6 +252,8 @@ class OrdersCrud(BaseCrud):
                     Orders.discount_price,
                     Orders.final_price,
                     Orders.delivery_info,
+                    Orders.payment_status,
+                    Orders.invoice_status,
                     Products.name,
                     Products.product_type,
                     Products.description,

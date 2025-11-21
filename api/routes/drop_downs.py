@@ -2,7 +2,7 @@ from fastapi import APIRouter,Depends
 from api.dependencies.token_verification import verify_user
 from database.configs.pg_config import AsyncSession,get_pg_db_session
 from data_formats.enums.common_enums import UserRoles
-from data_formats.enums.pg_enums import ProductTypes,CustomerSectors,ShippingMethods,CustomerIndustries
+from data_formats.enums.pg_enums import ProductTypes,CustomerSectors,ShippingMethods,CustomerIndustries,PaymentStatus,InvoiceStatus
 
 router=APIRouter(
     tags=["Drop-Downs"]
@@ -36,4 +36,16 @@ async def get_dd_user_role(user:dict=Depends(verify_user)):
 async def get_dd_user_role(user:dict=Depends(verify_user)):
     return {
         'shipping_methods':list(ShippingMethods._value2member_map_.values())
+    }
+
+@router.get('/dd/payment-status')
+async def get_dd_payment_status(user:dict=Depends(verify_user)):
+    return {
+        'payment_status':list(PaymentStatus._value2member_map_.values())
+    }
+
+@router.get('/dd/invoice-status')
+async def get_dd_invoice_status(user:dict=Depends(verify_user)):
+    return {
+        'invoice_status':list(InvoiceStatus._value2member_map_.values())
     }

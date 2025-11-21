@@ -103,8 +103,9 @@ class ProductsCrud(BaseCrud):
                 detail=f"Something went wrong while Deleting product {e}"
             )
         
-    async def get(self,offset:int,limit:int):
+    async def get(self,offset:int,limit:int,query:str=''):
         try:
+            search_term=f"%{query.lower()}%"
             queried_products=(await self.session.execute(
                 select(
                     Products.id,
@@ -117,6 +118,14 @@ class ProductsCrud(BaseCrud):
                 .offset(offset)
                 .limit(limit)
                 .order_by(Products.name)
+                .where(
+                    or_(
+                        Products.id.ilike(search_term),
+                        Products.name.ilike(search_term),
+                        Products.description.ilike(search_term),
+                        Products.product_type.ilike(search_term)
+                    )
+                )
             )).mappings().all()
 
             return {'products':queried_products}
@@ -140,7 +149,7 @@ class ProductsCrud(BaseCrud):
                     Products.id,
                     Products.name,
                 )
-                .where(or_(Products.name.like(search_term),Products.description.like(search_term)))
+                .where(or_(Products.name.ilike(search_term),Products.description.ilike(search_term)))
                 .limit(5)
                 .order_by(Products.name)
             )).mappings().all()

@@ -51,11 +51,11 @@ async def delete_product(product_id:str,user:dict=Depends(verify_user),session:A
 
 
 @router.get('/product')
-async def get_all_product(offset:Optional[int]=Query(0),limit:Optional[int]=Query(10),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+async def get_all_product(q:str=Query(''),offset:Optional[int]=Query(0),limit:Optional[int]=Query(10),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await ProductsCrud(
         session=session,
         user_role=user['role']
-    ).get(offset=offset,limit=limit)
+    ).get(offset=offset,limit=limit,query=q)
 
 @router.get('/product/search')
 async def get_searched_product(q:str=Query(...),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):

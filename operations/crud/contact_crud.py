@@ -2,7 +2,7 @@ from globals.fastapi_globals import HTTPException
 from database.models.pg_models.contact import Contacts
 from database.models.pg_models.customer import Customers
 from utils.uuid_generator import generate_uuid
-from sqlalchemy import select,delete,update
+from sqlalchemy import select,delete,update,or_
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
 from data_formats.enums.common_enums import UserRoles
@@ -107,8 +107,9 @@ class ContactsCrud(BaseCrud):
                 detail=f"Something went wrong while Deleting contact {e}"
             )
         
-    async def get(self,offset:int,limit:int):
+    async def get(self,offset:int,limit:int,query:str=''):
         try:
+            search_term=f"%{query.lower()}%"
             queried_contacts=(await self.session.execute(
                 select(
                     Contacts.id,
@@ -121,6 +122,13 @@ class ContactsCrud(BaseCrud):
                     Customers.website_url.label('customer_website')  
                 )
                 .join(Customers,Customers.id==Contacts.customer_id,isouter=True).offset(offset).limit(limit)
+                .where(
+                    or_(
+                        Contacts.name.ilike(search_term),
+                        Contacts.id.ilike(search_term),
+                        Contacts.email.ilike(search_term)
+                    )
+                )
             )).mappings().all()
 
             return {'contacts':queried_contacts}
@@ -143,7 +151,7 @@ class ContactsCrud(BaseCrud):
                     Contacts.id,
                     Contacts.name.label('contact_name'), 
                 ).where(
-                    Contacts.name.like(search_term)
+                    Contacts.name.ilike(search_term)
                 ).limit(5)
             )).mappings().all()
 

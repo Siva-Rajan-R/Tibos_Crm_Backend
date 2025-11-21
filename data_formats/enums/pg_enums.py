@@ -4,6 +4,16 @@ class ProductTypes(Enum):
     APPLE="apple"
     ORANGE="orange"
 
+class PaymentStatus(Enum):
+    PAID ='paid'
+    NOT_PAID = "not paid"
+
+
+class InvoiceStatus(Enum):
+    COMPLETED='completed'
+    INCOMPLETED='incompleted'
+
+
 class CustomerIndustries(Enum):
     IT="It"
     AGRICULTURE="agriculture"

@@ -4,7 +4,6 @@ from fastapi.middleware.cors import CORSMiddleware
 from operations.crud.user_crud import UserCrud
 from database.configs.pg_config import init_pg_db
 from database.configs.redis_config import check_redis_health,redis_client
-from services.email_service import check_email_service_health
 from icecream import ic
 from database.configs.pg_config import AsyncLocalSession
 import sys,subprocess,asyncio
@@ -34,7 +33,6 @@ async def api_lifespan(app:FastAPI):
         await init_pg_db()
         async with AsyncLocalSession() as session:
             await UserCrud(session=session).init_superadmin()
-        await check_email_service_health()
         await check_redis_health()
         yield
     except Exception as e:

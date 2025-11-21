@@ -64,6 +64,7 @@ async def forgot_password(data:AuthForgotEmailSchema,bgt:BackgroundTasks,request
         
         user=(await UserCrud(session=session).isuser_exists(user_id_email=data.user_email))
         auth_id:str=generate_uuid("Authenticayion id")
+        ic(auth_id)
         if user is None:
             raise HTTPException(
                 status_code=401,
@@ -81,11 +82,12 @@ async def forgot_password(data:AuthForgotEmailSchema,bgt:BackgroundTasks,request
             reciver_emails=[user['email']],
             subject="Tibos CRM — Reset Your Password",
             is_html=True,
-            body=email_content
+            body=email_content,
+            client_ip=str(request.client.host)
         )
 
-        await set_redis(key=f"forgot-req-{request.client.host}",value=auth_id,expire=120)
-        await set_redis(key=auth_id,value={'ip':request.client.host,'id':user['id'],'email':user['email'],'name':user['name']},expire=120)
+        await set_redis(key=f"forgot-req-{request.client.host}",value=auth_id,expire=1000)
+        await set_redis(key=auth_id,value={'ip':request.client.host,'id':user['id'],'email':user['email'],'name':user['name']},expire=1000)
 
         return "Sending email to user..."
     
@@ -144,7 +146,8 @@ async def accept_new_password(data:AuthForgotAcceptSchema,bgt:BackgroundTasks,re
         reciver_emails=[auth_info['email']],
         subject="Tibos Crm — Password Changed Successfully",
         is_html=True,
-        body=email_content
+        body=email_content,
+        client_ip=str(request.client.host)
         
     )
 
