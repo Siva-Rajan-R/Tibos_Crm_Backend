@@ -9,6 +9,7 @@ from data_formats.enums.common_enums import UserRoles
 from pydantic import EmailStr
 from typing import Optional,List
 from operations.abstract_models.crud_model import BaseCrud
+from math import ceil
 
 
 
@@ -142,7 +143,7 @@ class ContactsCrud(BaseCrud):
             return {
                 'contacts':queried_contacts,
                 'total_contacts':total_contacts,
-                'total_pages':total_contacts//limit
+                'total_pages':ceil(total_contacts/limit)
             }
         
         except HTTPException:
@@ -231,12 +232,13 @@ class ContactsCrud(BaseCrud):
             if offset==1:
                 total_contacts=(await self.session.execute(
                     select(func.count(Contacts.id))
+                    .where(customer_id==Contacts.customer_id)
                 )).scalar_one_or_none()
 
             return {
                 'contacts':queried_contacts,
                 'total_contacts':total_contacts,
-                'total_pages':total_contacts//limit
+                'total_pages':ceil(total_contacts/limit)
             }
         
         except HTTPException:

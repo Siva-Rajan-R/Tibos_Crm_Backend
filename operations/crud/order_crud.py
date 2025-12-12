@@ -10,6 +10,7 @@ from data_formats.enums.common_enums import UserRoles
 from data_formats.enums.pg_enums import PaymentStatus,InvoiceStatus
 from data_formats.typed_dicts.pg_dict import DeliveryInfo
 from operations.abstract_models.crud_model import BaseCrud
+from math import ceil
 
 
 
@@ -174,7 +175,7 @@ class OrdersCrud(BaseCrud):
             return {
                 'orders':queried_orders,
                 'total_orders':total_orders,
-                'total_pages':total_orders//limit,
+                'total_pages':ceil(total_orders/limit),
                 'total_revenue':total_revenue,
                 'highest_revenue':highest_revenue
             }
@@ -314,7 +315,7 @@ class OrdersCrud(BaseCrud):
             return {
                 'orders':queried_orders,
                 'total_orders':total_orders,
-                'total_pages':total_orders//limit,
+                'total_pages':ceil(total_orders/limit),
                 'total_revenue':total_revenue,
                 'highest_revenue':highest_revenue
             }

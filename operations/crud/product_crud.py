@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
 from data_formats.enums.common_enums import UserRoles
 from operations.abstract_models.crud_model import BaseCrud
+from math import ceil
 
 
 
@@ -145,7 +146,7 @@ class ProductsCrud(BaseCrud):
             return {
                 'products':queried_products,
                 'total_products':total_products,
-                'total_pages':total_products//limit,
+                'total_pages':ceil(total_products/limit),
                 'low_quantites':low_qty
             }
         

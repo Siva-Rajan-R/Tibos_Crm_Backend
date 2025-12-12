@@ -8,6 +8,7 @@ from data_formats.enums.common_enums import UserRoles
 from pydantic import EmailStr
 from typing import Optional,List
 from operations.abstract_models.crud_model import BaseCrud
+from math import ceil
 
 
 
@@ -149,7 +150,7 @@ class CustomersCrud(BaseCrud):
             return {
                 'customers':queried_customers,
                 'total_customers':total_customers,
-                'total_pages':total_customers//limit
+                'total_pages':ceil(total_customers/limit)
             }
         
         except HTTPException:
