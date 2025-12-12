@@ -1,4 +1,4 @@
-from sqlalchemy import String,Integer,Float,Boolean,Column,ForeignKey,Enum,BigInteger,Identity
+from sqlalchemy import String,Integer,Float,Boolean,Column,ForeignKey,Enum,BigInteger,Identity,func,TIMESTAMP
 from sqlalchemy.orm import relationship
 from database.configs.pg_config import PG_BASE
 
@@ -13,3 +13,5 @@ class Contacts(PG_BASE):
     email=Column(String,nullable=False)
 
     customer=relationship("Customers",back_populates="contact")
+
+    created_at=Column(TIMESTAMP(timezone=True),server_default=func.now())

@@ -1,4 +1,4 @@
-from sqlalchemy import String,Integer,Float,Boolean,Column,ForeignKey,Enum,ARRAY
+from sqlalchemy import String,Integer,Float,Boolean,Column,ForeignKey,Enum,ARRAY,func,TIMESTAMP
 from database.configs.pg_config import PG_BASE
 from data_formats.enums.common_enums import UserRoles
 
@@ -9,3 +9,5 @@ class Users(PG_BASE):
     password=Column(String,nullable=False)
     name=Column(String,nullable=False)
     role=Column(String,nullable=False)
+
+    created_at=Column(TIMESTAMP(timezone=True),server_default=func.now())

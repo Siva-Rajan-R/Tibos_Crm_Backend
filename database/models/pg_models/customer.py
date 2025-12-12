@@ -1,4 +1,4 @@
-from sqlalchemy import String,Integer,Float,Boolean,Column,ForeignKey,ARRAY,BigInteger,Identity
+from sqlalchemy import String,Integer,Float,Boolean,Column,ForeignKey,ARRAY,BigInteger,Identity,func,TIMESTAMP
 from sqlalchemy.orm import relationship
 from database.configs.pg_config import PG_BASE
 from data_formats.enums.pg_enums import CustomerIndustries,CustomerSectors
@@ -21,3 +21,5 @@ class Customers(PG_BASE):
 
     contact=relationship("Contacts",back_populates="customer",cascade="all, delete-orphan")
     order=relationship("Orders",back_populates="customer")
+
+    created_at=Column(TIMESTAMP(timezone=True),server_default=func.now())

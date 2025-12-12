@@ -1,4 +1,4 @@
-from sqlalchemy import String,Integer,Float,Boolean,Column,ForeignKey,ARRAY,BigInteger,Identity
+from sqlalchemy import String,Integer,Float,Boolean,Column,ForeignKey,ARRAY,BigInteger,Identity,func,TIMESTAMP
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from database.configs.pg_config import PG_BASE
@@ -21,3 +21,5 @@ class Orders(PG_BASE):
 
     customer=relationship("Customers",back_populates="order")
     product=relationship("Products",back_populates="order")
+
+    created_at=Column(TIMESTAMP(timezone=True),server_default=func.now())
