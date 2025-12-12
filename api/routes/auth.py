@@ -42,8 +42,8 @@ async def auth_user(data:AuthSchema,request:Request,session=Depends(get_pg_db_se
     
     verfiy_hashed(plain_data=data.password,hashed_data=user['password'])
     
-    access_token=generate_jwt_token(data={'data':{'email':user['email'],'role':user['role'].value,'id':user['id']}},secret=ACCESS_JWT_KEY,alg=JWT_ALG,exp_day=7)
-    refresh_token=generate_jwt_token(data={'data':{'email':user['email'],'role':user['role'].value,'id':user['id']}},secret=REFRESH_JWT_KEY,alg=JWT_ALG,exp_day=7)
+    access_token=generate_jwt_token(data={'data':{'email':user['email'],'role':user['role'],'id':user['id']}},secret=ACCESS_JWT_KEY,alg=JWT_ALG,exp_day=7)
+    refresh_token=generate_jwt_token(data={'data':{'email':user['email'],'role':user['role'],'id':user['id']}},secret=REFRESH_JWT_KEY,alg=JWT_ALG,exp_day=7)
     ic(f"Auth tokens : {access_token} {refresh_token}")
     return {
         'access_token':access_token,

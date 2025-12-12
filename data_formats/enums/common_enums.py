@@ -1,6 +1,6 @@
 from enum import Enum
 
 class UserRoles(Enum):
-    ADMIN="admin"
-    SUPER_ADMIN='super admin'
-    USER="user"
+    ADMIN="admin".upper()
+    SUPER_ADMIN='super admin'.upper()
+    USER="user".upper()

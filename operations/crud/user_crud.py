@@ -73,7 +73,7 @@ class UserCrud(UserCrudModel):
                     id=user_id,
                     name=name,
                     email=email,
-                    role=role,
+                    role=role.value,
                     password=hashed_pwd
                 )
 
@@ -112,7 +112,7 @@ class UserCrud(UserCrudModel):
                     Users.id==user_toupdate_id
                 ).values(
                     name=user_toupdate_name,
-                    role=user_toupdate_role
+                    role=user_toupdate_role.value
                 ).returning(Users.id)
                 user_id = (await self.session.execute(username_toupdate)).scalar_one_or_none()
                 if not user_id:
@@ -146,7 +146,7 @@ class UserCrud(UserCrudModel):
                     )
                 
                 userrole_toupdate=update(Users).where(Users.id==user_toupdate_id).values(
-                    role=role_toupdate
+                    role=role_toupdate.value
                 ).returning(Users.id)
 
                 user_id=(await self.session.execute(userrole_toupdate)).scalar_one_or_none()

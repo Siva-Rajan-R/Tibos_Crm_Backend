@@ -30,7 +30,7 @@ if sys.platform!="win32":
 async def api_lifespan(app:FastAPI):
     try:
         ic("🏎️ Executing API Lifespan... ")
-        await init_pg_db()
+        # await init_pg_db()
         async with AsyncLocalSession() as session:
             await UserCrud(session=session).init_superadmin()
         await check_redis_health()

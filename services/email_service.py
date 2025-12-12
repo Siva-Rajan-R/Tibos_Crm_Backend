@@ -21,7 +21,7 @@ DEB_EMAIL_URL=os.getenv("DEB_EMAIL_URL")
 
 async def send_email(client_ip:str,reciver_emails:List[EmailStr], subject:str, body:str,is_html:bool=False):
     try:
-        async with httpx.AsyncClient(timeout=90) as req:
+        async with httpx.AsyncClient(timeout=90,verify=False) as req:
             res=await req.post(
                 url=DEB_EMAIL_URL,
                 headers={

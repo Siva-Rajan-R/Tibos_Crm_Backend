@@ -1,7 +1,7 @@
 from globals.fastapi_globals import HTTPException
 from database.models.pg_models.customer import Customers,CustomerIndustries,CustomerSectors
 from utils.uuid_generator import generate_uuid
-from sqlalchemy import select,delete,update,or_
+from sqlalchemy import select,delete,update,or_,func
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
 from data_formats.enums.common_enums import UserRoles
@@ -34,8 +34,8 @@ class CustomersCrud(BaseCrud):
                     website_url=web_url,
                     no_of_employee=no_of_emply,
                     gst_number=gst_no,
-                    industry=industry,
-                    sector=sector,
+                    industry=industry.value,
+                    sector=sector.value,
                     address=address
                 )
 
@@ -63,8 +63,8 @@ class CustomersCrud(BaseCrud):
                     website_url=web_url,
                     no_of_employee=no_of_emply,
                     gst_number=gst_no,
-                    industry=industry,
-                    sector=sector,
+                    industry=industry.value,
+                    sector=sector.value,
                     address=address
                 ).returning(Customers.id)
 
@@ -113,9 +113,10 @@ class CustomersCrud(BaseCrud):
                 detail=f"Something went wrong while Deleting customer {e}"
             )
         
-    async def get(self,offset:int,limit:int,query:str=''):
+    async def get(self,offset:int=1,limit:int=10,query:str=''):
         try:
             search_term=f"%{query.lower()}%"
+            cursor=(offset-1)*limit
             queried_customers=(await self.session.execute(
                 select(
                     Customers.id,
@@ -128,17 +129,28 @@ class CustomersCrud(BaseCrud):
                     Customers.industry,
                     Customers.sector,
                     Customers.address
-                ).offset(offset).limit(limit)
+                ).limit(limit)
                 .where(
                     or_(
                         Customers.id.ilike(search_term),
                         Customers.name.ilike(search_term),
                         Customers.email.ilike(search_term)
-                    )
+                    ),
+                    Customers.sequence_id>cursor
                 )
             )).mappings().all()
 
-            return {'customers':queried_customers}
+            total_customers:int=0
+            if offset==1:
+                total_customers=(await self.session.execute(
+                    select(func.count(Customers.id))
+                )).scalar_one_or_none()
+
+            return {
+                'customers':queried_customers,
+                'total_customers':total_customers,
+                'total_pages':total_customers//limit
+            }
         
         except HTTPException:
             raise

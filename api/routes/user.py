@@ -19,7 +19,7 @@ router=APIRouter(
 FRONTEND_URL=os.getenv("FRONTEND_URL")
 
 @router.post('/user')
-async def add_user(data:AddUserSchema,bgt:BackgroundTasks,user:dict=Depends(verify_user),session=Depends(get_pg_db_session)):
+async def add_user(data:AddUserSchema,request:Request,bgt:BackgroundTasks,user:dict=Depends(verify_user),session=Depends(get_pg_db_session)):
     try:
         password=token_urlsafe(16)
         user=await UserCrud(session=session).add(
@@ -37,7 +37,8 @@ async def add_user(data:AddUserSchema,bgt:BackgroundTasks,user:dict=Depends(veri
             reciver_emails=[data.email],
             subject="Welcome To Tibos CRM — Here Are Your Login Details",
             is_html=True,
-            body=email_content
+            body=email_content,
+            client_ip=request.client.host.__str__()
             
         )
 

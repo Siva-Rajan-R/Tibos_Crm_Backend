@@ -1,7 +1,7 @@
 from globals.fastapi_globals import HTTPException
 from database.models.pg_models.product import Products,ProductTypes
 from utils.uuid_generator import generate_uuid
-from sqlalchemy import select,delete,update,or_,cast,String
+from sqlalchemy import select,delete,update,or_,cast,String,func
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
 from data_formats.enums.common_enums import UserRoles
@@ -13,6 +13,7 @@ class ProductsCrud(BaseCrud):
     def __init__(self,session:AsyncSession,user_role:UserRoles):
         self.session=session
         self.user_role=user_role
+        self.low_qty_thershold=5
 
         if self.user_role==UserRoles.USER.value:
             raise HTTPException(
@@ -30,7 +31,7 @@ class ProductsCrud(BaseCrud):
                     description=description,
                     available_qty=ava_qty,
                     price=price,
-                    product_type=product_type
+                    product_type=product_type.value
                 )
 
                 self.session.add(prod_toadd)
@@ -55,7 +56,7 @@ class ProductsCrud(BaseCrud):
                     description=description,
                     price=price,
                     available_qty=ava_qty,
-                    product_type=product_type
+                    product_type=product_type.value
                 ).returning(Products.id)
 
                 product_id=(await self.session.execute(prod_toupdate)).scalar_one_or_none()
@@ -103,9 +104,10 @@ class ProductsCrud(BaseCrud):
                 detail=f"Something went wrong while Deleting product {e}"
             )
         
-    async def get(self,offset:int,limit:int,query:str=''):
+    async def get(self,offset:int=1,limit:int=10,query:str=''):
         try:
             search_term=f"%{query.lower()}%"
+            cursor=(offset-1)*limit
             queried_products=(await self.session.execute(
                 select(
                     Products.id,
@@ -115,7 +117,6 @@ class ProductsCrud(BaseCrud):
                     Products.price,
                     Products.product_type
                 )
-                .offset(offset)
                 .limit(limit)
                 .order_by(Products.name)
                 .where(
@@ -123,12 +124,30 @@ class ProductsCrud(BaseCrud):
                         Products.id.ilike(search_term),
                         Products.name.ilike(search_term),
                         Products.description.ilike(search_term),
-                        cast(Products.product_type,String).ilike(search_term)
-                    )
+                        Products.product_type.ilike(search_term)
+                    ),
+                    Products.sequence_id>cursor
+
                 )
             )).mappings().all()
 
-            return {'products':queried_products}
+            total_products:int=0
+            low_qty:int=0
+            if offset == 1:
+                total_products=(await self.session.execute(
+                    select(func.count(Products.id))
+                )).scalar_one_or_none()
+
+                low_qty=(await self.session.execute(
+                    select(func.count()).select_from(Products).where(Products.available_qty<=self.low_qty_thershold)
+                )).scalar()
+
+            return {
+                'products':queried_products,
+                'total_products':total_products,
+                'total_pages':total_products//limit,
+                'low_quantites':low_qty
+            }
         
         except HTTPException:
             raise
@@ -149,7 +168,13 @@ class ProductsCrud(BaseCrud):
                     Products.id,
                     Products.name,
                 )
-                .where(or_(Products.name.ilike(search_term),Products.description.ilike(search_term)))
+                .where(
+                    or_(
+                        Products.name.ilike(search_term),
+                        Products.description.ilike(search_term),
+                        Products.product_type.ilike(search_term)
+                    )
+                )
                 .limit(5)
                 .order_by(Products.name)
             )).mappings().all()

@@ -3,7 +3,7 @@ from database.models.pg_models.order import Orders
 from database.models.pg_models.product import Products
 from database.models.pg_models.customer import Customers
 from utils.uuid_generator import generate_uuid
-from sqlalchemy import select,delete,update,or_
+from sqlalchemy import select,delete,update,or_,func
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
 from data_formats.enums.common_enums import UserRoles
@@ -37,8 +37,8 @@ class OrdersCrud(BaseCrud):
                     discount_price=discount_price,
                     final_price=final_price,
                     delivery_info=delivery_info,
-                    payment_status=payment_status,
-                    invoice_status=invoice_status
+                    payment_status=payment_status.value,
+                    invoice_status=invoice_status.value
                 )
 
                 self.session.add(order_toadd)
@@ -66,8 +66,8 @@ class OrdersCrud(BaseCrud):
                     discount_price=discount_price,
                     final_price=final_price,
                     delivery_info=delivery_info,
-                    payment_status=payment_status,
-                    invoice_status=invoice_status
+                    payment_status=payment_status.value,
+                    invoice_status=invoice_status.value
                 ).returning(Orders.id)
 
                 order_id=(await self.session.execute(order_toupdate)).scalar_one_or_none()
@@ -117,9 +117,10 @@ class OrdersCrud(BaseCrud):
                 detail=f"Something went wrong while Deleting Order {e}"
             )
        
-    async def get(self,offset:int,limit:int,query:str=''):
+    async def get(self,offset:int=1,limit:int=10,query:str=''):
         try:
             search_term=f"%{query.lower()}%"
+            cursor=(offset-1)*limit
             queried_orders=(await self.session.execute(
                 select(
                     Orders.id,
@@ -140,7 +141,7 @@ class OrdersCrud(BaseCrud):
                 )
                 .join(Products,Products.id==Orders.product_id,isouter=True)
                 .join(Customers,Customers.id==Orders.customer_id,isouter=True)
-                .offset(offset).limit(limit)
+                .limit(limit)
                 .where(
                     or_(
                         Orders.id.ilike(search_term),
@@ -148,11 +149,35 @@ class OrdersCrud(BaseCrud):
                         Products.id.ilike(search_term),
                         Customers.name.ilike(search_term),
                         Customers.email.ilike(search_term)
-                    )
+                    ),
+                    Orders.sequence_id>cursor
                 )
             )).mappings().all()
 
-            return {'orders':queried_orders}
+            total_orders:int=0
+            total_revenue=0
+            highest_revenue=0
+            ic(offset)
+            if offset==1:
+                total_orders=(await self.session.execute(
+                    func.count(Orders.id)
+                )).scalar_one_or_none()
+
+                total_revenue=(await self.session.execute(
+                    func.sum(Orders.final_price)
+                )).scalar_one_or_none()
+
+                highest_revenue=(await self.session.execute(
+                    select(func.max(Orders.final_price))
+                )).scalar()
+
+            return {
+                'orders':queried_orders,
+                'total_orders':total_orders,
+                'total_pages':total_orders//limit,
+                'total_revenue':total_revenue,
+                'highest_revenue':highest_revenue
+            }
         
         except HTTPException:
             raise
@@ -242,6 +267,7 @@ class OrdersCrud(BaseCrud):
     
     async def get_by_customer_id(self,customer_id:str,offset:int,limit:int):
         try:
+            cursor=(offset-1)*limit
             queried_orders=(await self.session.execute(
                 select(
                     Orders.id,
@@ -262,12 +288,36 @@ class OrdersCrud(BaseCrud):
                 )
                 .join(Products,Products.id==Orders.product_id,isouter=True)
                 .join(Customers,Customers.id==Orders.customer_id,isouter=True)
-                .where(Orders.customer_id==customer_id)
-                .offset(offset)
+                .where(Orders.customer_id==customer_id,Orders.sequence_id>cursor)
                 .limit(limit)
             )).mappings().all()
 
-            return {'orders':queried_orders}
+            total_orders:int=0
+            total_revenue:int=0
+            highest_revenue:int=0
+            if offset==1:
+                total_orders=(await self.session.execute(
+                    select(func.count(Orders.id))
+                    .where(Orders.customer_id==customer_id)
+                )).scalar_one_or_none()
+
+                total_revenue=(await self.session.execute(
+                    select(func.sum(Orders.final_price))
+                    .where(Orders.customer_id==customer_id)
+                )).scalar_one_or_none()
+
+                highest_revenue=(await self.session.execute(
+                    select(func.max(Orders.final_price))
+                    .where(Orders.customer_id==customer_id)
+                )).scalar()
+
+            return {
+                'orders':queried_orders,
+                'total_orders':total_orders,
+                'total_pages':total_orders//limit,
+                'total_revenue':total_revenue,
+                'highest_revenue':highest_revenue
+            }
         
         except HTTPException:
             raise

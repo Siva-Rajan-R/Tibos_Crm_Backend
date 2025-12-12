@@ -1,28 +1,28 @@
 from enum import Enum
 
 class ProductTypes(Enum):
-    APPLE="apple"
-    ORANGE="orange"
+    APPLE="apple".upper()
+    ORANGE="orange".upper()
 
 class PaymentStatus(Enum):
-    PAID ='paid'
-    NOT_PAID = "not paid"
+    PAID ='paid'.upper()
+    NOT_PAID = "not paid".upper()
 
 
 class InvoiceStatus(Enum):
-    COMPLETED='completed'
-    INCOMPLETED='incompleted'
+    COMPLETED='completed'.upper()
+    INCOMPLETED='incompleted'.upper()
 
 
 class CustomerIndustries(Enum):
-    IT="It"
-    AGRICULTURE="agriculture"
-    MANUFACTURING="manufacturing"
+    IT="It".upper()
+    AGRICULTURE="agriculture".upper()
+    MANUFACTURING="manufacturing".upper()
 
 class CustomerSectors(Enum):
-    PRIVATE="private"
-    PUBLIC='public'
+    PRIVATE="private".upper()
+    PUBLIC='public'.upper()
 
 class ShippingMethods(Enum):
-    MAIL='mail'
-    FAX='fax'
+    MAIL='mail'.upper()
+    FAX='fax'.upper()

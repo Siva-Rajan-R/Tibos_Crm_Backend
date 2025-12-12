@@ -53,9 +53,9 @@ async def verify_user(request:Request,credentials:HTTPAuthorizationCredentials=D
             detail="user not found"
         )
     
-    ic(decoded_token['role'],user_data['role'].value)
+    ic(decoded_token['role'],user_data['role'])
 
-    if decoded_token['role']!=user_data['role'].value:
+    if decoded_token['role']!=user_data['role']:
         raise HTTPException(
             status_code=401,
             detail="Invalid User"

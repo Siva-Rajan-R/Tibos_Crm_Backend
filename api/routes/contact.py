@@ -50,7 +50,7 @@ async def delete_contact(customer_id:str,contact_id:str,user:dict=Depends(verify
 
 
 @router.get('/contact')
-async def get_all_contact(user:dict=Depends(verify_user),q:str=Query(''),offset:Optional[int]=Query(0),limit:Optional[int]=Query(10),session:AsyncSession=Depends(get_pg_db_session)):
+async def get_all_contact(user:dict=Depends(verify_user),q:str=Query(''),offset:Optional[int]=Query(1),limit:Optional[int]=Query(10),session:AsyncSession=Depends(get_pg_db_session)):
     return await ContactsCrud(
         session=session,
         user_role=user['role']
@@ -73,7 +73,7 @@ async def get_contact_by_contact_id(contact_id:str,user:dict=Depends(verify_user
     ).get_by_id(contact_id=contact_id)
 
 @router.get('/contact/customer/{customer_id}')
-async def get_contact_by_customer_id(customer_id:str,user:dict=Depends(verify_user),offset:Optional[int]=Query(0),limit:Optional[int]=Query(10),session:AsyncSession=Depends(get_pg_db_session)):
+async def get_contact_by_customer_id(customer_id:str,user:dict=Depends(verify_user),offset:Optional[int]=Query(1),limit:Optional[int]=Query(10),session:AsyncSession=Depends(get_pg_db_session)):
     return await ContactsCrud(
         session=session,
         user_role=user['role']

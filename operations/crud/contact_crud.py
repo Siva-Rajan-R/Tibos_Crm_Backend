@@ -2,7 +2,7 @@ from globals.fastapi_globals import HTTPException
 from database.models.pg_models.contact import Contacts
 from database.models.pg_models.customer import Customers
 from utils.uuid_generator import generate_uuid
-from sqlalchemy import select,delete,update,or_
+from sqlalchemy import select,delete,update,or_,func
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
 from data_formats.enums.common_enums import UserRoles
@@ -110,6 +110,7 @@ class ContactsCrud(BaseCrud):
     async def get(self,offset:int,limit:int,query:str=''):
         try:
             search_term=f"%{query.lower()}%"
+            cursor=(offset-1)*limit
             queried_contacts=(await self.session.execute(
                 select(
                     Contacts.id,
@@ -121,17 +122,28 @@ class ContactsCrud(BaseCrud):
                     Customers.email.label('customer_email'),
                     Customers.website_url.label('customer_website')  
                 )
-                .join(Customers,Customers.id==Contacts.customer_id,isouter=True).offset(offset).limit(limit)
+                .join(Customers,Customers.id==Contacts.customer_id,isouter=True).limit(limit)
                 .where(
                     or_(
                         Contacts.name.ilike(search_term),
                         Contacts.id.ilike(search_term),
                         Contacts.email.ilike(search_term)
-                    )
+                    ),
+                    Contacts.sequence_id>cursor
                 )
             )).mappings().all()
 
-            return {'contacts':queried_contacts}
+            total_contacts:int=0
+            if offset==1:
+                total_contacts=(await self.session.execute(
+                    select(func.count(Contacts.id))
+                )).scalar_one_or_none()
+
+            return {
+                'contacts':queried_contacts,
+                'total_contacts':total_contacts,
+                'total_pages':total_contacts//limit
+            }
         
         except HTTPException:
             raise
@@ -198,6 +210,7 @@ class ContactsCrud(BaseCrud):
     
     async def get_by_customer_id(self,customer_id:str,offset:int,limit:int):
         try:
+            cursor=(offset-1)*limit
             queried_contacts=(await self.session.execute(
                 select(
                     Contacts.id,
@@ -210,12 +223,21 @@ class ContactsCrud(BaseCrud):
                     Customers.website_url.label('customer_website')  
                 )
                 .join(Customers,Customers.id==Contacts.customer_id,isouter=True)
-                .where(customer_id==Contacts.customer_id)
-                .offset(offset)
+                .where(customer_id==Contacts.customer_id,Contacts.sequence_id>cursor)
                 .limit(limit)
             )).mappings().all()
 
-            return {'contacts':queried_contacts}
+            total_contacts:int=0
+            if offset==1:
+                total_contacts=(await self.session.execute(
+                    select(func.count(Contacts.id))
+                )).scalar_one_or_none()
+
+            return {
+                'contacts':queried_contacts,
+                'total_contacts':total_contacts,
+                'total_pages':total_contacts//limit
+            }
         
         except HTTPException:
             raise

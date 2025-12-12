@@ -66,7 +66,7 @@ async def delete_order(customer_id:str,order_id:str,user:dict=Depends(verify_use
 
 
 @router.get('/order')
-async def get_all_order(q:str=Query(''),offset:Optional[int]=Query(0),limit:Optional[int]=Query(10),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+async def get_all_order(q:str=Query(''),offset:Optional[int]=Query(1),limit:Optional[int]=Query(10),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await OrdersCrud(
         session=session,
         user_role=user['role']
@@ -91,7 +91,7 @@ async def get_order_by_order_id(order_id:str,user:dict=Depends(verify_user),sess
 
 
 @router.get('/order/customer/{customer_id}')
-async def get_order_by_customer_id(customer_id:str,user:dict=Depends(verify_user),offset:Optional[int]=Query(0),limit:Optional[int]=Query(10),session:AsyncSession=Depends(get_pg_db_session)):
+async def get_order_by_customer_id(customer_id:str,user:dict=Depends(verify_user),offset:Optional[int]=Query(1),limit:Optional[int]=Query(10),session:AsyncSession=Depends(get_pg_db_session)):
     return await OrdersCrud(
         session=session,
         user_role=user['role']
