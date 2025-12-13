@@ -1,7 +1,7 @@
 from globals.fastapi_globals import HTTPException
 from database.models.pg_models.product import Products,ProductTypes
 from utils.uuid_generator import generate_uuid
-from sqlalchemy import select,delete,update,or_,cast,String,func
+from sqlalchemy import select,delete,update,or_,cast,String,func,Float
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
 from data_formats.enums.common_enums import UserRoles
@@ -160,36 +160,39 @@ class ProductsCrud(BaseCrud):
                 detail=f"Something went wrong while fetching all product {e}"
             )
     
-    async def search(self,query:str):
+    async def search(self, query: str):
         try:
-            ic(query)
-            search_term=f"%{query.lower()}%"
-            queried_products=(await self.session.execute(
+            search_term = f"%{query.lower()}%"
+
+            result = await self.session.execute(
                 select(
                     Products.id,
                     Products.name,
+                    Products.price.label("price")
                 )
                 .where(
                     or_(
                         Products.name.ilike(search_term),
                         Products.description.ilike(search_term),
-                        Products.product_type.ilike(search_term)
+                        cast(Products.product_type, String).ilike(search_term),
                     )
                 )
-                .limit(5)
                 .order_by(Products.name)
-            )).mappings().all()
+                .limit(5)
+            )
 
-            return {'products':queried_products}
-        
+            products = result.mappings().all()
+            ic(products)
+            return {"products": products}
+
         except HTTPException:
             raise
-        
+
         except Exception as e:
-            ic(f"Something went wrong while searching product {e}")
+            ic(f"Something went wrong while searching product: {e}")
             raise HTTPException(
                 status_code=500,
-                detail=f"Something went wrong while searching product {e}"
+                detail="Something went wrong while searching product",
             )
         
     async def get_by_id(self,product_id:str):
