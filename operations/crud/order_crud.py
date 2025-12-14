@@ -3,7 +3,7 @@ from database.models.pg_models.order import Orders
 from database.models.pg_models.product import Products
 from database.models.pg_models.customer import Customers
 from utils.uuid_generator import generate_uuid
-from sqlalchemy import select,delete,update,or_,func
+from sqlalchemy import select,delete,update,or_,func,String
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
 from data_formats.enums.common_enums import UserRoles
@@ -122,6 +122,7 @@ class OrdersCrud(BaseCrud):
         try:
             search_term=f"%{query.lower()}%"
             cursor=(offset-1)*limit
+            date_expr=func.date(func.timezone("Asia/Kolkata",Orders.created_at))
             queried_orders=(await self.session.execute(
                 select(
                     Orders.id,
@@ -138,7 +139,8 @@ class OrdersCrud(BaseCrud):
                     Products.product_type,
                     Products.description,
                     Customers.name.label('customer_name'),
-                    Customers.mobile_number  
+                    Customers.mobile_number,
+                    date_expr.label("order_created_at") 
                 )
                 .join(Products,Products.id==Orders.product_id,isouter=True)
                 .join(Customers,Customers.id==Orders.customer_id,isouter=True)
@@ -149,7 +151,8 @@ class OrdersCrud(BaseCrud):
                         Products.name.ilike(search_term),
                         Products.id.ilike(search_term),
                         Customers.name.ilike(search_term),
-                        Customers.email.ilike(search_term)
+                        Customers.email.ilike(search_term),
+                        func.cast(Orders.created_at,String).ilike(search_term)
                     ),
                     Orders.sequence_id>cursor
                 )
@@ -193,6 +196,7 @@ class OrdersCrud(BaseCrud):
     async def search(self,query:str):
         try:
             search_term=f"%{query.lower()}%"
+            date_expr=func.date(func.timezone("Asia/Kolkata",Orders.created_at))
             queried_orders=(await self.session.execute(
                 select(
                     Orders.id,
@@ -209,7 +213,8 @@ class OrdersCrud(BaseCrud):
                     Products.product_type,
                     Products.description,
                     Customers.name.label('customer_name'),
-                    Customers.mobile_number  
+                    Customers.mobile_number,
+                    date_expr.label("order_created_at")  
                 )
                 .join(Products,Products.id==Orders.product_id,isouter=True)
                 .join(Customers,Customers.id==Orders.customer_id,isouter=True)
@@ -231,6 +236,7 @@ class OrdersCrud(BaseCrud):
         
     async def get_by_id(self,order_id:str):
         try:
+            date_expr=func.date(func.timezone("Asia/Kolkata",Orders.created_at))
             queried_orders=(await self.session.execute(
                 select(
                     Orders.id,
@@ -247,7 +253,8 @@ class OrdersCrud(BaseCrud):
                     Products.product_type,
                     Products.description,
                     Customers.name,
-                    Customers.mobile_number  
+                    Customers.mobile_number,
+                    date_expr.label("order_created_at")  
                 )
                 .join(Products,Products.id==Orders.product_id,isouter=True)
                 .join(Customers,Customers.id==Orders.customer_id,isouter=True)
@@ -269,6 +276,7 @@ class OrdersCrud(BaseCrud):
     async def get_by_customer_id(self,customer_id:str,offset:int,limit:int):
         try:
             cursor=(offset-1)*limit
+            date_expr=func.date(func.timezone("Asia/Kolkata",Orders.created_at))
             queried_orders=(await self.session.execute(
                 select(
                     Orders.id,
@@ -285,7 +293,8 @@ class OrdersCrud(BaseCrud):
                     Products.product_type,
                     Products.description,
                     Customers.name,
-                    Customers.mobile_number  
+                    Customers.mobile_number,
+                    date_expr.label("order_created_at")   
                 )
                 .join(Products,Products.id==Orders.product_id,isouter=True)
                 .join(Customers,Customers.id==Orders.customer_id,isouter=True)

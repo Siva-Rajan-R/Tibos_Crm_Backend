@@ -1,7 +1,7 @@
 from globals.fastapi_globals import HTTPException
 from database.models.pg_models.customer import Customers,CustomerIndustries,CustomerSectors
 from utils.uuid_generator import generate_uuid
-from sqlalchemy import select,delete,update,or_,func
+from sqlalchemy import select,delete,update,or_,func,String
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
 from data_formats.enums.common_enums import UserRoles
@@ -118,6 +118,7 @@ class CustomersCrud(BaseCrud):
         try:
             search_term=f"%{query.lower()}%"
             cursor=(offset-1)*limit
+            date_expr=func.date(func.timezone("Asia/Kolkata",Customers.created_at))
             queried_customers=(await self.session.execute(
                 select(
                     Customers.id,
@@ -129,13 +130,15 @@ class CustomersCrud(BaseCrud):
                     Customers.website_url,
                     Customers.industry,
                     Customers.sector,
-                    Customers.address
+                    Customers.address,
+                    date_expr.label("customer_created_at")
                 ).limit(limit)
                 .where(
                     or_(
                         Customers.id.ilike(search_term),
                         Customers.name.ilike(search_term),
-                        Customers.email.ilike(search_term)
+                        Customers.email.ilike(search_term),
+                        func.cast(Customers.created_at,String).ilike(search_term)
                     ),
                     Customers.sequence_id>cursor
                 )
@@ -188,6 +191,7 @@ class CustomersCrud(BaseCrud):
         
     async def get_by_id(self,customer_id:str):
         try:
+            date_expr=func.date(func.timezone("Asia/Kolkata",Customers.created_at))
             queried_customers=(await self.session.execute(
                 select(
                     Customers.id,
@@ -199,7 +203,8 @@ class CustomersCrud(BaseCrud):
                     Customers.website_url,
                     Customers.industry,
                     Customers.sector,
-                    Customers.address
+                    Customers.address,
+                    date_expr.label("customer_created_at")
                 )
                 .where(Customers.id==customer_id)
             )).mappings().one_or_none()

@@ -109,6 +109,7 @@ class ProductsCrud(BaseCrud):
         try:
             search_term=f"%{query.lower()}%"
             cursor=(offset-1)*limit
+            date_expr=func.date(func.timezone("Asia/Kolkata",Products.created_at))
             queried_products=(await self.session.execute(
                 select(
                     Products.id,
@@ -116,7 +117,8 @@ class ProductsCrud(BaseCrud):
                     Products.description,
                     Products.available_qty.label('quantity'),
                     Products.price,
-                    Products.product_type
+                    Products.product_type,
+                    date_expr.label("product_created_at")
                 )
                 .limit(limit)
                 .order_by(Products.name)
@@ -125,7 +127,8 @@ class ProductsCrud(BaseCrud):
                         Products.id.ilike(search_term),
                         Products.name.ilike(search_term),
                         Products.description.ilike(search_term),
-                        Products.product_type.ilike(search_term)
+                        Products.product_type.ilike(search_term),
+                        func.cast(Products.created_at,String).ilike(search_term)
                     ),
                     Products.sequence_id>cursor
 
@@ -168,13 +171,14 @@ class ProductsCrud(BaseCrud):
                 select(
                     Products.id,
                     Products.name,
-                    Products.price.label("price")
+                    Products.price.label("price"),
+                    
                 )
                 .where(
                     or_(
                         Products.name.ilike(search_term),
                         Products.description.ilike(search_term),
-                        cast(Products.product_type, String).ilike(search_term),
+                        Products.product_type.ilike(search_term),
                     )
                 )
                 .order_by(Products.name)
@@ -198,6 +202,7 @@ class ProductsCrud(BaseCrud):
     async def get_by_id(self,product_id:str):
         try:
             ic("pro6t6t6")
+            date_expr=func.date(func.timezone("Asia/Kolkata",Products.created_at))
             queried_products=(await self.session.execute(
                 select(
                     Products.id,
@@ -205,7 +210,8 @@ class ProductsCrud(BaseCrud):
                     Products.description,
                     Products.available_qty.label('quantity'),
                     Products.price,
-                    Products.product_type
+                    Products.product_type,
+                    date_expr.label("product_created_at")
                 )
                 .where(Products.id==product_id)
                 .order_by(Products.name)

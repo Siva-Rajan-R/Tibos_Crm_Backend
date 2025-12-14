@@ -2,11 +2,28 @@ from fastapi import APIRouter,Depends
 from api.dependencies.token_verification import verify_user
 from database.configs.pg_config import AsyncSession,get_pg_db_session
 from data_formats.enums.common_enums import UserRoles
-from data_formats.enums.pg_enums import ProductTypes,CustomerSectors,ShippingMethods,CustomerIndustries,PaymentStatus,InvoiceStatus
+from data_formats.enums.pg_enums import ProductTypes,CustomerSectors,ShippingMethods,CustomerIndustries,PaymentStatus,InvoiceStatus,BillingType,LeadSource,LeadStatus,OpportunityStatus
 
 router=APIRouter(
     tags=["Drop-Downs"]
 )
+
+@router.get('/dd/all')
+async def get_all_dd(user:dict=Depends(verify_user)):
+    return{
+        'user_roles':list(UserRoles._value2member_map_.values()),
+        'product_types':list(ProductTypes._value2member_map_.values()),
+        'customer_sectors':list(CustomerSectors._value2member_map_.values()),
+        'customer_industries':list(CustomerIndustries._value2member_map_.values()),
+        'shipping_methods':list(ShippingMethods._value2member_map_.values()),
+        'payment_status':list(PaymentStatus._value2member_map_.values()),
+        'invoice_status':list(InvoiceStatus._value2member_map_.values()),
+        'opportunity_status':list(OpportunityStatus._value2member_map_.values()),
+        'billing_type':list(BillingType._value2member_map_.values()),
+        'lead_status':list(LeadStatus._value2member_map_.values()),
+        'lead_source':list(LeadSource._value2member_map_.values())
+    }
+
 
 @router.get('/dd/user-roles')
 async def get_dd_user_role(user:dict=Depends(verify_user)):
@@ -48,4 +65,28 @@ async def get_dd_payment_status(user:dict=Depends(verify_user)):
 async def get_dd_invoice_status(user:dict=Depends(verify_user)):
     return {
         'invoice_status':list(InvoiceStatus._value2member_map_.values())
+    }
+
+@router.get('/dd/opportunity-status')
+async def get_dd_opportunity_status(user:dict=Depends(verify_user)):
+    return {
+        'opportunity_status':list(OpportunityStatus._value2member_map_.values())
+    }
+
+@router.get('/dd/billing-type')
+async def get_dd_billing_type(user:dict=Depends(verify_user)):
+    return {
+        'billing_type':list(BillingType._value2member_map_.values())
+    }
+
+@router.get('/dd/lead-status')
+async def get_dd_lead_status(user:dict=Depends(verify_user)):
+    return {
+        'lead_status':list(LeadStatus._value2member_map_.values())
+    }
+
+@router.get('/dd/lead-source')
+async def get_dd_lead_source(user:dict=Depends(verify_user)):
+    return {
+        'lead_source':list(LeadSource._value2member_map_.values())
     }

@@ -1,5 +1,5 @@
 from fastapi import FastAPI,Request
-from api.routes import auth,contact,customer,order,product,user,drop_downs,dashboard
+from api.routes import auth,contact,customer,order,product,user,drop_downs,dashboard,opportunity,leads
 from fastapi.middleware.cors import CORSMiddleware
 from operations.crud.user_crud import UserCrud
 from database.configs.pg_config import init_pg_db
@@ -70,7 +70,8 @@ app.include_router(order.router)
 app.include_router(product.router)
 app.include_router(drop_downs.router)
 app.include_router(dashboard.router)
-
+app.include_router(opportunity.router)
+app.include_router(leads.router)
 
 #Middlewares
 app.add_middleware(

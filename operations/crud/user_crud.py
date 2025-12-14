@@ -1,5 +1,5 @@
 from database.models.pg_models.user import UserRoles,Users
-from sqlalchemy import select,update,delete,and_,or_
+from sqlalchemy import select,update,delete,and_,or_,func
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import EmailStr
 from utils.uuid_generator import generate_uuid
@@ -240,7 +240,8 @@ class UserCrud(UserCrudModel):
                     Users.id,
                     Users.email,
                     Users.name,
-                    Users.role
+                    Users.role,
+                    func.date(func.timezone("Asia/Kolkata",Users.created_at)).label("user_created_at")
                 )
             )).mappings().all()
 
@@ -269,7 +270,8 @@ class UserCrud(UserCrudModel):
                 Users.id,
                 Users.name,
                 Users.email,
-                Users.role
+                Users.role,
+                func.date(func.timezone("Asia/Kolkata",Users.created_at)).label("user_created_at")
             ).where(
                 userid_toget==Users.id
             )
@@ -301,7 +303,8 @@ class UserCrud(UserCrudModel):
                 Users.id,
                 Users.name,
                 Users.email,
-                Users.role
+                Users.role,
+                func.date(func.timezone("Asia/Kolkata",Users.created_at)).label("user_created_at")
             ).where(
                 userrole_toget==Users.role
             )

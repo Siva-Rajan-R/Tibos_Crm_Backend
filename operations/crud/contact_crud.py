@@ -2,7 +2,7 @@ from globals.fastapi_globals import HTTPException
 from database.models.pg_models.contact import Contacts
 from database.models.pg_models.customer import Customers
 from utils.uuid_generator import generate_uuid
-from sqlalchemy import select,delete,update,or_,func
+from sqlalchemy import select,delete,update,or_,func,String
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
 from data_formats.enums.common_enums import UserRoles
@@ -112,6 +112,7 @@ class ContactsCrud(BaseCrud):
         try:
             search_term=f"%{query.lower()}%"
             cursor=(offset-1)*limit
+            date_expr=func.date(func.timezone("Asia/Kolkata",Contacts.created_at))
             queried_contacts=(await self.session.execute(
                 select(
                     Contacts.id,
@@ -121,14 +122,16 @@ class ContactsCrud(BaseCrud):
                     Contacts.mobile_number.label('contact_mobile'),
                     Customers.name.label('customer_name'),
                     Customers.email.label('customer_email'),
-                    Customers.website_url.label('customer_website')  
+                    Customers.website_url.label('customer_website'),
+                    date_expr.label("contact_created_at")
                 )
                 .join(Customers,Customers.id==Contacts.customer_id,isouter=True).limit(limit)
                 .where(
                     or_(
                         Contacts.name.ilike(search_term),
                         Contacts.id.ilike(search_term),
-                        Contacts.email.ilike(search_term)
+                        Contacts.email.ilike(search_term),
+                        func.cast(Contacts.created_at,String).ilike(search_term)
                     ),
                     Contacts.sequence_id>cursor
                 )
@@ -182,6 +185,7 @@ class ContactsCrud(BaseCrud):
         
     async def get_by_id(self,contact_id:str):
         try:
+            date_expr=func.date(func.timezone("Asia/Kolkata",Contacts.created_at))
             queried_contacts=(await self.session.execute(
                 select(
                     Contacts.id,
@@ -191,7 +195,8 @@ class ContactsCrud(BaseCrud):
                     Contacts.mobile_number.label('contact_mobile'),
                     Customers.name.label('customer_name'),
                     Customers.email.label('customer_email'),
-                    Customers.website_url.label('customer_website')  
+                    Customers.website_url.label('customer_website'),
+                    date_expr.label("contact_created_at")
                 )
                 .join(Customers,Customers.id==Contacts.customer_id,isouter=True)
                 .where(Contacts.id==contact_id)
@@ -212,6 +217,7 @@ class ContactsCrud(BaseCrud):
     async def get_by_customer_id(self,customer_id:str,offset:int,limit:int):
         try:
             cursor=(offset-1)*limit
+            date_expr=func.date(func.timezone("Asia/Kolkata",Contacts.created_at))
             queried_contacts=(await self.session.execute(
                 select(
                     Contacts.id,
@@ -221,7 +227,10 @@ class ContactsCrud(BaseCrud):
                     Contacts.mobile_number.label('contact_mobile'),
                     Customers.name.label('customer_name'),
                     Customers.email.label('customer_email'),
-                    Customers.website_url.label('customer_website')  
+                    Customers.website_url.label('customer_website'),
+                    date_expr.label("contact_created_at")
+
+
                 )
                 .join(Customers,Customers.id==Contacts.customer_id,isouter=True)
                 .where(customer_id==Contacts.customer_id,Contacts.sequence_id>cursor)
