@@ -122,22 +122,27 @@ class LeadsCrud(BaseCrud):
             cursor = (offset - 1) * limit
             search = f"%{query.lower()}%"
             date_expr=func.date(func.timezone("Asia/Kolkata",Leads.created_at))
+            follwup_expr=func.date(func.timezone("Asia/Kolkata",Leads.next_followup))
+            lastcont_expr=func.date(func.timezone("Asia/Kolkata",Leads.last_contacted))
 
             leads = (
                 await self.session.execute(
                     select(
                         Leads.id.label("lead_id"),
-                        Leads.name.label("lead_name"),
+                        Leads.name.label("lead_name"), 
+                        Leads.description.label("lead_description"),
                         Leads.phone.label("lead_phone"),
                         Leads.email.label("lead_email"),
                         Leads.source.label("lead_source"),
                         Leads.assigned_to.label("lead_assigned_to"),
                         Leads.status.label("lead_status"),
-                        Leads.next_followup.label("lead_next_followup"),
+                        lastcont_expr.label("lead_last_contacted"),
+                        follwup_expr.label("lead_next_followup"),
                         date_expr.label("lead_created_at")
                     )
                     .where(
                         or_(
+                            Leads.id.ilike(search),
                             Leads.name.ilike(search),
                             Leads.phone.ilike(search),
                             Leads.email.ilike(search),
@@ -171,17 +176,21 @@ class LeadsCrud(BaseCrud):
 
     async def get_by_id(self, lead_id: str):
         date_expr=func.date(func.timezone("Asia/Kolkata",Leads.created_at))
+        follwup_expr=func.date(func.timezone("Asia/Kolkata",Leads.next_followup))
+        lastcont_expr=func.date(func.timezone("Asia/Kolkata",Leads.last_contacted))
         lead = (
             await self.session.execute(
                 select( 
                     Leads.id.label("lead_id"),
                     Leads.name.label("lead_name"),
+                    Leads.description.label("lead_description"),
                     Leads.phone.label("lead_phone"),
                     Leads.email.label("lead_email"),
                     Leads.source.label("lead_source"),
                     Leads.assigned_to.label("lead_assigned_to"),
                     Leads.status.label("lead_status"),
-                    Leads.next_followup.label("lead_next_followup"),
+                    follwup_expr.label("lead_next_followup"),
+                    lastcont_expr.label("lead_last_contacted"),
                     date_expr.label("lead_created_at")
                 ).where(Leads.id == lead_id)
             )
@@ -210,6 +219,7 @@ class LeadsCrud(BaseCrud):
                 )
                 .where(
                     or_(
+                        Leads.id.ilike(search),
                         Leads.name.ilike(search),
                         Leads.phone.ilike(search),
                         Leads.email.ilike(search),

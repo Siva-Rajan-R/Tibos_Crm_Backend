@@ -129,6 +129,8 @@ class OpportunitiesCrud(BaseCrud):
                     Opportunities.status.label("opportunity_status"),
                     Opportunities.deal_value.label("opportunity_deal_value"),
                     Opportunities.billing_type.label("opportunity_billing_type"),
+                    Opportunities.discount.label("opportunity_discount"),
+                    Opportunities.description.label("opportunity_description"),
                     date_expr.label("oppotunity_created_at"),
 
                     # Lead fields
@@ -193,6 +195,8 @@ class OpportunitiesCrud(BaseCrud):
                     Opportunities.status.label("opportunity_status"),
                     Opportunities.deal_value.label("opportunity_deal_value"),
                     Opportunities.billing_type.label("opportunity_billing_type"),
+                    Opportunities.discount.label("opportunity_discount"),
+                    Opportunities.description.label("opportunity_description"),
                     date_expr.label("oppotunity_created_at"),
 
                     # Lead fields
@@ -223,6 +227,7 @@ class OpportunitiesCrud(BaseCrud):
                     Opportunities.status.label("opportunity_status"),
                     Opportunities.deal_value.label("opportunity_deal_value"),
                     Opportunities.billing_type.label("opportunity_billing_type"),
+                    Opportunities.description.label("opportunity_description"),
 
                     # Lead data
                     Leads.id.label("lead_id"),
@@ -273,6 +278,8 @@ class OpportunitiesCrud(BaseCrud):
                     Opportunities.status.label("opportunity_status"),
                     Opportunities.deal_value.label("opportunity_deal_value"),
                     Opportunities.billing_type.label("opportunity_billing_type"),
+                    Opportunities.discount.label("opportunity_discount"),
+                    Opportunities.description.label("opportunity_description"),
                     date_expr.label("oppotunity_created_at"),
 
                     # Lead fields

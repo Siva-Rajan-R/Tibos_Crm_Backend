@@ -176,6 +176,7 @@ class ProductsCrud(BaseCrud):
                 )
                 .where(
                     or_(
+                        Products.id.ilike(search_term),
                         Products.name.ilike(search_term),
                         Products.description.ilike(search_term),
                         Products.product_type.ilike(search_term),
