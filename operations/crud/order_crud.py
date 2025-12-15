@@ -150,9 +150,13 @@ class OrdersCrud(BaseCrud):
                         Orders.id.ilike(search_term),
                         Products.name.ilike(search_term),
                         Products.id.ilike(search_term),
+                        Products.product_type.ilike(search_term),
                         Customers.name.ilike(search_term),
                         Customers.email.ilike(search_term),
-                        func.cast(Orders.created_at,String).ilike(search_term)
+                        Customers.mobile_number.ilike(search_term),
+                        func.cast(Orders.created_at,String).ilike(search_term),
+                        Orders.invoice_status.ilike(search_term),
+                        Orders.payment_status.ilike(search_term),
                     ),
                     Orders.sequence_id>cursor
                 )
@@ -233,7 +237,20 @@ class OrdersCrud(BaseCrud):
                 )
                 .join(Products,Products.id==Orders.product_id,isouter=True)
                 .join(Customers,Customers.id==Orders.customer_id,isouter=True)
-                .where(or_(Orders.id.ilike(search_term),Products.name.ilike(search_term),Customers.name.ilike(search_term)))
+                .where(
+                    or_(
+                        Orders.id.ilike(search_term),
+                        Products.name.ilike(search_term),
+                        Products.id.ilike(search_term),
+                        Products.product_type.ilike(search_term),
+                        Customers.name.ilike(search_term),
+                        Customers.email.ilike(search_term),
+                        Customers.mobile_number.ilike(search_term),
+                        func.cast(Orders.created_at,String).ilike(search_term),
+                        Orders.invoice_status.ilike(search_term),
+                        Orders.payment_status.ilike(search_term),
+                    ),
+                )
                 .limit(5)
             )).mappings().all()
 

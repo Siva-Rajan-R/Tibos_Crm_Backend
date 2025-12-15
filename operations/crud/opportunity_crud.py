@@ -29,7 +29,6 @@ class OpportunitiesCrud(BaseCrud):
         status:OpportunityStatus,
         billing_type:BillingType,
         deal_value: float,
-        discount: float,
         description: Optional[str]
     ):
         try:
@@ -43,7 +42,6 @@ class OpportunitiesCrud(BaseCrud):
                     billing_type=billing_type.value,
                     status=status.value,  # or initial state
                     deal_value=deal_value,
-                    discount=discount,
                     description=description
                 )
 
@@ -61,7 +59,6 @@ class OpportunitiesCrud(BaseCrud):
         product: str,
         billing_type:BillingType,
         deal_value: float,
-        discount: float,
         description: Optional[str],
         status: OpportunityStatus,
     ):
@@ -76,7 +73,6 @@ class OpportunitiesCrud(BaseCrud):
                         product=product,
                         status=status.value,
                         deal_value=deal_value,
-                        discount=discount,
                         description=description
                     )
                     .returning(Opportunities.id)
@@ -129,7 +125,6 @@ class OpportunitiesCrud(BaseCrud):
                     Opportunities.status.label("opportunity_status"),
                     Opportunities.deal_value.label("opportunity_deal_value"),
                     Opportunities.billing_type.label("opportunity_billing_type"),
-                    Opportunities.discount.label("opportunity_discount"),
                     Opportunities.description.label("opportunity_description"),
                     date_expr.label("oppotunity_created_at"),
 
@@ -195,7 +190,6 @@ class OpportunitiesCrud(BaseCrud):
                     Opportunities.status.label("opportunity_status"),
                     Opportunities.deal_value.label("opportunity_deal_value"),
                     Opportunities.billing_type.label("opportunity_billing_type"),
-                    Opportunities.discount.label("opportunity_discount"),
                     Opportunities.description.label("opportunity_description"),
                     date_expr.label("oppotunity_created_at"),
 
@@ -278,7 +272,6 @@ class OpportunitiesCrud(BaseCrud):
                     Opportunities.status.label("opportunity_status"),
                     Opportunities.deal_value.label("opportunity_deal_value"),
                     Opportunities.billing_type.label("opportunity_billing_type"),
-                    Opportunities.discount.label("opportunity_discount"),
                     Opportunities.description.label("opportunity_description"),
                     date_expr.label("oppotunity_created_at"),
 

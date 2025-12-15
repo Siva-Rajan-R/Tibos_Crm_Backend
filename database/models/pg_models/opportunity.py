@@ -25,7 +25,6 @@ class Opportunities(PG_BASE):
     status = Column(String, nullable=False)
 
     deal_value = Column(Integer, nullable=False)
-    discount = Column(Integer, default=0)
 
     description = Column(String,nullable=True)
 

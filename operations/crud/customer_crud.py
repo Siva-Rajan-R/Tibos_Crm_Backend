@@ -145,7 +145,14 @@ class CustomersCrud(BaseCrud):
                         Customers.id.ilike(search_term),
                         Customers.name.ilike(search_term),
                         Customers.email.ilike(search_term),
-                        func.cast(Customers.created_at,String).ilike(search_term)
+                        Customers.address.ilike(search_term),
+                        Customers.industry.ilike(search_term),
+                        func.cast(Customers.created_at,String).ilike(search_term),
+                        Customers.website_url.ilike(search_term),
+                        Customers.mobile_number.ilike(search_term),
+                        Customers.sector.ilike(search_term),
+                        Customers.gst_number.ilike(search_term)
+
                     ),
                     Customers.sequence_id>cursor
                 )
@@ -180,7 +187,20 @@ class CustomersCrud(BaseCrud):
                 select(
                     Customers.id,
                     Customers.name,
-                ).where(Customers.name.ilike(search_term))
+                ).where(
+                    or_(
+                        Customers.id.ilike(search_term),
+                        Customers.name.ilike(search_term),
+                        Customers.email.ilike(search_term),
+                        Customers.address.ilike(search_term),
+                        Customers.industry.ilike(search_term),
+                        func.cast(Customers.created_at,String).ilike(search_term),
+                        Customers.website_url.ilike(search_term),
+                        Customers.mobile_number.ilike(search_term),
+                        Customers.sector.ilike(search_term),
+                        Customers.gst_number.ilike(search_term)
+                    )
+                )
                 .limit(5)
             )).mappings().all()
 

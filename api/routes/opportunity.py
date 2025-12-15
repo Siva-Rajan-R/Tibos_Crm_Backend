@@ -27,7 +27,6 @@ async def create_opportunity(
         product=data.product,
         billing_type=data.billing_type,
         deal_value=data.deal_value,
-        discount=data.discount,
         description=data.description,
         status=data.status
     )
@@ -48,7 +47,6 @@ async def update_opportunity(
         product=data.product,
         billing_type=data.billing_type,
         deal_value=data.deal_value,
-        discount=data.discount,
         description=data.description,
         status=data.status
     )

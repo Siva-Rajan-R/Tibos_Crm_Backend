@@ -139,7 +139,11 @@ class ContactsCrud(BaseCrud):
                         Contacts.name.ilike(search_term),
                         Contacts.id.ilike(search_term),
                         Contacts.email.ilike(search_term),
-                        func.cast(Contacts.created_at,String).ilike(search_term)
+                        Contacts.mobile_number.ilike(search_term),
+                        func.cast(Contacts.created_at,String).ilike(search_term),
+                        Customers.name.ilike(search_term),
+                        Customers.email.ilike(search_term),
+                        Customers.website_url.ilike(search_term)
                     ),
                     Contacts.sequence_id>cursor
                 )
@@ -175,7 +179,16 @@ class ContactsCrud(BaseCrud):
                     Contacts.id,
                     Contacts.name.label('contact_name'), 
                 ).where(
-                    Contacts.name.ilike(search_term)
+                    or_(
+                        Contacts.name.ilike(search_term),
+                        Contacts.id.ilike(search_term),
+                        Contacts.email.ilike(search_term),
+                        Contacts.mobile_number.ilike(search_term),
+                        func.cast(Contacts.created_at,String).ilike(search_term),
+                        Customers.name.ilike(search_term),
+                        Customers.email.ilike(search_term),
+                        Customers.website_url.ilike(search_term)
+                    ),
                 ).limit(5)
             )).mappings().all()
 
@@ -247,7 +260,11 @@ class ContactsCrud(BaseCrud):
                         Contacts.name.ilike(search_term),
                         Contacts.id.ilike(search_term),
                         Contacts.email.ilike(search_term),
-                        func.cast(Contacts.created_at,String).ilike(search_term)
+                        Contacts.mobile_number.ilike(search_term),
+                        func.cast(Contacts.created_at,String).ilike(search_term),
+                        Customers.name.ilike(search_term),
+                        Customers.email.ilike(search_term),
+                        Customers.website_url.ilike(search_term)
                     ),
                     customer_id==Contacts.customer_id,
                     Contacts.sequence_id>cursor
