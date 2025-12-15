@@ -1,5 +1,6 @@
 from globals.fastapi_globals import HTTPException
 from database.models.pg_models.contact import Contacts
+from database.models.pg_models.order import Orders
 from database.models.pg_models.customer import Customers
 from utils.uuid_generator import generate_uuid
 from sqlalchemy import select,delete,update,or_,func,String
@@ -86,6 +87,13 @@ class ContactsCrud(BaseCrud):
     async def delete(self,customer_id:str,contact_id:str):
         try:
             async with self.session.begin():
+                have_order=(await self.session.execute(select(Orders.id).where(Orders.customer_id==contact_id).limit(1))).scalar_one_or_none()
+                if have_order:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="This contact have an existing order, Delete failed"
+                    )
+                
                 contact_todelete=delete(Contacts).where(Contacts.id==contact_id,Contacts.customer_id==customer_id).returning(Contacts.id)
 
                 contact_id=(await self.session.execute(contact_todelete)).scalar_one_or_none()
@@ -214,9 +222,10 @@ class ContactsCrud(BaseCrud):
                 detail=f"Something went wrong while fetching single contact {e}"
             )
     
-    async def get_by_customer_id(self,customer_id:str,offset:int,limit:int):
+    async def get_by_customer_id(self,customer_id:str,offset:int,limit:int,query:str=''):
         try:
             cursor=(offset-1)*limit
+            search_term=f"%{query.lower()}%"
             date_expr=func.date(func.timezone("Asia/Kolkata",Contacts.created_at))
             queried_contacts=(await self.session.execute(
                 select(
@@ -233,7 +242,16 @@ class ContactsCrud(BaseCrud):
 
                 )
                 .join(Customers,Customers.id==Contacts.customer_id,isouter=True)
-                .where(customer_id==Contacts.customer_id,Contacts.sequence_id>cursor)
+                .where(
+                    or_(
+                        Contacts.name.ilike(search_term),
+                        Contacts.id.ilike(search_term),
+                        Contacts.email.ilike(search_term),
+                        func.cast(Contacts.created_at,String).ilike(search_term)
+                    ),
+                    customer_id==Contacts.customer_id,
+                    Contacts.sequence_id>cursor
+                )
                 .limit(limit)
             )).mappings().all()
 

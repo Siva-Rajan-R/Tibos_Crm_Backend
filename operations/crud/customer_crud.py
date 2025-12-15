@@ -1,6 +1,7 @@
 from globals.fastapi_globals import HTTPException
 from database.models.pg_models.customer import Customers,CustomerIndustries,CustomerSectors
 from utils.uuid_generator import generate_uuid
+from database.models.pg_models.order import Orders
 from sqlalchemy import select,delete,update,or_,func,String
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
@@ -92,8 +93,14 @@ class CustomersCrud(BaseCrud):
     async def delete(self,customer_id:str):
         try:
             async with self.session.begin():
+                have_order=(await self.session.execute(select(Orders.id).where(Orders.customer_id==customer_id).limit(1))).scalar_one_or_none()
+                if have_order:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="This customer have an existing order, Delete failed"
+                    )
+                
                 customer_todelete=delete(Customers).where(Customers.id==customer_id).returning(Customers.id)
-
                 customer_id=(await self.session.execute(customer_todelete)).scalar_one_or_none()
 
                 if not customer_id:

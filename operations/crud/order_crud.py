@@ -264,10 +264,10 @@ class OrdersCrud(BaseCrud):
                     Orders.delivery_info,
                     Orders.payment_status,
                     Orders.invoice_status,
-                    Products.name,
+                    Products.name.label('product_name'),
                     Products.product_type,
                     Products.description,
-                    Customers.name,
+                    Customers.name.label('customer_name'),
                     Customers.mobile_number,
                     date_expr.label("order_created_at")  
                 )
@@ -304,10 +304,10 @@ class OrdersCrud(BaseCrud):
                     Orders.delivery_info,
                     Orders.payment_status,
                     Orders.invoice_status,
-                    Products.name,
+                    Products.name.label('product_name'),
                     Products.product_type,
                     Products.description,
-                    Customers.name,
+                    Customers.name.label('customer_name'),
                     Customers.mobile_number,
                     date_expr.label("order_created_at")   
                 )

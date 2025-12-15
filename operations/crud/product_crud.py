@@ -1,5 +1,6 @@
 from globals.fastapi_globals import HTTPException
 from database.models.pg_models.product import Products,ProductTypes
+from database.models.pg_models.order import Orders
 from utils.uuid_generator import generate_uuid
 from sqlalchemy import select,delete,update,or_,cast,String,func,Float
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -83,8 +84,14 @@ class ProductsCrud(BaseCrud):
     async def delete(self,product_id:str):
         try:
             async with self.session.begin():
+                have_order=(await self.session.execute(select(Orders.id).where(Orders.product_id==product_id).limit(1))).scalar_one_or_none()
+                if have_order:
+                    raise HTTPException(
+                        status_code=400,
+                        detail="This product have an existing order, Delete failed"
+                    )
+                
                 prod_todelete=delete(Products).where(Products.id==product_id).returning(Products.id)
-
                 product_id=(await self.session.execute(prod_todelete)).scalar_one_or_none()
 
                 if not product_id:
