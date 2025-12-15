@@ -161,6 +161,8 @@ class OrdersCrud(BaseCrud):
             total_orders:int=0
             total_revenue=0
             highest_revenue=0
+            pending_dues=0
+            pending_invoice=0
             ic(offset)
             if offset==1:
                 total_orders=(await self.session.execute(
@@ -174,13 +176,26 @@ class OrdersCrud(BaseCrud):
                 highest_revenue=(await self.session.execute(
                     select(func.max(Orders.final_price))
                 )).scalar()
+                pending_invoice=(
+                    await self.session.execute(
+                        select(
+        func.count().filter(Orders.invoice_status == InvoiceStatus.INCOMPLETED.value).label("pending_invoices"))
+                    )
+                ).scalar_one_or_none()
+                pending_dues=(
+                    await self.session.execute(
+                        select(func.count().filter(Orders.payment_status == PaymentStatus.NOT_PAID.value).label("pending_dues"))
+                    )
+                ).scalar_one_or_none()
 
             return {
                 'orders':queried_orders,
                 'total_orders':total_orders,
                 'total_pages':ceil(total_orders/limit),
                 'total_revenue':total_revenue,
-                'highest_revenue':highest_revenue
+                'highest_revenue':highest_revenue,
+                'pending_invoice':pending_invoice,
+                'pending_dues':pending_dues
             }
         
         except HTTPException:
