@@ -1,0 +1,144 @@
+from . import HTTPException,BaseRepoModel
+from ..models.product import Products,ProductTypes
+from ..models.order import Orders
+from core.utils.uuid_generator import generate_uuid
+from sqlalchemy import select,delete,update,or_,cast,String,func,Float
+from sqlalchemy.ext.asyncio import AsyncSession
+from icecream import ic
+from core.data_formats.enums.common_enums import UserRoles
+from core.decorators.db_session_handler_dec import start_db_transaction
+from schemas.db_schemas.product import AddProductDbSchema,UpdateProductDbSchema
+from math import ceil
+
+
+
+class ProductsRepo(BaseRepoModel):
+    def __init__(self,session:AsyncSession,user_role:UserRoles):
+        self.session=session
+        self.user_role=user_role
+        self.low_qty_thershold=5
+        self.products_cols=(
+            Products.id,
+            Products.name,
+            Products.description,
+            Products.available_qty.label('quantity'),
+            Products.price,
+            Products.product_type
+        )
+
+
+    @start_db_transaction
+    async def add(self,data:AddProductDbSchema):
+        self.session.add(Products(**data.model_dump(mode='json')))
+        return True
+
+
+    @start_db_transaction   
+    async def update(self,data:UpdateProductDbSchema):
+        data_toupdate=data.model_dump(mode='json',exclude=['product_id'],exclude_none=True,exclude_unset=True)
+        if not data_toupdate or len(data_toupdate)<1:
+            return False
+        
+        prod_toupdate=update(Products).where(Products.id==data.product_id).values(
+            **data_toupdate
+        ).returning(Products.id)
+
+        is_updated=(await self.session.execute(prod_toupdate)).scalar_one_or_none()
+        
+        return is_updated
+
+    @start_db_transaction
+    async def delete(self,product_id:str):
+        have_order=(await self.session.execute(select(Orders.id).where(Orders.product_id==product_id).limit(1))).scalar_one_or_none()
+        if have_order:
+            return False
+        
+        prod_todelete=delete(Products).where(Products.id==product_id).returning(Products.id)
+        is_deleted=(await self.session.execute(prod_todelete)).scalar_one_or_none()
+
+        return is_deleted
+        
+    async def get(self,offset:int=1,limit:int=10,query:str=''):
+        search_term=f"%{query.lower()}%"
+        cursor=(offset-1)*limit
+        date_expr=func.date(func.timezone("Asia/Kolkata",Products.created_at))
+        queried_products=(await self.session.execute(
+            select(
+                *self.products_cols,
+                date_expr.label("product_created_at")
+            )
+            .limit(limit)
+            .order_by(Products.name)
+            .where(
+                or_(
+                    Products.id.ilike(search_term),
+                    Products.name.ilike(search_term),
+                    Products.description.ilike(search_term),
+                    Products.product_type.ilike(search_term),
+                    func.cast(Products.created_at,String).ilike(search_term)
+                ),
+                Products.sequence_id>cursor
+
+            )
+        )).mappings().all()
+
+        total_products:int=0
+        low_qty:int=0
+        if offset == 1:
+            total_products=(await self.session.execute(
+                select(func.count(Products.id))
+            )).scalar_one_or_none()
+
+            low_qty=(await self.session.execute(
+                select(func.count()).select_from(Products).where(Products.available_qty<=self.low_qty_thershold)
+            )).scalar()
+
+        return {
+            'products':queried_products,
+            'total_products':total_products,
+            'total_pages':ceil(total_products/limit),
+            'low_quantites':low_qty
+        }
+    
+
+    async def search(self, query: str):
+        search_term = f"%{query.lower()}%"
+
+        result = await self.session.execute(
+            select(
+                Products.id,
+                Products.name,
+                Products.price.label("price"),
+                
+            )
+            .where(
+                or_(
+                    Products.id.ilike(search_term),
+                    Products.name.ilike(search_term),
+                    Products.description.ilike(search_term),
+                    Products.product_type.ilike(search_term),
+                )
+            )
+            .order_by(Products.name)
+            .limit(5)
+        )
+
+        products = result.mappings().all()
+        ic(products)
+        return {"products": products}
+        
+    async def get_by_id(self,product_id:str):
+        date_expr=func.date(func.timezone("Asia/Kolkata",Products.created_at))
+        queried_products=(await self.session.execute(
+            select(
+                *self.products_cols,
+                date_expr.label("product_created_at")
+            )
+            .where(Products.id==product_id)
+            .order_by(Products.name)
+        )).mappings().one_or_none()
+
+        return {'product':queried_products}
+
+
+

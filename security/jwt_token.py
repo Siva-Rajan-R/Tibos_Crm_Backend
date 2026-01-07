@@ -1,15 +1,14 @@
-from configs.pyjwt_config import jwt_token,DecodeError,ExpiredSignatureError
+from core.configs.security_configs.pyjwt_config import jwt_token,DecodeError,ExpiredSignatureError
 from icecream import ic
-from globals.fastapi_globals import HTTPException
+from . import HTTPException
 from datetime import datetime,timedelta,timezone
 from security.symm_encryption import encrypt_data,decrypt_data
 import os,json
-from dotenv import load_dotenv
-load_dotenv()
+from core.settings import SETTINGS
 
-ACCESS_JWT_KEY=os.getenv("ACCESS_JWT_KEY")
-REFRESH_JWT_KEY=os.getenv("REFRESH_JWT_KEY")
-JWT_ALG=os.getenv("JWT_ALG")
+ACCESS_JWT_KEY=SETTINGS.ACCESS_JWT_KEY
+REFRESH_JWT_KEY=SETTINGS.REFRESH_JWT_KEY
+JWT_ALG=SETTINGS.JWT_ALG
 
 
 def generate_jwt_token(data:dict,secret:str,alg:str,exp_min:int=0,exp_day:int=0,exp_sec:int=0)->str:

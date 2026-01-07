@@ -1,22 +1,21 @@
 import aiosmtplib,os,asyncio
 from email.mime.text import MIMEText
 from email.mime.multipart import MIMEMultipart
-from dotenv import load_dotenv
 from pydantic import EmailStr
 from icecream import ic
 from typing import List
 import time,asyncio,httpx
 from typing import Literal
-from database.configs.redis_config import unlink_redis
-load_dotenv()
+from infras.caching.models.redis_model import unlink_redis
+from core.settings import SETTINGS
 
-SMTP_SERVER = os.getenv("SMTP_SERVER")
-SMTP_PORT = int(os.getenv("SMTP_PORT"))
-SENDER_EMAIL= os.getenv("SENDER_EMAIL")
-EMAIL_PASSWORD = os.getenv("EMAIL_PASSWORD")
+SMTP_SERVER = SETTINGS.SMTP_SERVER
+SMTP_PORT = int(SETTINGS.SMTP_PORT)
+SENDER_EMAIL= SETTINGS.SENDER_EMAIL
+EMAIL_PASSWORD = SETTINGS.EMAIL_PASSWORD
 
-DEB_EMAIL_APIKEY=os.getenv("DEB_EMAIL_APIKEY")
-DEB_EMAIL_URL=os.getenv("DEB_EMAIL_URL")
+DEB_EMAIL_APIKEY=SETTINGS.DEB_EMAIL_APIKEY
+DEB_EMAIL_URL=SETTINGS.DEB_EMAIL_URL
 
 
 async def send_email(client_ip:str,reciver_emails:List[EmailStr], subject:str, body:str,is_html:bool=False):

@@ -2,11 +2,11 @@ import httpx,os
 from dotenv import load_dotenv
 from typing import List
 from icecream import ic
-load_dotenv()
+from core.settings import SETTINGS
 import asyncio
 
 
-FASTSMS_APIKEY=os.getenv('FASTSMS_APIKEY')
+FASTSMS_APIKEY=SETTINGS.FASTSMS_APIKEY
 
 async def send_sms(message:str,numbers:List[int]):
     """on this send sms function you send send any type of message
@@ -35,5 +35,3 @@ async def send_sms(message:str,numbers:List[int]):
             ic(f"Error sending message {res.json()}")
         else:
             ic("sms sended successfully")
-
-asyncio.run(send_sms("hii hello this from tibos crm",[8248692839]))

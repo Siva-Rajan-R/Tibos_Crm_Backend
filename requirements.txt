@@ -17,3 +17,5 @@ aiosmtplib
 uvloop ; platform_system!="Windows"
 jinja2
 pytz
+orjson
+pydantic-settings

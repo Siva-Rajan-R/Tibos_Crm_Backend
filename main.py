@@ -1,14 +1,15 @@
 from fastapi import FastAPI,Request
 from api.routes import auth,contact,customer,order,product,user,drop_downs,dashboard,opportunity,leads
 from fastapi.middleware.cors import CORSMiddleware
-from operations.crud.user_crud import UserCrud
-from database.configs.pg_config import init_pg_db
-from database.configs.redis_config import check_redis_health,redis_client
+from infras.primary_db.services.user_service import UserService,UserRoles
+from infras.primary_db.main import init_pg_db
+from infras.caching.main import check_redis_health,redis_client
 from icecream import ic
-from database.configs.pg_config import AsyncLocalSession
+from infras.primary_db.main import AsyncLocalSession
 import sys,subprocess,asyncio
 from contextlib import asynccontextmanager
 import os
+from core.settings import SETTINGS,EnvironmentEnum
 from dotenv import load_dotenv
 load_dotenv()
 
@@ -32,7 +33,7 @@ async def api_lifespan(app:FastAPI):
         ic("🏎️ Executing API Lifespan... ")
         # await init_pg_db()
         async with AsyncLocalSession() as session:
-            await UserCrud(session=session).init_superadmin()
+            await UserService(session=session,user_role=UserRoles.SUPER_ADMIN).init_superadmin()
         await check_redis_health()
         yield
     except Exception as e:
@@ -42,20 +43,27 @@ async def api_lifespan(app:FastAPI):
 
 
 # Hiding Dev Urls For Production
-ENVIRONMENT=os.getenv("ENVIRONMENT",'production').lower()
 openapi_url='/openapi.json'
 docs='/docs'
 redoc='/redoc'
 debug=True
 
-if ENVIRONMENT=="production":
+if SETTINGS.ENVIRONMENT==EnvironmentEnum.PRODUCTION.value:
     openapi_url=None
     docs=None
     redoc=None
     debug=False
 
 
-app=FastAPI(lifespan=api_lifespan,openapi_url=openapi_url,docs_url=docs,redoc_url=redoc,debug=debug)
+app=FastAPI(
+    lifespan=api_lifespan,
+    openapi_url=openapi_url,
+    docs_url=docs,
+    redoc_url=redoc,
+    debug=debug,
+    title="TIBOS-CRM API",
+    version="0.1.2"
+)
 
 # Routers
 @app.get('/')
@@ -70,8 +78,8 @@ app.include_router(order.router)
 app.include_router(product.router)
 app.include_router(drop_downs.router)
 app.include_router(dashboard.router)
-app.include_router(opportunity.router)
 app.include_router(leads.router)
+app.include_router(opportunity.router)
 
 #Middlewares
 app.add_middleware(

@@ -5,20 +5,20 @@ from services.email_service import send_email
 from templates.email.user_accept import get_user_accept_email_content
 from templates.email.accepted import get_login_credential_email_content
 from templates.email.forgot import get_forgot_password_email_content,get_password_reset_success_email
-from operations.crud.auth_crud import AuthCrud
+from infras.primary_db.repos.auth_repo import AuthRepo
 from security.jwt_token import generate_jwt_token,ACCESS_JWT_KEY,REFRESH_JWT_KEY,JWT_ALG
-from data_formats.enums.common_enums import UserRoles
+from core.data_formats.enums.common_enums import UserRoles
 from api.dependencies.token_verification import verify_user
-from utils.uuid_generator import generate_uuid
-from database.configs.redis_config import get_redis,set_redis,unlink_redis
-from database.configs.pg_config import get_pg_db_session
+from core.utils.uuid_generator import generate_uuid
+from infras.caching.models.redis_model import get_redis,set_redis,unlink_redis
+from infras.primary_db.main import get_pg_db_session
 import os
-from operations.crud.user_crud import UserCrud
-from api.schemas.auth import AuthSchema,AuthForgotEmailSchema,AuthForgotAcceptSchema
+from ..handlers.user_handler import HandleUserRequest
+from infras.primary_db.services.user_service import UserService,UserRepo
+from schemas.request_schemas.auth import AuthSchema,AuthForgotEmailSchema,AuthForgotAcceptSchema
 from security.data_hashing import verfiy_hashed,hash_data
 from icecream import ic
-from dotenv import load_dotenv
-load_dotenv()
+from core.settings import SETTINGS
 
 router=APIRouter(
     tags=['Auth Crud']
@@ -27,13 +27,13 @@ router=APIRouter(
 DEB_AUTH_APIKEY=os.getenv("DEB_AUTH_APIKEY")
 DEB_AUTH_CLIENT_SECRET=os.getenv("DEB_AUTH_CLIENT_SECRET")
 FRONTEND_URL=os.getenv('FRONTEND_URL')
-AUTHCRUD_OBJ=AuthCrud()
+AUTHCRUD_OBJ=AuthRepo()
 
 template=Jinja2Templates("templates/site")
 
 @router.post('/auth')
 async def auth_user(data:AuthSchema,request:Request,session=Depends(get_pg_db_session)):
-    user=(await UserCrud(session=session).isuser_exists(user_id_email=data.email))
+    user=(await UserRepo(session=session,user_role='').isuser_exists(user_id_email=data.email))
     if user is None:
         raise HTTPException(
             status_code=401,
@@ -62,7 +62,7 @@ async def forgot_password(data:AuthForgotEmailSchema,bgt:BackgroundTasks,request
                 detail="Already in progress..."
             )
         
-        user=(await UserCrud(session=session).isuser_exists(user_id_email=data.user_email))
+        user=(await UserRepo(session=session,user_role='').isuser_exists(user_id_email=data.user_email))
         auth_id:str=generate_uuid("Authenticayion id")
         ic(auth_id)
         if user is None:
@@ -127,13 +127,8 @@ async def accept_new_password(data:AuthForgotAcceptSchema,bgt:BackgroundTasks,re
             detail="Network interuppted"
         )
     
-    if data.new_password!=data.confirm_password:
-        raise HTTPException(
-            status_code=422,
-            detail="Password doesnt match"
-        )
     
-    user=await UserCrud(session=session).update_password(user_toupdate_id=auth_info['id'],new_password=data.new_password)
+    user=await HandleUserRequest(session=session,user_role=UserRoles.SUPER_ADMIN).update_password(user_toupdate_id=auth_info['id'],data=data)
 
     email_content=get_password_reset_success_email(
         user_email=auth_info['email'],

@@ -1,8 +1,8 @@
 from fastapi import APIRouter,Depends
 from api.dependencies.token_verification import verify_user
-from database.configs.pg_config import AsyncSession,get_pg_db_session
-from data_formats.enums.common_enums import UserRoles
-from data_formats.enums.pg_enums import ProductTypes,CustomerSectors,ShippingMethods,CustomerIndustries,PaymentStatus,InvoiceStatus,BillingType,LeadSource,LeadStatus,OpportunityStatus
+from infras.primary_db.main import AsyncSession,get_pg_db_session
+from core.data_formats.enums.common_enums import UserRoles
+from core.data_formats.enums.pg_enums import ProductTypes,CustomerSectors,ShippingMethods,CustomerIndustries,PaymentStatus,InvoiceStatus,BillingType,LeadSource,LeadStatus,OpportunityStatus
 
 router=APIRouter(
     tags=["Drop-Downs"]

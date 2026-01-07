@@ -1,9 +1,9 @@
 from fastapi import Depends, APIRouter, Query
 from typing import Optional
-from database.configs.pg_config import get_pg_db_session, AsyncSession
+from  infras.primary_db.main import get_pg_db_session, AsyncSession
 from api.dependencies.token_verification import verify_user
-from operations.crud.lead_crud import LeadsCrud
-from api.schemas.lead import AddLeadSchema, UpdateLeadSchema
+from ..handlers.lead_handler import HandleLeadsRequest
+from schemas.request_schemas.lead import AddLeadSchema, UpdateLeadSchema
 
 router = APIRouter(
     tags=["Leads CRUD"]
@@ -16,19 +16,11 @@ async def add_lead(
     user: dict = Depends(verify_user),
     session: AsyncSession = Depends(get_pg_db_session)
 ):
-    return await LeadsCrud(
+    return await HandleLeadsRequest(
         session=session,
         user_role=user["role"]
     ).add(
-        name=data.name,
-        email=data.email,
-        phone=data.phone,
-        source=data.source,
-        assigned_to=data.assigned_to,
-        description=data.description,
-        status=data.status,
-        next_followup=data.next_followup,
-        last_contacted=data.last_contacted
+        data=data
     )
 
 
@@ -38,20 +30,11 @@ async def update_lead(
     user: dict = Depends(verify_user),
     session: AsyncSession = Depends(get_pg_db_session)
 ):
-    return await LeadsCrud(
+    return await HandleLeadsRequest(
         session=session,
         user_role=user["role"]
     ).update(
-        lead_id=data.lead_id,
-        name=data.name,
-        email=data.email,
-        phone=data.phone,
-        source=data.source,
-        status=data.status,
-        assigned_to=data.assigned_to,
-        last_contacted=data.last_contacted,
-        next_followup=data.next_followup,
-        description=data.description
+        data=data
     )
 
 
@@ -61,7 +44,7 @@ async def delete_lead(
     user: dict = Depends(verify_user),
     session: AsyncSession = Depends(get_pg_db_session)
 ):
-    return await LeadsCrud(
+    return await HandleLeadsRequest(
         session=session,
         user_role=user["role"]
     ).delete(lead_id=lead_id)
@@ -75,7 +58,7 @@ async def get_leads(
     limit: Optional[int] = Query(10),
     session: AsyncSession = Depends(get_pg_db_session)
 ):
-    return await LeadsCrud(
+    return await HandleLeadsRequest(
         session=session,
         user_role=user["role"]
     ).get(offset=offset, limit=limit, query=q)
@@ -86,7 +69,7 @@ async def get_leads(
     q: str = Query(""),
     session: AsyncSession = Depends(get_pg_db_session)
 ):
-    return await LeadsCrud(
+    return await HandleLeadsRequest(
         session=session,
         user_role=user["role"]
     ).search(query=q)
@@ -97,7 +80,7 @@ async def get_lead_by_id(
     user: dict = Depends(verify_user),
     session: AsyncSession = Depends(get_pg_db_session)
 ):
-    return await LeadsCrud(
+    return await HandleLeadsRequest(
         session=session,
         user_role=user["role"]
     ).get_by_id(lead_id=lead_id)

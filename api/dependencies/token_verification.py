@@ -1,12 +1,14 @@
 from fastapi import Request,HTTPException,Depends
-from database.configs.pg_config import get_pg_db_session
+from infras.primary_db.main import get_pg_db_session,AsyncSession
 from fastapi.security import HTTPBearer,HTTPAuthorizationCredentials
 from security.jwt_token import decode_jwt_token,ACCESS_JWT_KEY,REFRESH_JWT_KEY,JWT_ALG
-from operations.crud.user_crud import UserCrud,ic
-from database.configs.redis_config import get_redis,set_redis,unlink_redis
+from ..handlers.user_handler import HandleUserRequest
+from infras.primary_db.repos.user_repo import UserRepo
+from icecream import ic
+from infras.caching.models.redis_model import get_redis,set_redis,unlink_redis
 
 bearer=HTTPBearer()
-async def verify_user(request:Request,credentials:HTTPAuthorizationCredentials=Depends(bearer),session=Depends(get_pg_db_session)):
+async def verify_user(request:Request,credentials:HTTPAuthorizationCredentials=Depends(bearer),session:AsyncSession=Depends(get_pg_db_session)):
     ip=request.client.host
     bearer_token=credentials.credentials
     ic(f"credentials : {bearer_token}")
@@ -45,7 +47,7 @@ async def verify_user(request:Request,credentials:HTTPAuthorizationCredentials=D
             else:
                 await unlink_redis(key=[f"token-verify-{ip}"])
 
-    user_data=(await UserCrud(session=session).isuser_exists(user_id_email=decoded_token['email']))
+    user_data=(await UserRepo(session=session,user_role='').isuser_exists(user_id_email=decoded_token['email']))
     ic(user_data)
     if not user_data:
         raise HTTPException(

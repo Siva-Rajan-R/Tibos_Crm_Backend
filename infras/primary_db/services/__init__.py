@@ -1,0 +1,1 @@
+from models.service_models.base_model import BaseServiceModel
