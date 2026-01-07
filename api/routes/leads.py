@@ -6,11 +6,12 @@ from ..handlers.lead_handler import HandleLeadsRequest
 from schemas.request_schemas.lead import AddLeadSchema, UpdateLeadSchema
 
 router = APIRouter(
-    tags=["Leads CRUD"]
+    tags=["Leads CRUD"],
+    prefix='/leads'
 )
 
 
-@router.post("/leads")
+@router.post("")
 async def add_lead(
     data: AddLeadSchema,
     user: dict = Depends(verify_user),
@@ -24,7 +25,7 @@ async def add_lead(
     )
 
 
-@router.put("/leads")
+@router.put("")
 async def update_lead(
     data: UpdateLeadSchema,
     user: dict = Depends(verify_user),
@@ -38,7 +39,7 @@ async def update_lead(
     )
 
 
-@router.delete("/leads/{lead_id}")
+@router.delete("/{lead_id}")
 async def delete_lead(
     lead_id: str,
     user: dict = Depends(verify_user),
@@ -50,7 +51,7 @@ async def delete_lead(
     ).delete(lead_id=lead_id)
 
 
-@router.get("/leads")
+@router.get("")
 async def get_leads(
     user: dict = Depends(verify_user),
     q: str = Query(""),
@@ -63,7 +64,7 @@ async def get_leads(
         user_role=user["role"]
     ).get(offset=offset, limit=limit, query=q)
 
-@router.get("/leads/search")
+@router.get("/search")
 async def get_leads(
     user: dict = Depends(verify_user),
     q: str = Query(""),
@@ -74,7 +75,7 @@ async def get_leads(
         user_role=user["role"]
     ).search(query=q)
 
-@router.get("/leads/{lead_id}")
+@router.get("/{lead_id}")
 async def get_lead_by_id(
     lead_id: str,
     user: dict = Depends(verify_user),

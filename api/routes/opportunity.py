@@ -5,11 +5,12 @@ from ..handlers.opportunity_handler import HandleOpportunitiesRequest
 from schemas.request_schemas.opportunity import CreateOpportunitySchema,UpdateOpportunitySchema,Optional
 
 router = APIRouter(
-    tags=["Opportunities CRUD"]
+    tags=["Opportunities CRUD"],
+    prefix='/opportunities'
 )
 
 
-@router.post("/opportunities")
+@router.post("")
 async def create_opportunity(
     data: CreateOpportunitySchema,
     user: dict = Depends(verify_user),
@@ -23,7 +24,7 @@ async def create_opportunity(
     )
 
 
-@router.put("/opportunities")
+@router.put("")
 async def update_opportunity(
     data: UpdateOpportunitySchema,
     user: dict = Depends(verify_user),
@@ -37,7 +38,7 @@ async def update_opportunity(
     )
 
 
-@router.delete("/opportunities/{opportunity_id}")
+@router.delete("/{opportunity_id}")
 async def delete_opportunity(
     opportunity_id: str,
     user: dict = Depends(verify_user),
@@ -48,7 +49,7 @@ async def delete_opportunity(
         user_role=user["role"]
     ).delete(opportunity_id=opportunity_id)
 
-@router.get("/opportunities")
+@router.get("")
 async def get_leads(
     user: dict = Depends(verify_user),
     q: str = Query(""),
@@ -62,7 +63,7 @@ async def get_leads(
     ).get(offset=offset, limit=limit, query=q)
 
 
-@router.get("/opportunities/search")
+@router.get("/search")
 async def get_leads(
     user: dict = Depends(verify_user),
     q: str = Query(""),
@@ -74,7 +75,7 @@ async def get_leads(
     ).search(query=q)
 
 
-@router.get("/opportunities/by-lead/{lead_id}")
+@router.get("/by-lead/{lead_id}")
 async def get_opportunity_by_lead(
     lead_id: str,
     user: dict = Depends(verify_user),
@@ -85,7 +86,7 @@ async def get_opportunity_by_lead(
         user_role=user["role"]
     ).get_by_lead(lead_id=lead_id)
 
-@router.get("/opportunities/{opportunity_id}")
+@router.get("/{opportunity_id}")
 async def get_opportunity_byid(opportunity_id:str,session:AsyncSession=Depends(get_pg_db_session),user:dict=Depends(verify_user)):
     return await HandleOpportunitiesRequest(
         session=session,

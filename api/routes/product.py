@@ -7,11 +7,12 @@ from typing import Optional
 
 
 router=APIRouter(
-    tags=['Product Crud']
+    tags=['Product Crud'],
+    prefix='/product'
 )
 
 
-@router.post('/product')
+@router.post('')
 async def add_product(data:AddProductSchema,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleProductsRequest(
         session=session,
@@ -21,7 +22,7 @@ async def add_product(data:AddProductSchema,user:dict=Depends(verify_user),sessi
     )
 
 
-@router.put('/product')
+@router.put('')
 async def update_product(data:UpdateProductSchema,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleProductsRequest(
         session=session,
@@ -31,7 +32,7 @@ async def update_product(data:UpdateProductSchema,user:dict=Depends(verify_user)
     )
 
 
-@router.delete('/product/{product_id}')
+@router.delete('/{product_id}')
 async def delete_product(product_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleProductsRequest(
         session=session,
@@ -41,21 +42,21 @@ async def delete_product(product_id:str,user:dict=Depends(verify_user),session:A
     )
 
 
-@router.get('/product')
+@router.get('')
 async def get_all_product(q:str=Query(''),offset:Optional[int]=Query(1),limit:Optional[int]=Query(10),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleProductsRequest(
         session=session,
         user_role=user['role']
     ).get(offset=offset,limit=limit,query=q)
 
-@router.get('/product/search')
+@router.get('/search')
 async def get_searched_product(q:str=Query(...),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleProductsRequest(
         session=session,
         user_role=user['role']
     ).search(query=q)
 
-@router.get('/product/{product_id}')
+@router.get('/{product_id}')
 async def get_product_by_id(product_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleProductsRequest(
         session=session,

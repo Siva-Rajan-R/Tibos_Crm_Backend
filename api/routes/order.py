@@ -7,11 +7,12 @@ from typing import Optional
 
 
 router=APIRouter(
-    tags=['Order Crud']
+    tags=['Order Crud'],
+    prefix='/order'
 )
 
 
-@router.post('/order')
+@router.post('')
 async def add_order(data:AddOrderSchema,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     data.delivery_info['shipping_method']=data.delivery_info['shipping_method'].value
     data.delivery_info['delivery_date']=str(data.delivery_info['delivery_date'])
@@ -24,7 +25,7 @@ async def add_order(data:AddOrderSchema,user:dict=Depends(verify_user),session:A
     )
 
 
-@router.put('/order')
+@router.put('')
 async def update_order(data:UpdateOrderSchema,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleOrdersRequest(
         session=session,
@@ -34,7 +35,7 @@ async def update_order(data:UpdateOrderSchema,user:dict=Depends(verify_user),ses
     )
 
 
-@router.delete('/order/{customer_id}/{order_id}')
+@router.delete('/{customer_id}/{order_id}')
 async def delete_order(customer_id:str,order_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleOrdersRequest(
         session=session,
@@ -45,7 +46,7 @@ async def delete_order(customer_id:str,order_id:str,user:dict=Depends(verify_use
     )
 
 
-@router.get('/order')
+@router.get('')
 async def get_all_order(q:str=Query(''),offset:Optional[int]=Query(1),limit:Optional[int]=Query(10),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleOrdersRequest(
         session=session,
@@ -53,7 +54,7 @@ async def get_all_order(q:str=Query(''),offset:Optional[int]=Query(1),limit:Opti
     ).get(offset=offset,limit=limit,query=q)
 
 
-@router.get('/order/search')
+@router.get('/search')
 async def get_all_order(q:str=Query(...),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleOrdersRequest(
         session=session,
@@ -61,7 +62,7 @@ async def get_all_order(q:str=Query(...),user:dict=Depends(verify_user),session:
     ).search(query=q)
 
 
-@router.get('/order/{order_id}')
+@router.get('/{order_id}')
 async def get_order_by_order_id(order_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleOrdersRequest(
         session=session,
@@ -70,7 +71,7 @@ async def get_order_by_order_id(order_id:str,user:dict=Depends(verify_user),sess
 
 
 
-@router.get('/order/customer/{customer_id}')
+@router.get('/customer/{customer_id}')
 async def get_order_by_customer_id(customer_id:str,user:dict=Depends(verify_user),offset:Optional[int]=Query(1),limit:Optional[int]=Query(10),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleOrdersRequest(
         session=session,

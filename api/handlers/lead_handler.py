@@ -10,6 +10,7 @@ from typing import Optional
 from schemas.db_schemas.lead import AddLeadDbSchema,UpdateLeadDbSchema
 from schemas.request_schemas.lead import AddLeadSchema,UpdateLeadSchema
 from core.decorators.error_handler_dec import catch_errors
+from .  import HTTPException,ErrorResponseTypDict,SuccessResponseTypDict,BaseResponseTypDict
 
 
 class HandleLeadsRequest:
@@ -17,21 +18,72 @@ class HandleLeadsRequest:
         self.session = session
         self.user_role = user_role
 
-
         if self.user_role == UserRoles.USER.value:
-            return None
+            raise HTTPException(
+                status_code=401,
+                detail=ErrorResponseTypDict(
+                    msg="Error : ",
+                    description="Insufficient permission",
+                    status_code=401,
+                    success=False
+                )
+            )
 
     @catch_errors
     async def add(self,data:AddLeadSchema):
-        return await LeadsService(session=self.session,user_role=self.user_role).add(data=data)
+        res = await LeadsService(session=self.session,user_role=self.user_role).add(data=data)
+        if res:
+            return SuccessResponseTypDict(
+            detail=BaseResponseTypDict(
+                status_code=200,
+                success=True,
+                msg="Lead created successfully"
+            )
+        )
     
     @catch_errors
     async def update(self,data:UpdateLeadSchema):
-        return await LeadsService(session=self.session,user_role=self.user_role).update(data=data)
+        res = await LeadsService(session=self.session,user_role=self.user_role).update(data=data)
+        if not res:
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponseTypDict(
+                    status_code=400,
+                    success=False,
+                    msg="Error : Updaing lead",
+                    description="Invalid user input"
+                )
+            )
+        
+        return SuccessResponseTypDict(
+            detail=BaseResponseTypDict(
+                status_code=200,
+                success=True,
+                msg="Lead updated successfully"
+            )
+        )
 
     @catch_errors
     async def delete(self, lead_id: str):
-        return await LeadsService(session=self.session,user_role=self.user_role).delete(lead_id=lead_id)
+        res = await LeadsService(session=self.session,user_role=self.user_role).delete(lead_id=lead_id)
+        if not res:
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponseTypDict(
+                    status_code=400,
+                    success=False,
+                    msg="Error : Deleting lead",
+                    description="Invalid user input"
+                )
+            )
+        
+        return SuccessResponseTypDict(
+            detail=BaseResponseTypDict(
+                status_code=200,
+                success=True,
+                msg="Lead deleted successfully"
+            )
+        )
     
     @catch_errors
     async def get(self, offset: int = 1, limit: int = 10, query: str = ""):

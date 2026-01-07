@@ -14,11 +14,12 @@ from icecream import ic
 import pytz
 
 router=APIRouter(
-    tags=['Dashboard']
+    tags=['Dashboard'],
+    prefix='/dashboard'
 )
 
 
-@router.get('/dashboard/weeks')
+@router.get('/weeks')
 async def get_dashboard_totals(date: datetime=Query(),timezone: Optional[str] = Query("Asia/Kolkata"), session: AsyncSession = Depends(get_pg_db_session)):
     st_date = date.date()
     end_date = (date + timedelta(days=6)).date()

@@ -13,34 +13,108 @@ from schemas.request_schemas.auth import AuthForgotAcceptSchema,AuthForgotEmailS
 from typing import Optional
 from security.data_hashing import verfiy_hashed,hash_data
 from core.decorators.error_handler_dec import catch_errors
+from infras.caching.models.redis_model import unlink_redis
 from secrets import token_urlsafe
-from . import HTTPException,BaseResponseTypDict,ErrorResponseTypDict,SuccessResponseTypDict
+from . import HTTPException,BaseResponseTypDict,ErrorResponseTypDict,SuccessResponseTypDict,BackgroundTasks,Request
+from services.email_service import send_email
+from templates.email.accepted import get_login_credential_email_content
+from core.settings import SETTINGS
 
-DEFAULT_SUPERADMIN_INFO=json.loads(os.getenv('DEFAULT_SUPERADMIN_INFO'))
+DEFAULT_SUPERADMIN_INFO=SETTINGS.DEFAULT_SUPERADMIN_INFO
+FRONTEND_URL=SETTINGS.FRONTEND_URL
  
  
 class HandleUserRequest:
-    def __init__(self,session:AsyncSession,user_role:UserRoles):
+    def __init__(self,session:AsyncSession,user_role:UserRoles,bgt:BackgroundTasks,request:Request):
         self.session=session
         self.user_role=user_role
+        self.bgt=bgt
+        self.request=request
 
-        if self.user_role==UserRoles.SUPER_ADMIN.value:
-            return None
+        if self.user_role!=UserRoles.SUPER_ADMIN.value:
+            raise HTTPException(
+                status_code=401,
+                detail=ErrorResponseTypDict(
+                    msg="Error : ",
+                    description="Insufficient permission",
+                    status_code=401,
+                    success=False
+                )
+            )
 
 
     @catch_errors
     async def add(self,data:AddUserSchema):
-        return await UserService(session=self.session,user_role=self.user_role).add(data=data)  
+        res=await UserService(session=self.session,user_role=self.user_role).add(data=data)
+        
+        if res:
+            password=res.get('password')
+            email_content=get_login_credential_email_content(user_name=data.name,user_email=data.email,user_role=data.role.value,password=password,dashboard_link=FRONTEND_URL)
+
+            self.bgt.add_task(
+                send_email,
+                reciver_emails=[data.email],
+                subject="Welcome To Tibos CRM — Here Are Your Login Details",
+                is_html=True,
+                body=email_content,
+                client_ip=self.request.client.host.__str__()
+                
+            )
+
+            return SuccessResponseTypDict(
+                detail=BaseResponseTypDict(
+                    status_code=200,
+                    success=True,
+                    msg="User created successfully"
+                )
+            )
         
     
     @catch_errors
     async def update(self,data:UpdateUserDbSchema):
-        return await UserService(session=self.session,user_role=self.user_role).update(data=data)
+        res = await UserService(session=self.session,user_role=self.user_role).update(data=data)
+        if not res:
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponseTypDict(
+                    status_code=400,
+                    success=False,
+                    msg="Error : Updaing user",
+                    description="Invalid user input"
+                )
+            )
+        
+        await unlink_redis(key=[f"token-verify-{self.request.client.host}"])
+        return SuccessResponseTypDict(
+            detail=BaseResponseTypDict(
+                status_code=200,
+                success=True,
+                msg="User updated successfully"
+            )
+        )
         
 
     @catch_errors
     async def update_role(self,user_toupdate_id:str,role_toupdate:UserRoles):    
-        return await UserService(session=self.session,user_role=self.user_role).update_role(user_toupdate_id=user_toupdate_id,role_toupdate=role_toupdate)
+        res=await UserService(session=self.session,user_role=self.user_role).update_role(user_toupdate_id=user_toupdate_id,role_toupdate=role_toupdate)
+        if not res:
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponseTypDict(
+                    status_code=400,
+                    success=False,
+                    msg="Error : Updaing user",
+                    description="Invalid user input"
+                )
+            )
+        await unlink_redis(key=[f"token-verify-{self.request.client.host}"])
+        return SuccessResponseTypDict(
+            detail=BaseResponseTypDict(
+                status_code=200,
+                success=True,
+                msg="User updated successfully"
+            )
+        )
     
 
     @catch_errors
@@ -78,8 +152,25 @@ class HandleUserRequest:
     
     @catch_errors
     async def delete(self,userid_toremove:str):      
-        return await UserService(session=self.session,user_role=self.user_role).delete(userid_toremove=userid_toremove)
-        
+        res = await UserService(session=self.session,user_role=self.user_role).delete(userid_toremove=userid_toremove)
+        if not res:
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponseTypDict(
+                    status_code=400,
+                    success=False,
+                    msg="Error : Deleting user",
+                    description="Invalid user input"
+                )
+            )
+        await unlink_redis(key=[f"token-verify-{self.request.client.host}"])
+        return SuccessResponseTypDict(
+            detail=BaseResponseTypDict(
+                status_code=200,
+                success=True,
+                msg="User deleted successfully"
+            )
+        )
     
     @catch_errors
     async def get(self):   

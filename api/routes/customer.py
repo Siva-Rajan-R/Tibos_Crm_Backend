@@ -7,11 +7,12 @@ from typing import Optional
 
 
 router=APIRouter(
-    tags=['Customer Crud']
+    tags=['Customer Crud'],
+    prefix='/customer'
 )
 
 
-@router.post('/customer')
+@router.post('')
 async def add_customer(data:AddCustomerSchema,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleCustomersRequest(
         session=session,
@@ -21,7 +22,7 @@ async def add_customer(data:AddCustomerSchema,user:dict=Depends(verify_user),ses
     )
 
 
-@router.put('/customer')
+@router.put('')
 async def update_customer(data:UpdateCustomerSchema,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleCustomersRequest(
         session=session,
@@ -31,7 +32,7 @@ async def update_customer(data:UpdateCustomerSchema,user:dict=Depends(verify_use
     )
 
 
-@router.delete('/customer/{customer_id}')
+@router.delete('/{customer_id}')
 async def delete_customer(customer_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleCustomersRequest(
         session=session,
@@ -41,7 +42,7 @@ async def delete_customer(customer_id:str,user:dict=Depends(verify_user),session
     )
 
 
-@router.get('/customer')
+@router.get('')
 async def get_all_customer(user:dict=Depends(verify_user),q:str=Query(''),offset:Optional[int]=Query(1),limit:Optional[int]=Query(10),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleCustomersRequest(
         session=session,
@@ -49,7 +50,7 @@ async def get_all_customer(user:dict=Depends(verify_user),q:str=Query(''),offset
     ).get(offset=offset,limit=limit,query=q)
 
 
-@router.get('/customer/search')
+@router.get('/search')
 async def get_searched_customers(q:str=Query(...),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleCustomersRequest(
         session=session,
@@ -57,7 +58,7 @@ async def get_searched_customers(q:str=Query(...),user:dict=Depends(verify_user)
     ).search(query=q)
 
 
-@router.get('/customer/{customer_id}')
+@router.get('/{customer_id}')
 async def get_customer_by_id(customer_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleCustomersRequest(
         session=session,

@@ -5,10 +5,11 @@ from core.data_formats.enums.common_enums import UserRoles
 from core.data_formats.enums.pg_enums import ProductTypes,CustomerSectors,ShippingMethods,CustomerIndustries,PaymentStatus,InvoiceStatus,BillingType,LeadSource,LeadStatus,OpportunityStatus
 
 router=APIRouter(
-    tags=["Drop-Downs"]
+    tags=["Drop-Downs"],
+    prefix='/dd'
 )
 
-@router.get('/dd/all')
+@router.get('/all')
 async def get_all_dd(user:dict=Depends(verify_user)):
     return{
         'user_roles':list(UserRoles._value2member_map_.values()),
@@ -25,67 +26,67 @@ async def get_all_dd(user:dict=Depends(verify_user)):
     }
 
 
-@router.get('/dd/user-roles')
+@router.get('/user-roles')
 async def get_dd_user_role(user:dict=Depends(verify_user)):
     return {
         'user_roles':list(UserRoles._value2member_map_.values())
     }
 
-@router.get('/dd/product-types')
+@router.get('/product-types')
 async def get_dd_user_role(user:dict=Depends(verify_user)):
     return {
         'product_types':list(ProductTypes._value2member_map_.values())
     }
 
-@router.get('/dd/customer-sectors')
+@router.get('/customer-sectors')
 async def get_dd_user_role(user:dict=Depends(verify_user)):
     return {
         'customer_sectors':list(CustomerSectors._value2member_map_.values())
     }
 
-@router.get('/dd/customer-industries')
+@router.get('/customer-industries')
 async def get_dd_user_role(user:dict=Depends(verify_user)):
     return {
         'customer_industries':list(CustomerIndustries._value2member_map_.values())
     }
 
-@router.get('/dd/shipping-methods')
+@router.get('/shipping-methods')
 async def get_dd_user_role(user:dict=Depends(verify_user)):
     return {
         'shipping_methods':list(ShippingMethods._value2member_map_.values())
     }
 
-@router.get('/dd/payment-status')
+@router.get('/payment-status')
 async def get_dd_payment_status(user:dict=Depends(verify_user)):
     return {
         'payment_status':list(PaymentStatus._value2member_map_.values())
     }
 
-@router.get('/dd/invoice-status')
+@router.get('/invoice-status')
 async def get_dd_invoice_status(user:dict=Depends(verify_user)):
     return {
         'invoice_status':list(InvoiceStatus._value2member_map_.values())
     }
 
-@router.get('/dd/opportunity-status')
+@router.get('/opportunity-status')
 async def get_dd_opportunity_status(user:dict=Depends(verify_user)):
     return {
         'opportunity_status':list(OpportunityStatus._value2member_map_.values())
     }
 
-@router.get('/dd/billing-type')
+@router.get('/billing-type')
 async def get_dd_billing_type(user:dict=Depends(verify_user)):
     return {
         'billing_type':list(BillingType._value2member_map_.values())
     }
 
-@router.get('/dd/lead-status')
+@router.get('/lead-status')
 async def get_dd_lead_status(user:dict=Depends(verify_user)):
     return {
         'lead_status':list(LeadStatus._value2member_map_.values())
     }
 
-@router.get('/dd/lead-source')
+@router.get('/lead-source')
 async def get_dd_lead_source(user:dict=Depends(verify_user)):
     return {
         'lead_source':list(LeadSource._value2member_map_.values())

@@ -9,6 +9,7 @@ from typing import Optional,List
 from core.decorators.error_handler_dec import catch_errors
 from schemas.db_schemas.contact import AddContactDbSchema,UpdateContactDbSchema
 from schemas.request_schemas.contact import AddContactSchema,UpdateContactSchema
+from . import HTTPException,ErrorResponseTypDict,SuccessResponseTypDict,BaseResponseTypDict
 
 
 
@@ -19,20 +20,72 @@ class HandleContactsRequest:
         self.user_role=user_role
 
         if self.user_role==UserRoles.USER.value:
-            return None
+            raise HTTPException(
+                status_code=401,
+                detail=ErrorResponseTypDict(
+                    msg="Error : ",
+                    description="Insufficient permission",
+                    status_code=401,
+                    success=False
+                )
+            )
         
 
     @catch_errors
     async def add(self,data:AddContactSchema):
-        return await ContactsService(session=self.session,user_role=self.user_role).add(data=data)
+        res = await ContactsService(session=self.session,user_role=self.user_role).add(data=data)
+        if res:
+            return SuccessResponseTypDict(
+            detail=BaseResponseTypDict(
+                status_code=200,
+                success=True,
+                msg="Contact created successfully"
+            )
+        )
         
     @catch_errors  
     async def update(self,data:UpdateContactSchema):
-        return await ContactsService(session=self.session,user_role=self.user_role).update(data=data)
+        res=await ContactsService(session=self.session,user_role=self.user_role).update(data=data)
+        if not res:
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponseTypDict(
+                    status_code=400,
+                    success=False,
+                    msg="Error : Updaing contact",
+                    description="Invalid user input"
+                )
+            )
+        
+        return SuccessResponseTypDict(
+            detail=BaseResponseTypDict(
+                status_code=200,
+                success=True,
+                msg="Contact updated successfully"
+            )
+        )
         
     @catch_errors
     async def delete(self,customer_id:str,contact_id:str):
-        return await ContactsService(session=self.session,user_role=self.user_role).delete(customer_id=customer_id,contact_id=contact_id)
+        res=await ContactsService(session=self.session,user_role=self.user_role).delete(customer_id=customer_id,contact_id=contact_id)
+        if not res:
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponseTypDict(
+                    status_code=400,
+                    success=False,
+                    msg="Error : Deleting contact",
+                    description="Invalid user input"
+                )
+            )
+        
+        return SuccessResponseTypDict(
+            detail=BaseResponseTypDict(
+                status_code=200,
+                success=True,
+                msg="Contact deleted successfully"
+            )
+        )
     
     @catch_errors  
     async def get(self,offset:int,limit:int,query:str=''):

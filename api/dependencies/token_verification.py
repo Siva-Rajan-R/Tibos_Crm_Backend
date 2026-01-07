@@ -8,6 +8,7 @@ from icecream import ic
 from infras.caching.models.redis_model import get_redis,set_redis,unlink_redis
 
 bearer=HTTPBearer()
+
 async def verify_user(request:Request,credentials:HTTPAuthorizationCredentials=Depends(bearer),session:AsyncSession=Depends(get_pg_db_session)):
     ip=request.client.host
     bearer_token=credentials.credentials
