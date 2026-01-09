@@ -18,8 +18,10 @@ class HandleOrdersRequest:
         self.session=session
         self.user_role=user_role
 
+        if isinstance(self.user_role,UserRoles):
+            self.user_role=self.user_role.value
 
-        if self.user_role.value==UserRoles.USER.value:
+        if self.user_role==UserRoles.USER.value:
             raise HTTPException(
                 status_code=401,
                 detail=ErrorResponseTypDict(
