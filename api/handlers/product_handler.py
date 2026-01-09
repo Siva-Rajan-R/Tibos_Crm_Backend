@@ -17,7 +17,7 @@ class HandleProductsRequest:
         self.session=session
         self.user_role=user_role
 
-        if self.user_role==UserRoles.USER.value:
+        if self.user_role.value==UserRoles.USER.value:
             raise HTTPException(
                 status_code=401,
                 detail=ErrorResponseTypDict(

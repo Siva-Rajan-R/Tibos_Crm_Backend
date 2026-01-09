@@ -28,13 +28,17 @@ class UserService(BaseServiceModel):
     async def init_superadmin(self):
         ic(f"🔃 Creating Default Super-Admin... {DEFAULT_SUPERADMIN_INFO} {type(DEFAULT_SUPERADMIN_INFO)}")
         for superadmins in DEFAULT_SUPERADMIN_INFO:
+            user_obj=UserRepo(session=self.session,user_role=self.user_role)
+            if (await user_obj.isuser_exists(user_id_email=superadmins['email'])):
+                ic("✅ Default Super-Admin Already Exists")
+                return
             await UserRepo(session=self.session,user_role=self.user_role).add(
                 data=AddUserDbSchema(
                     id=generate_uuid(),
                     email=superadmins['email'],
                     name=superadmins['name'],
                     role=UserRoles.SUPER_ADMIN,
-                    password=superadmins['password']
+                    password=hash_data(superadmins['password'])
 
                 ) 
             )

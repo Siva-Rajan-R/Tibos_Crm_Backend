@@ -31,7 +31,7 @@ class HandleUserRequest:
         self.bgt=bgt
         self.request=request
 
-        if self.user_role!=UserRoles.SUPER_ADMIN.value:
+        if self.user_role.value!=UserRoles.SUPER_ADMIN.value:
             raise HTTPException(
                 status_code=401,
                 detail=ErrorResponseTypDict(

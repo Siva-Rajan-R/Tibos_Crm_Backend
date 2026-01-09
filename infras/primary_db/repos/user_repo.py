@@ -39,19 +39,6 @@ class UserRepo(BaseRepoModel):
 
             ).where(or_(Users.email==user_id_email,Users.id==user_id_email))
         )).mappings().one_or_none()
-    
-
-    async def init_superadmin(self):
-        ic(f"🔃 Creating Default Super-Admin... {DEFAULT_SUPERADMIN_INFO} {type(DEFAULT_SUPERADMIN_INFO)}")
-        for superadmins in DEFAULT_SUPERADMIN_INFO:
-            await self.add(
-                user_role_tocheck=UserRoles.SUPER_ADMIN.value,
-                email=superadmins['email'],
-                name=superadmins['name'],
-                role=UserRoles.SUPER_ADMIN,
-                password=superadmins['password']
-            )
-        ic("✅ Default Super-Admin Created Successfully")
 
 
     @start_db_transaction

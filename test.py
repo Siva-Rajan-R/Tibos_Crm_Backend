@@ -1,15 +1,16 @@
-def mobile_number_validator(mob_no:str):
-    if len(mob_no)!=10:
-        return False
+import asyncpg
+import asyncio
 
-    try:
-        int(mob_no)
-        return True
-    except:
-        return False
-    
+async def main():
+    conn = await asyncpg.connect(
+        host="tibos-crm-database.rs-08d5d6fa71eb.postgres.database.azure.com",
+        port=5432,
+        user="TibosCrmDatabase",
+        password="AzureCRMDatabase#437734#1234#",
+        database="postgres",
+        ssl="require"
+    )
+    print("CONNECTED SUCCESSFULLY")
 
 
-
-a="123456780s"
-print(mobile_number_validator(a))
+asyncio.run(main())
