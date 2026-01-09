@@ -2,7 +2,7 @@
 # More GitHub Actions for Azure: https://github.com/Azure/actions
 # More info on Python, GitHub Actions, and Azure App Service: https://aka.ms/python-webapps-actions
 
-name: Build and deploy Python app to Azure Web App - Tibos-Crm-Api
+name: Build and deploy Python app to Azure Web App - tibos-crm-backend
 
 on:
   push:
@@ -63,14 +63,14 @@ jobs:
       - name: Login to Azure
         uses: azure/login@v2
         with:
-          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_58D825A72A3747C1AF3E5178FD3DCB3D }}
-          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_6CF2BE6DB11740D58C13F590BCDCBC6D }}
-          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_A5669950360F4C3CBE6F107742479C55 }}
+          client-id: ${{ secrets.AZUREAPPSERVICE_CLIENTID_EB918B310B9246E69EA4D424DA63ED05 }}
+          tenant-id: ${{ secrets.AZUREAPPSERVICE_TENANTID_EF4A860249C141DFA383ACB6C674A70D }}
+          subscription-id: ${{ secrets.AZUREAPPSERVICE_SUBSCRIPTIONID_3D5A09BB204C4619BE9417D84FFCB012 }}
 
       - name: 'Deploy to Azure Web App'
         uses: azure/webapps-deploy@v3
         id: deploy-to-webapp
         with:
-          app-name: 'Tibos-Crm-Api'
+          app-name: 'tibos-crm-backend'
           slot-name: 'Production'
           
