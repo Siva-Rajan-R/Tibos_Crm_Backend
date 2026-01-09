@@ -32,6 +32,20 @@ class ContactsRepo(BaseRepoModel):
             Customers.website_url.label('customer_website')
         )
 
+    async def is_contact_exists(self,email:EmailStr,mobile_number:str,customer_id:str):
+        is_exists=(await self.session.execute(
+            select(Contacts.id)
+            .where(
+                Contacts.customer_id==customer_id,
+                or_(
+                    Contacts.email==email,
+                    Contacts.mobile_number==mobile_number
+                )
+            )
+        )).scalar_one_or_none()
+
+        return is_exists
+
     @start_db_transaction
     async def add(self,data:AddContactDbSchema):
         """using this method we can add the contacts to the db"""

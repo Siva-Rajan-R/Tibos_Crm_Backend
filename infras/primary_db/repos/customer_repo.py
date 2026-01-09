@@ -30,6 +30,20 @@ class CustomersRepo(BaseRepoModel):
             Customers.sector,
             Customers.address
         )
+
+    async def is_customer_exists(self,email:EmailStr,mobile_number:str):
+        is_exists=(await self.session.execute(
+            select(Customers.id)
+            .where(
+                or_(
+                    Customers.email==email,
+                    Customers.mobile_number==mobile_number
+                )
+            )
+        )).scalar_one_or_none()
+
+        return is_exists
+
         
     @start_db_transaction
     async def add(self,data:AddCustomerDbSchema):

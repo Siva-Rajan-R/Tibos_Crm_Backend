@@ -31,10 +31,11 @@ if sys.platform!="win32":
 async def api_lifespan(app:FastAPI):
     try:
         ic("🏎️ Executing API Lifespan... ")
-        # await init_pg_db()
+        await init_pg_db()
         async with AsyncLocalSession() as session:
             await UserService(session=session,user_role=UserRoles.SUPER_ADMIN).init_superadmin()
         await check_redis_health()
+        # await redis_client.flushall()
         yield
     except Exception as e:
         ic(f"❌ Error At Executing API Lifespan {e}")

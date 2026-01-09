@@ -11,6 +11,7 @@ from datetime import datetime
 from typing import Optional
 from schemas.db_schemas.lead import AddLeadDbSchema,UpdateLeadDbSchema
 from core.decorators.db_session_handler_dec import start_db_transaction
+from pydantic import EmailStr
 
 
 class LeadsRepo(BaseRepoModel):
@@ -27,6 +28,21 @@ class LeadsRepo(BaseRepoModel):
             Leads.assigned_to.label("lead_assigned_to"),
             Leads.status.label("lead_status")
         )
+
+    async def is_lead_exists(self,email:EmailStr,mobile_number:str):
+        is_exists=(
+            await self.session.execute(
+                select(Leads.id)
+                .where(
+                    or_(
+                        Leads.email==email,
+                        Leads.phone==mobile_number
+                    )
+                )
+            )
+        ).scalar_one_or_none()
+
+        return is_exists
 
 
     @start_db_transaction

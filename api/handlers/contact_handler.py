@@ -10,6 +10,7 @@ from core.decorators.error_handler_dec import catch_errors
 from schemas.db_schemas.contact import AddContactDbSchema,UpdateContactDbSchema
 from schemas.request_schemas.contact import AddContactSchema,UpdateContactSchema
 from . import HTTPException,ErrorResponseTypDict,SuccessResponseTypDict,BaseResponseTypDict
+from core.utils.mob_no_validator import mobile_number_validator
 
 
 
@@ -33,6 +34,17 @@ class HandleContactsRequest:
 
     @catch_errors
     async def add(self,data:AddContactSchema):
+        if not mobile_number_validator(mob_no=data.mobile_number):
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponseTypDict(
+                    status_code=400,
+                    success=False,
+                    msg="Error : Creating contact ",
+                    description="Invalid input data, May be its a mobile number"
+                )
+            )
+        
         res = await ContactsService(session=self.session,user_role=self.user_role).add(data=data)
         if res:
             return SuccessResponseTypDict(
@@ -45,6 +57,16 @@ class HandleContactsRequest:
         
     @catch_errors  
     async def update(self,data:UpdateContactSchema):
+        if data.mobile_number and not mobile_number_validator(mob_no=data.mobile_number):
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponseTypDict(
+                    status_code=400,
+                    success=False,
+                    msg="Error : Creating contact ",
+                    description="Invalid input data, May be its a mobile number"
+                )
+            )
         res=await ContactsService(session=self.session,user_role=self.user_role).update(data=data)
         if not res:
             raise HTTPException(

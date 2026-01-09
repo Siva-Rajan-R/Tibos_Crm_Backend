@@ -28,6 +28,18 @@ class OpportunitiesRepo(BaseRepoModel):
             Opportunities.description.label("opportunity_description")
         )
 
+    async def is_opportunity_exists(self,lead_id:str):
+        is_exists=(
+            await self.session.execute(
+                select(Opportunities.id)
+                .where(
+                    Opportunities.lead_id==lead_id
+                )
+            )
+        ).scalar_one_or_none()
+
+        return is_exists
+
     
     @start_db_transaction
     async def add(self,data:CreateOpportunityDbSchema):

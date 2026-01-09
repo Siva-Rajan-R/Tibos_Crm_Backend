@@ -11,6 +11,7 @@ from schemas.db_schemas.lead import AddLeadDbSchema,UpdateLeadDbSchema
 from schemas.request_schemas.lead import AddLeadSchema,UpdateLeadSchema
 from core.decorators.error_handler_dec import catch_errors
 from .  import HTTPException,ErrorResponseTypDict,SuccessResponseTypDict,BaseResponseTypDict
+from core.utils.mob_no_validator import mobile_number_validator
 
 
 class HandleLeadsRequest:
@@ -31,6 +32,17 @@ class HandleLeadsRequest:
 
     @catch_errors
     async def add(self,data:AddLeadSchema):
+        if not mobile_number_validator(mob_no=data.phone):
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponseTypDict(
+                    status_code=400,
+                    success=False,
+                    msg="Error : Creating lead ",
+                    description="Invalid input data, May be its a mobile number"
+                )
+            )
+        
         res = await LeadsService(session=self.session,user_role=self.user_role).add(data=data)
         if res:
             return SuccessResponseTypDict(
@@ -43,6 +55,16 @@ class HandleLeadsRequest:
     
     @catch_errors
     async def update(self,data:UpdateLeadSchema):
+        if not mobile_number_validator(mob_no=data.phone):
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponseTypDict(
+                    status_code=400,
+                    success=False,
+                    msg="Error : Creating lead ",
+                    description="Invalid input data, May be its a mobile number"
+                )
+            )
         res = await LeadsService(session=self.session,user_role=self.user_role).update(data=data)
         if not res:
             raise HTTPException(

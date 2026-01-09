@@ -37,6 +37,17 @@ class OrdersRepo(BaseRepoModel):
             Customers.mobile_number
         )
 
+    async def is_order_exists(self,customer_id:str,product_id:str):
+        is_exists=(
+            await self.session.execute(
+                select(Orders.id)
+                .where(
+                    Orders.customer_id==customer_id,
+                    Orders.product_id==product_id
+                )
+            )
+        ).scalar_one_or_none()
+
 
     @start_db_transaction
     async def add(self,data:AddOrderDbSchema):

@@ -1,6 +1,7 @@
 from . import BaseServiceModel
 from ..models.opportunity import Opportunities
 from ..repos.opportunity_repo import OpportunitiesRepo
+from ..repos.lead_repo import LeadsRepo
 from ..models.leads import Leads
 from sqlalchemy import select, delete, update,func,or_,String
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,8 +24,21 @@ class OpportunitiesService(BaseServiceModel):
     
     @catch_errors
     async def add(self,data:CreateOpportunitySchema):
+        # need check the lead is already exists on Opprtunity
+        # and to check the given lead id is exists or not 
+
+        oppor_obj=OpportunitiesRepo(session=self.session,user_role=self.user_role)
+        if (await oppor_obj.is_opportunity_exists(lead_id=data.lead_id)):
+            return False
+        
+        is_lead_exists=await LeadsRepo(session=self.session,user_role=self.user_role).get_by_id(lead_id=data.lead_id)
+        if not is_lead_exists or len(is_lead_exists)<1:
+            return False
+        
+        
         oppr_id:str=generate_uuid()
         return await OpportunitiesRepo(session=self.session,user_role=self.user_role).add(data=CreateOpportunityDbSchema(**data.model_dump(mode='json'),id=oppr_id))
+
 
     @catch_errors
     async def update(self,data:UpdateOpportunitySchema):

@@ -23,8 +23,13 @@ class LeadsService(BaseServiceModel):
 
     @catch_errors
     async def add(self,data:AddLeadSchema):
+        # Need to check the given emailor phone have exisiting leads
+        lead_obj=LeadsRepo(session=self.session,user_role=self.user_role)
+        if (await lead_obj.is_lead_exists(email=data.email,mobile_number=data.phone)):
+            return False
+        
         lead_id:str=generate_uuid()
-        return await LeadsRepo(session=self.session,user_role=self.user_role).add(data=AddLeadDbSchema(**data.model_dump(),id=lead_id))
+        return await lead_obj.add(data=AddLeadDbSchema(**data.model_dump(),id=lead_id))
     
     @catch_errors
     async def update(self,data:UpdateLeadSchema):

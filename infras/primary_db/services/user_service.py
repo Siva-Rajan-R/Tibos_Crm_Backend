@@ -43,6 +43,10 @@ class UserService(BaseServiceModel):
 
     @catch_errors
     async def add(self,data:AddUserSchema):
+        user_obj=UserRepo(session=self.session,user_role=self.user_role)
+        if (await user_obj.isuser_exists(user_id_email=data.email)):
+            return False
+
         user_id:str=generate_uuid()
         pwd=token_urlsafe(16)
         hashed_pwd=hash_data(data=pwd)

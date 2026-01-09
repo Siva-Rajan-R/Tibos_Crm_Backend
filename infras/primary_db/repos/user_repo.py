@@ -56,9 +56,6 @@ class UserRepo(BaseRepoModel):
 
     @start_db_transaction
     async def add(self,data:AddUserDbSchema):      
-        user_id=(await self.session.execute(select(Users.id).where(Users.email==data.email))).scalar_one_or_none()
-        if user_id:
-            return False
 
         self.session.add(Users(**data.model_dump(mode='json')))
         

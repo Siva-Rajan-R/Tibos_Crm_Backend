@@ -2,6 +2,8 @@ from . import BaseServiceModel
 from ..models.order import Orders
 from ..models.product import Products
 from ..models.customer import Customers
+from ..repos.product_repo import ProductsRepo
+from ..repos.customer_repo import CustomersRepo
 from core.utils.uuid_generator import generate_uuid
 from ..repos.order_repo import OrdersRepo
 from sqlalchemy import select,delete,update,or_,func,String
@@ -25,8 +27,23 @@ class OrdersService(BaseServiceModel):
 
     @catch_errors
     async def add(self,data:AddOrderSchema):
+        # need to check if the customer and the product is exists on the order
+        # then check customer is exists or not
+        # then chck product is exists or not
+        order_obj=OrdersRepo(session=self.session,user_role=self.user_role)
+        if (await order_obj.is_order_exists(customer_id=data.customer_id,product_id=data.product_id)):
+            return False
+        
+        cust_exists=await CustomersRepo(session=self.session,user_role=self.user_role).get_by_id(customer_id=data.customer_id)
+        if not cust_exists or len(cust_exists)<1:
+            return False
+        
+        prod_exists=await ProductsRepo(session=self.session,user_role=self.user_role).get_by_id(product_id=data.product_id)
+        if not prod_exists or len(prod_exists)<1:
+            return False
+        
         order_id:str=generate_uuid()
-        return await OrdersRepo(session=self.session,user_role=self.user_role).add(data=AddOrderDbSchema(**data.model_dump(mode='json'),id=order_id))
+        return await order_obj.add(data=AddOrderDbSchema(**data.model_dump(mode='json'),id=order_id))
         # need to implement invoice generation process + email sending
     
     @catch_errors

@@ -84,7 +84,7 @@ class HandleUserRequest:
                 )
             )
         
-        await unlink_redis(key=[f"token-verify-{self.request.client.host}"])
+        await unlink_redis(key=[f"token-verify-{data.user_id}"])
         return SuccessResponseTypDict(
             detail=BaseResponseTypDict(
                 status_code=200,
@@ -107,7 +107,7 @@ class HandleUserRequest:
                     description="Invalid user input"
                 )
             )
-        await unlink_redis(key=[f"token-verify-{self.request.client.host}"])
+        await unlink_redis(key=[f"token-verify-{user_toupdate_id}"])
         return SuccessResponseTypDict(
             detail=BaseResponseTypDict(
                 status_code=200,
@@ -163,7 +163,7 @@ class HandleUserRequest:
                     description="Invalid user input"
                 )
             )
-        await unlink_redis(key=[f"token-verify-{self.request.client.host}"])
+        await unlink_redis(key=[f"token-verify-{userid_toremove}"])
         return SuccessResponseTypDict(
             detail=BaseResponseTypDict(
                 status_code=200,

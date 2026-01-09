@@ -7,9 +7,3 @@ def mobile_number_validator(mob_no:str):
         return True
     except:
         return False
-    
-
-
-
-a="123456780s"
-print(mobile_number_validator(a))

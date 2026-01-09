@@ -24,8 +24,13 @@ class CustomersService(BaseServiceModel):
        
     @catch_errors
     async def add(self,data:AddCustomerSchema):
+        # Need to check if the given email or mobile number already exists or not on the customer db
+        customer_obj=CustomersRepo(session=self.session,user_role=self.user_role)
+        if (await customer_obj.is_customer_exists(email=data.email,mobile_number=data.mobile_number)):
+            return False
+        
         customer_id:str=generate_uuid()
-        return await CustomersRepo(session=self.session,user_role=self.user_role).add(data=AddCustomerDbSchema(**data.model_dump(mode='json'),id=customer_id))
+        return await customer_obj.add(data=AddCustomerDbSchema(**data.model_dump(mode='json'),id=customer_id))
         
     @catch_errors  
     async def update(self,data:UpdateCustomerSchema):
