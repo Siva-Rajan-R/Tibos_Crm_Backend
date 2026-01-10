@@ -49,28 +49,37 @@ class HandleUserRequest:
     @catch_errors
     async def add(self,data:AddUserSchema):
         res=await UserService(session=self.session,user_role=self.user_role).add(data=data)
-        
-        if res:
-            password=res.get('password')
-            email_content=get_login_credential_email_content(user_name=data.name,user_email=data.email,user_role=data.role.value,password=password,dashboard_link=FRONTEND_URL)
 
-            self.bgt.add_task(
-                send_email,
-                reciver_emails=[data.email],
-                subject="Welcome To Tibos CRM — Here Are Your Login Details",
-                is_html=True,
-                body=email_content,
-                client_ip=self.request.client.host.__str__()
-                
-            )
-
-            return SuccessResponseTypDict(
-                detail=BaseResponseTypDict(
-                    status_code=200,
-                    success=True,
-                    msg="User created successfully"
+        if not res:
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponseTypDict(
+                    status_code=400,
+                    msg="Error : Creating User",
+                    description="A User or Account already exists or Invalid inputs !"
                 )
             )
+        
+        password=res.get('password')
+        email_content=get_login_credential_email_content(user_name=data.name,user_email=data.email,user_role=data.role.value,password=password,dashboard_link=FRONTEND_URL)
+
+        self.bgt.add_task(
+            send_email,
+            reciver_emails=[data.email],
+            subject="Welcome To Tibos CRM — Here Are Your Login Details",
+            is_html=True,
+            body=email_content,
+            client_ip=self.request.client.host.__str__()
+            
+        )
+
+        return SuccessResponseTypDict(
+            detail=BaseResponseTypDict(
+                status_code=200,
+                success=True,
+                msg="User created successfully"
+            )
+        )
         
     
     @catch_errors

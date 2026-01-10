@@ -36,8 +36,16 @@ class HandleOpportunitiesRequest:
     @catch_errors
     async def add(self,data:CreateOpportunitySchema):
         res= await OpportunitiesService(session=self.session,user_role=self.user_role).add(data=data)
-        if res:
-            return SuccessResponseTypDict(
+        if not res:
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponseTypDict(
+                    status_code=400,
+                    msg="Error : Creating Opportunity",
+                    description="A Opportunity or Account already exists or Invalid inputs !"
+                )
+            )
+        return SuccessResponseTypDict(
             detail=BaseResponseTypDict(
                 status_code=200,
                 success=True,

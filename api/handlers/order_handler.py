@@ -35,8 +35,16 @@ class HandleOrdersRequest:
     @catch_errors
     async def add(self,data:AddOrderSchema):
         res=await OrdersService(session=self.session,user_role=self.user_role).add(data=data)
-        if res:
-            return SuccessResponseTypDict(
+        if not res:
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponseTypDict(
+                    status_code=400,
+                    msg="Error : Creating Order",
+                    description="A Order or Account already exists or Invalid inputs !"
+                )
+            )
+        return SuccessResponseTypDict(
             detail=BaseResponseTypDict(
                 status_code=200,
                 success=True,

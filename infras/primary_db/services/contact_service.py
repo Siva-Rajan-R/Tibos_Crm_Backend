@@ -37,7 +37,7 @@ class ContactsService(BaseServiceModel):
         if (await contact_obj.is_contact_exists(email=data.email,mobile_number=data.mobile_number,customer_id=data.customer_id)):
             return False
         
-        is_cust_exists=await CustomersRepo(session=self.session).get_by_id(customer_id=data.customer_id)
+        is_cust_exists=await CustomersRepo(session=self.session,user_role=self.user_role).get_by_id(customer_id=data.customer_id)
         if not is_cust_exists or len(is_cust_exists)<1:
             return False
         
