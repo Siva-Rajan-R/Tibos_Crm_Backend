@@ -20,9 +20,7 @@ router=APIRouter(
 
 
 @router.get('/weeks')
-async def get_dashboard_totals(date: datetime=Query(),timezone: Optional[str] = Query("Asia/Kolkata"), session: AsyncSession = Depends(get_pg_db_session)):
-    st_date = date.date()
-    end_date = (date + timedelta(days=6)).date()
+async def get_dashboard_totals(from_date: datetime=Query(...),to_date:datetime=Query(...),timezone: Optional[str] = Query("Asia/Kolkata"), session: AsyncSession = Depends(get_pg_db_session)):
 
     day_expr = func.date(func.timezone('Asia/Kolkata', Orders.created_at))
 
@@ -33,8 +31,8 @@ async def get_dashboard_totals(date: datetime=Query(),timezone: Optional[str] = 
         func.count().filter(Orders.invoice_status == InvoiceStatus.INCOMPLETED.value).label("pending_invoices"),
         func.sum(Orders.final_price).label("total_revenue")
     ).where(
-        day_expr >= st_date,
-        day_expr <= end_date
+        day_expr >= from_date,
+        day_expr <= to_date
     ).group_by(
         day_expr
     ).order_by(

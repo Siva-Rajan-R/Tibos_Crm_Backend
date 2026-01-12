@@ -9,5 +9,6 @@ class Users(PG_BASE):
     password=Column(String,nullable=False)
     name=Column(String,nullable=False)
     role=Column(String,nullable=False)
+    tf_secret=Column(String,nullable=True)
 
     created_at=Column(TIMESTAMP(timezone=True),server_default=func.now())

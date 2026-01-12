@@ -1,97 +1,13 @@
 <!DOCTYPE html>
-<html>
-  <head>
-    <meta charset="UTF-8" />
-    <title>Reset Your Password</title>
-  </head>
-
-  <body style="margin:0; padding:0; background:#f6f7f9;">
-    
-    <table width="100%" cellpadding="0" cellspacing="0" style="padding:20px 0; background:#f6f7f9;">
-      <tr>
-        <td align="center">
-
-          <table width="460" cellpadding="0" cellspacing="0" 
-                 style="background:#ffffff; border-radius:14px; 
-                        border:1px solid #e5e7eb; 
-                        padding:30px; font-family:Arial, sans-serif;">
-
-            <!-- Heading -->
-            <tr>
-              <td align="center">
-                <h2 style="margin:0; font-size:24px; font-weight:bold; color:#1e293b;">
-                  Reset Your Password
-                </h2>
-                <p style="margin:6px 0 20px; font-size:13px; color:#64748b;">
-                  A request was made to reset your password. Click the button below to create a new one.
-                </p>
-              </td>
-            </tr>
-
-            <!-- Profile -->
-            <tr>
-              <td align="center" style="padding-bottom:20px;">
-                <img src="{ profile_pic_link }"
-                     alt="Profile Picture"
-                     width="70" height="70"
-                     style="border-radius:50%; display:block; object-fit:cover; box-shadow:0 3px 8px rgba(0,0,0,0.12);" />
-              </td>
-            </tr>
-
-            <!-- Name -->
-            <tr>
-              <td style="padding:12px; background:#f8fafc; border-radius:10px; margin-bottom:8px;">
-                <div style="font-size:11px; color:#64748b;">Name</div>
-                <div style="font-size:15px; font-weight:bold; color:#1e293b;">
-                  { user_name }
-                </div>
-              </td>
-            </tr>
-
-            <!-- Email -->
-            <tr>
-              <td style="padding:12px; background:#f8fafc; border-radius:10px; margin-bottom:8px;">
-                <div style="font-size:11px; color:#64748b;">Email</div>
-                <div style="font-size:15px; font-weight:bold; color:#1e293b;">
-                  { user_email }
-                </div>
-              </td>
-            </tr>
-
-            <!-- Button -->
-            <tr>
-              <td align="center" style="padding-top:25px;">
-                <a href="{ reset_link }"
-                   style="
-                     background:#059669; 
-                     color:white; 
-                     padding:12px 26px; 
-                     border-radius:8px; 
-                     text-decoration:none; 
-                     font-size:14px; 
-                     font-weight:bold;
-                     display:inline-block;
-                   ">
-                  Reset Password
-                </a>
-              </td>
-            </tr>
-
-            <!-- Security Notice -->
-            <tr>
-              <td align="center" style="padding-top:25px;">
-                <p style="font-size:11px; color:#94a3b8;">
-                  If you did not request this, you can safely ignore the email.<br/>
-                  This link will expire in 10 minutes.
-                </p>
-              </td>
-            </tr>
-
-          </table>
-
-        </td>
-      </tr>
-    </table>
-
-  </body>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Document</title>
+</head>
+<body>
+  <img 
+  src="data:image/png;base64,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" 
+  alt="">
+</body>
 </html>

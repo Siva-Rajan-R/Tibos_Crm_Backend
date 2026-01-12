@@ -130,7 +130,7 @@ async def accept_new_password(data:AuthForgotAcceptSchema,bgt:BackgroundTasks,re
         )
     
     
-    user=await HandleUserRequest(session=session,user_role=UserRoles.SUPER_ADMIN).update_password(user_toupdate_id=auth_info['id'],data=data)
+    user=await HandleUserRequest(session=session,user_role=UserRoles.SUPER_ADMIN,bgt=bgt,request=request).update_password(user_toupdate_id=auth_info['id'],data=data)
 
     email_content=get_password_reset_success_email(
         user_email=auth_info['email'],

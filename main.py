@@ -1,5 +1,5 @@
 from fastapi import FastAPI,Request
-from api.routes import auth,contact,customer,order,product,user,drop_downs,dashboard,opportunity,leads
+from api.routes import auth,contact,customer,order,product,user,drop_downs,dashboard,opportunity,leads,twofactor
 from fastapi.middleware.cors import CORSMiddleware
 from infras.primary_db.services.user_service import UserService,UserRoles
 from infras.primary_db.main import init_pg_db
@@ -71,8 +71,9 @@ app=FastAPI(
 def home_root(request:Request):
     return {"accesss token":request.headers.get("X-Access-Token"),'refresh_token':request.headers.get("X-Refresh-Token")}
 
-app.include_router(user.router)
 app.include_router(auth.router)
+app.include_router(twofactor.router)
+app.include_router(user.router)
 app.include_router(contact.router)
 app.include_router(customer.router)
 app.include_router(order.router)

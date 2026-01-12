@@ -72,6 +72,9 @@ class UserService(BaseServiceModel):
     async def update_role(self,user_toupdate_id:str,role_toupdate:UserRoles):    
         return await UserRepo(session=self.session,user_role=self.user_role).update_role(user_toupdate_id=user_toupdate_id,role_toupdate=role_toupdate)
     
+    @catch_errors
+    async def update_twofactor(self,user_toupdate_id:str,tf_secret:str):    
+        return await UserRepo(session=self.session,user_role=self.user_role).update_twofactor(user_toupdate_id=user_toupdate_id,tf_secret=tf_secret)
 
     @catch_errors
     async def update_password(self,user_toupdate_id:str,new_password:str):

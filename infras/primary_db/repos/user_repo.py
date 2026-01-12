@@ -36,6 +36,7 @@ class UserRepo(BaseRepoModel):
                 Users.password,
                 Users.name,
                 Users.role,
+                Users.tf_secret
 
             ).where(or_(Users.email==user_id_email,Users.id==user_id_email))
         )).mappings().one_or_none()
@@ -72,9 +73,9 @@ class UserRepo(BaseRepoModel):
             role=role_toupdate.value
         ).returning(Users.id)
 
-        is_deleted=(await self.session.execute(userrole_toupdate)).scalar_one_or_none()
+        is_updated=(await self.session.execute(userrole_toupdate)).scalar_one_or_none()
         
-        return is_deleted
+        return is_updated
     
 
     @start_db_transaction
@@ -84,6 +85,16 @@ class UserRepo(BaseRepoModel):
         ).returning(Users.id)
 
         is_updated=(await self.session.execute(userpwd_toupdate)).scalar_one_or_none()
+        
+        return is_updated
+    
+    @start_db_transaction
+    async def update_twofactor(self,user_toupdate_id:str,tf_secret:str):
+        usertf_toupdate=update(Users).where(Users.id==user_toupdate_id).values(
+            tf_secret=tf_secret
+        ).returning(Users.id)
+
+        is_updated=(await self.session.execute(usertf_toupdate)).scalar_one_or_none()
         
         return is_updated
 
