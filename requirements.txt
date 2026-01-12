@@ -19,3 +19,6 @@ jinja2
 pytz
 orjson
 pydantic-settings
+pyotp
+pillow
+qrcode
