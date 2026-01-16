@@ -1,6 +1,7 @@
 from pydantic import BaseModel,EmailStr
 from typing import Optional,List
 from core.data_formats.enums.pg_enums import CustomerIndustries,CustomerSectors
+from core.data_formats.typed_dicts.customer_dict import CustomerAddressTypDict
 
 class AddCustomerSchema(BaseModel):
     name:str
@@ -11,7 +12,7 @@ class AddCustomerSchema(BaseModel):
     gst_number:Optional[str]=None
     industry:CustomerIndustries
     sector:CustomerSectors
-    address:str
+    address:CustomerAddressTypDict
 
 class UpdateCustomerSchema(BaseModel):
     customer_id:str
@@ -23,4 +24,4 @@ class UpdateCustomerSchema(BaseModel):
     gst_number:Optional[str]=None
     industry:Optional[CustomerIndustries]=None
     sector:Optional[CustomerSectors]=None
-    address:Optional[str]=None
+    address:Optional[CustomerAddressTypDict]=None

@@ -7,9 +7,10 @@ class AddOrderDbSchema(BaseModel):
     id:str
     customer_id:str
     product_id:str
+    distributor_id:str
     quantity:int
     total_price:float
-    discount_price:float
+    discount:str
     final_price:float
     delivery_info:DeliveryInfo
     payment_status:PaymentStatus
@@ -20,9 +21,10 @@ class UpdateOrderDbSchema(BaseModel):
     order_id:str
     customer_id:str
     product_id:str
+    distributor_id:Optional[str]=None
     quantity:Optional[int]=None
     total_price:Optional[float]=None
-    discount_price:Optional[float]=None
+    discount:Optional[str]=None
     final_price:Optional[float]=None
     delivery_info:Optional[DeliveryInfo]=None
     payment_status:Optional[PaymentStatus]=None

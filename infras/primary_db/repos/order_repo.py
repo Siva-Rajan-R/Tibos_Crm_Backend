@@ -2,6 +2,7 @@ from . import HTTPException,BaseRepoModel
 from ..models.order import Orders
 from ..models.product import Products
 from ..models.customer import Customers
+from ..models.distributor import Distributors
 from core.utils.uuid_generator import generate_uuid
 from sqlalchemy import select,delete,update,or_,func,String
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,9 +24,10 @@ class OrdersRepo(BaseRepoModel):
             Orders.id,
             Orders.customer_id,
             Orders.product_id,
+            Orders.distributor_id,
             Orders.quantity,
             Orders.total_price,
-            Orders.discount_price,
+            Orders.discount,
             Orders.final_price,
             Orders.delivery_info,
             Orders.payment_status,
@@ -34,7 +36,9 @@ class OrdersRepo(BaseRepoModel):
             Products.product_type,
             Products.description,
             Customers.name.label('customer_name'),
-            Customers.mobile_number
+            Customers.mobile_number,
+            Distributors.name.label('distributor_name'),
+            Distributors.discount.label('distributor_discount')
         )
 
     async def is_order_exists(self,customer_id:str,product_id:str):
@@ -91,10 +95,12 @@ class OrdersRepo(BaseRepoModel):
             )
             .join(Products,Products.id==Orders.product_id,isouter=True)
             .join(Customers,Customers.id==Orders.customer_id,isouter=True)
+            .join(Distributors,Distributors.id==Orders.distributor_id,isouter=True) 
             .limit(limit)
             .where(
                 or_(
                     Orders.id.ilike(search_term),
+                    Orders.distributor_id.ilike(search_term),
                     Products.name.ilike(search_term),
                     Products.id.ilike(search_term),
                     Products.product_type.ilike(search_term),
@@ -159,9 +165,11 @@ class OrdersRepo(BaseRepoModel):
             )
             .join(Products,Products.id==Orders.product_id,isouter=True)
             .join(Customers,Customers.id==Orders.customer_id,isouter=True)
+            .join(Distributors,Distributors.id==Orders.distributor_id,isouter=True)
             .where(
                 or_(
                     Orders.id.ilike(search_term),
+                    Orders.distributor_id.ilike(search_term),
                     Products.name.ilike(search_term),
                     Products.id.ilike(search_term),
                     Products.product_type.ilike(search_term),
@@ -188,6 +196,7 @@ class OrdersRepo(BaseRepoModel):
             )
             .join(Products,Products.id==Orders.product_id,isouter=True)
             .join(Customers,Customers.id==Orders.customer_id,isouter=True)
+            .join(Distributors,Distributors.id==Orders.distributor_id,isouter=True) 
             .where(Orders.id==order_id)
         )).mappings().one_or_none()
 
@@ -204,6 +213,7 @@ class OrdersRepo(BaseRepoModel):
             )
             .join(Products,Products.id==Orders.product_id,isouter=True)
             .join(Customers,Customers.id==Orders.customer_id,isouter=True)
+            .join(Distributors,Distributors.id==Orders.distributor_id,isouter=True) 
             .where(Orders.customer_id==customer_id,Orders.sequence_id>cursor)
             .limit(limit)
         )).mappings().all()

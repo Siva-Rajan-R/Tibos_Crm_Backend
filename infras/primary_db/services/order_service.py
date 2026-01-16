@@ -4,6 +4,7 @@ from ..models.product import Products
 from ..models.customer import Customers
 from ..repos.product_repo import ProductsRepo
 from ..repos.customer_repo import CustomersRepo
+from ..repos.distri_repo import DistributorsRepo
 from core.utils.uuid_generator import generate_uuid
 from ..repos.order_repo import OrdersRepo
 from sqlalchemy import select,delete,update,or_,func,String
@@ -40,6 +41,10 @@ class OrdersService(BaseServiceModel):
         
         prod_exists=await ProductsRepo(session=self.session,user_role=self.user_role).get_by_id(product_id=data.product_id)
         if not prod_exists or len(prod_exists)<1:
+            return False
+        
+        distri_exists=await DistributorsRepo(session=self.session,user_role=self.user_role).get_by_id(distributor_id=data.distributor_id)
+        if not distri_exists or len(distri_exists)<1:
             return False
         
         order_id:str=generate_uuid()

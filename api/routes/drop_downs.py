@@ -3,6 +3,7 @@ from api.dependencies.token_verification import verify_user
 from infras.primary_db.main import AsyncSession,get_pg_db_session
 from core.data_formats.enums.common_enums import UserRoles
 from core.data_formats.enums.pg_enums import ProductTypes,CustomerSectors,ShippingMethods,CustomerIndustries,PaymentStatus,InvoiceStatus,BillingType,LeadSource,LeadStatus,OpportunityStatus
+from core.data_formats.enums.payment_enums import PaymentTermsEnum
 
 router=APIRouter(
     tags=["Drop-Downs"],
@@ -22,7 +23,8 @@ async def get_all_dd(user:dict=Depends(verify_user)):
         'opportunity_status':list(OpportunityStatus._value2member_map_.values()),
         'billing_type':list(BillingType._value2member_map_.values()),
         'lead_status':list(LeadStatus._value2member_map_.values()),
-        'lead_source':list(LeadSource._value2member_map_.values())
+        'lead_source':list(LeadSource._value2member_map_.values()),
+        'payment_terms':list(PaymentTermsEnum._value2member_map_.values())
     }
 
 

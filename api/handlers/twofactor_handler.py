@@ -43,7 +43,7 @@ class Handle2FactorRequest:
 
         cache_data={'secret':secret}
         cache_key=f'user-{user_id}-ip-{request.client.host}'
-        await set_redis(key=cache_key,value=cache_data,expire=300)
+        await set_redis(key=cache_key,value=cache_data,expire=500)
 
         if qrcode:
             return StreamingResponse(
@@ -80,17 +80,17 @@ class Handle2FactorRequest:
                 )
             )
 
-        res=await UserService(session=self.session,user_role=UserRoles.SUPER_ADMIN).update_twofactor(user_toupdate_id=user_id,tf_secret=secret)
-        if not res:
-            raise HTTPException(
-                status_code=400,
-                detail=ErrorResponseTypDict(
-                    status_code=400,
-                    success=False,
-                    msg="Error : Verifying Two factor",
-                    description="Invalid data , try may be later"
-                )
-            )
+        # res=await UserService(session=self.session,user_role=UserRoles.SUPER_ADMIN).update_twofactor(user_toupdate_id=user_id,tf_secret=secret)
+        # if not res:
+        #     raise HTTPException(
+        #         status_code=400,
+        #         detail=ErrorResponseTypDict(
+        #             status_code=400,
+        #             success=False,
+        #             msg="Error : Verifying Two factor",
+        #             description="Invalid data , try may be later"
+        #         )
+        #     )
 
         return SuccessResponseTypDict(
             detail=BaseResponseTypDict(

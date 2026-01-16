@@ -1,5 +1,5 @@
 from fastapi import FastAPI,Request
-from api.routes import auth,contact,customer,order,product,user,drop_downs,dashboard,opportunity,leads,twofactor
+from api.routes import auth,contact,customer,order,product,user,drop_downs,dashboard,opportunity,leads,twofactor,distributor
 from fastapi.middleware.cors import CORSMiddleware
 from infras.primary_db.services.user_service import UserService,UserRoles
 from infras.primary_db.main import init_pg_db
@@ -74,14 +74,15 @@ def home_root(request:Request):
 app.include_router(auth.router)
 app.include_router(twofactor.router)
 app.include_router(user.router)
-app.include_router(contact.router)
 app.include_router(customer.router)
-app.include_router(order.router)
+app.include_router(contact.router)
 app.include_router(product.router)
-app.include_router(drop_downs.router)
-app.include_router(dashboard.router)
+app.include_router(distributor.router)
+app.include_router(order.router)
 app.include_router(leads.router)
 app.include_router(opportunity.router)
+app.include_router(drop_downs.router)
+app.include_router(dashboard.router)
 
 #Middlewares
 app.add_middleware(

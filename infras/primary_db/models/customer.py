@@ -1,7 +1,9 @@
 from sqlalchemy import String,Integer,Float,Boolean,Column,ForeignKey,ARRAY,BigInteger,Identity,func,TIMESTAMP
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from ..main import PG_BASE
 from core.data_formats.enums.pg_enums import CustomerIndustries,CustomerSectors
+from core.data_formats.typed_dicts.customer_dict import CustomerAddressTypDict
 
 
 class Customers(PG_BASE):
@@ -16,7 +18,7 @@ class Customers(PG_BASE):
     gst_number=Column(String,nullable=True)
     industry=Column(String,nullable=False)
     sector=Column(String,nullable=False)
-    address=Column(String,nullable=True)
+    address=Column(JSONB,nullable=True)
 
 
     contact=relationship("Contacts",back_populates="customer",cascade="all, delete-orphan")
