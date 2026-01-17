@@ -1,8 +1,11 @@
 from enum import Enum
 
 class ProductTypes(Enum):
-    APPLE="apple".upper()
-    ORANGE="orange".upper()
+    GOOGLE = "Google"
+    HARDWARE = "Hardware"
+    MICROSOFT = "Microsoft"
+    OTHERS = "Others"
+    ZOHO = "Zoho"
 
 class PaymentStatus(Enum):
     PAID ='paid'.upper()
@@ -15,24 +18,70 @@ class InvoiceStatus(Enum):
 
 
 class CustomerIndustries(Enum):
-    IT="It".upper()
-    AGRICULTURE="agriculture".upper()
-    MANUFACTURING="manufacturing".upper()
+    AGRICULTURE = "Agriculture"
+    AUTOMOTIVE = "Automotive"
+    AVIATION = "Aviation & Aerospace"
+    BANKING = "Banking"
+    BIOTECHNOLOGY = "Biotechnology"
+    CHEMICALS = "Chemicals"
+    CONSTRUCTION = "Construction"
+    CONSUMER_GOODS = "Consumer Goods"
+    DEFENSE = "Defense"
+    EDUCATION = "Education"
+    ENERGY = "Energy"
+    ENGINEERING = "Engineering"
+    ENTERTAINMENT = "Entertainment & Media"
+    ENVIRONMENTAL = "Environmental Services"
+    FINANCIAL_SERVICES = "Financial Services"
+    FOOD_BEVERAGE = "Food & Beverage"
+    GOVERNMENT = "Government"
+    HEALTHCARE = "Healthcare"
+    HOSPITALITY = "Hospitality"
+    INSURANCE = "Insurance"
+    IT_SERVICES = "IT Services"
+    LEGAL = "Legal Services"
+    LOGISTICS = "Logistics & Supply Chain"
+    MANUFACTURING = "Manufacturing"
+    MARKETING = "Marketing & Advertising"
+    MINING = "Mining"
+    NON_PROFIT = "Non-Profit"
+    PHARMACEUTICALS = "Pharmaceuticals"
+    PROFESSIONAL_SERVICES = "Professional Services"
+    REAL_ESTATE = "Real Estate"
+    RETAIL = "Retail"
+    TELECOMMUNICATIONS = "Telecommunications"
+    TEXTILES = "Textiles & Apparel"
+    TOURISM = "Tourism & Travel"
+    TRANSPORTATION = "Transportation"
+    UTILITIES = "Utilities"
+    WHOLESALE = "Wholesale"
+    SOFTWARE = "Software & SaaS"
+    ECOMMERCE = "E-Commerce"
+    CYBERSECURITY = "Cybersecurity"
+    DATA_ANALYTICS = "Data & Analytics"
+    ARTIFICIAL_INTELLIGENCE = "Artificial Intelligence"
+    BLOCKCHAIN = "Blockchain & Web3"
+    IOT = "Internet of Things (IoT)"
+    GAMING = "Gaming"
+    SPORTS = "Sports"
+    FASHION = "Fashion"
+    MARITIME = "Maritime"
+    SPACE = "Space Technology"
+    OTHER = "Other"
 
 class CustomerSectors(Enum):
     PRIVATE="private".upper()
     PUBLIC='public'.upper()
 
 class ShippingMethods(Enum):
-    MAIL='mail'.upper()
-    FAX='fax'.upper()
+    ONLINE ='online'.upper()
+    OFFLINE ='offline'.upper()
 
 class LeadStatus(Enum):
     NEW = "NEW"
     CONTACTED = "CONTACTED"
     QUALIFIED = "QUALIFIED"
     LOST = "LOST"
-
 
 class BillingType(Enum):
     SUBSCRIPTION = "SUBSCRIPTION"
@@ -42,7 +91,6 @@ class BillingType(Enum):
 class OpportunityStatus(Enum):
     WON = "WON"
     LOST = "LOST"
-
 
 class LeadSource(Enum):
     WEBSITE = "WEBSITE"
