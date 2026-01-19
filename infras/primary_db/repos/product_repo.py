@@ -48,17 +48,39 @@ class ProductsRepo(BaseRepoModel):
         return is_updated
 
     @start_db_transaction
-    async def delete(self,product_id:str):
-        have_order=(await self.session.execute(select(Orders.id).where(Orders.product_id==product_id).limit(1))).scalar_one_or_none()
+    async def delete(self,product_id:str,soft_delete:bool=True):
+        have_order=(await self.session.execute(select(Orders.id).where(Orders.product_id==product_id,Orders.is_deleted==False).limit(1))).scalar_one_or_none()
         if have_order:
             return False
-        
-        prod_todelete=delete(Products).where(Products.id==product_id).returning(Products.id)
-        is_deleted=(await self.session.execute(prod_todelete)).scalar_one_or_none()
 
-        return is_deleted
+        if soft_delete:
+            prod_todelete=update(Products).where(Products.id==product_id,Products.is_deleted==False).values(
+                is_deleted=True
+            ).returning(Products.id)
+
+            is_deleted=(await self.session.execute(prod_todelete)).scalar_one_or_none()
+            return is_deleted
+
+        else:
+            if self.user_role if isinstance(self.user_role,UserRoles) else self.user_role!=UserRoles.SUPER_ADMIN.value:
+                return False
+            
+            prod_todelete=delete(Products).where(Products.id==product_id).returning(Products.id)
+            is_deleted=(await self.session.execute(prod_todelete)).scalar_one_or_none()
+            return is_deleted
+    
+    @start_db_transaction
+    async def recover(self,product_torecover:str):
+        if self.user_role if isinstance(self.user_role,UserRoles) else self.user_role!=UserRoles.SUPER_ADMIN.value:
+            return False
+
+        prod_torecover=update(Products).where(Products.id==product_torecover,Products.is_deleted==True).values(
+            is_deleted=False
+        ).returning(Products.id)
+        is_recovered=(await self.session.execute(prod_torecover)).scalar_one_or_none()
+        return is_recovered
         
-    async def get(self,offset:int=1,limit:int=10,query:str=''):
+    async def get(self,offset:int=1,limit:int=10,query:str='',include_deleted:bool=False):
         search_term=f"%{query.lower()}%"
         cursor=(offset-1)*limit
         date_expr=func.date(func.timezone("Asia/Kolkata",Products.created_at))
@@ -77,7 +99,8 @@ class ProductsRepo(BaseRepoModel):
                     Products.product_type.ilike(search_term),
                     func.cast(Products.created_at,String).ilike(search_term)
                 ),
-                Products.sequence_id>cursor
+                Products.sequence_id>cursor,
+                Products.is_deleted==include_deleted
 
             )
         )).mappings().all()
@@ -117,7 +140,8 @@ class ProductsRepo(BaseRepoModel):
                     Products.name.ilike(search_term),
                     Products.description.ilike(search_term),
                     Products.product_type.ilike(search_term),
-                )
+                ),
+                Products.is_deleted==False
             )
             .order_by(Products.name)
             .limit(5)
@@ -134,7 +158,7 @@ class ProductsRepo(BaseRepoModel):
                 *self.products_cols,
                 date_expr.label("product_created_at")
             )
-            .where(Products.id==product_id)
+            .where(Products.id==product_id,Products.is_deleted==False)
             .order_by(Products.name)
         )).mappings().one_or_none()
 

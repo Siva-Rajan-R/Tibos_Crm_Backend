@@ -62,8 +62,12 @@ class OrdersService(BaseServiceModel):
         # need to implement invoice generation process + email sending
 
     @catch_errors    
-    async def delete(self,order_id:str,customer_id:str):
-        return await OrdersRepo(session=self.session,user_role=self.user_role).delete(order_id=order_id,customer_id=customer_id)
+    async def delete(self,order_id:str,customer_id:str,soft_delete:bool=True):
+        return await OrdersRepo(session=self.session,user_role=self.user_role).delete(order_id=order_id,customer_id=customer_id,soft_delete=soft_delete)
+    
+    @catch_errors  
+    async def recover(self,order_id:str,customer_id:str):
+        return await OrdersRepo(session=self.session,user_role=self.user_role).recover(order_id=order_id,customer_id=customer_id)
 
     @catch_errors
     async def get(self,offset:int=1,limit:int=10,query:str=''):

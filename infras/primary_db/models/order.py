@@ -1,4 +1,4 @@
-from sqlalchemy import String,Integer,Float,Boolean,Column,ForeignKey,ARRAY,BigInteger,Identity,func,TIMESTAMP
+from sqlalchemy import String,Integer,Float,Boolean,Column,ForeignKey,ARRAY,BigInteger,Identity,func,TIMESTAMP,text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from ..main import PG_BASE
@@ -19,8 +19,10 @@ class Orders(PG_BASE):
     delivery_info=Column(JSONB,nullable=False)
     payment_status=Column(String,nullable=False)
     invoice_status=Column(String,nullable=False)
+    invoice_number=Column(String,nullable=True)
 
     customer=relationship("Customers",back_populates="order")
     product=relationship("Products",back_populates="order")
+    is_deleted=Column(Boolean,server_default=text("false"),nullable=False)
 
     created_at=Column(TIMESTAMP(timezone=True),server_default=func.now())

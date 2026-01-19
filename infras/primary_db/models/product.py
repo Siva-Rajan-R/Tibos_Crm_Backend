@@ -1,4 +1,4 @@
-from sqlalchemy import String,Integer,Float,Boolean,Column,ForeignKey,Enum,ARRAY,BigInteger,Identity,func,TIMESTAMP
+from sqlalchemy import String,Integer,Float,Boolean,Column,ForeignKey,Enum,ARRAY,BigInteger,Identity,func,TIMESTAMP,text
 from sqlalchemy.orm import relationship
 from ..main import PG_BASE
 from core.data_formats.enums.pg_enums import ProductTypes
@@ -13,6 +13,7 @@ class Products(PG_BASE):
     price=Column(Float,nullable=False)
     available_qty=Column(Integer,nullable=False)
     product_type=Column(String,nullable=False)
+    is_deleted=Column(Boolean,server_default=text("false"),nullable=False)
 
     order=relationship("Orders",back_populates="product",cascade="all, delete-orphan")
 

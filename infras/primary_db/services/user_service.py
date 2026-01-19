@@ -82,10 +82,14 @@ class UserService(BaseServiceModel):
         return await UserRepo(session=self.session,user_role=self.user_role).update_password(user_toupdate_id=user_toupdate_id,new_hashed_password=hashed_pwd)
 
     @catch_errors
-    async def delete(self,userid_toremove:str):      
-        return await UserRepo(session=self.session,user_role=self.user_role).delete(userid_toremove=userid_toremove)
-        
-    
+    async def delete(self,userid_toremove:str,soft_delete:bool=True):      
+        return await UserRepo(session=self.session,user_role=self.user_role).delete(userid_toremove=userid_toremove,soft_delete=soft_delete)
+
+
+    @catch_errors  
+    async def recover(self,userid_torecover:str):
+        return await UserRepo(session=self.session,user_role=self.user_role).recover(userid_torecover=userid_torecover)
+
     @catch_errors
     async def get(self):   
         return await UserRepo(session=self.session,user_role=self.user_role).get()
@@ -99,7 +103,6 @@ class UserService(BaseServiceModel):
         return await UserRepo(session=self.session,user_role=self.user_role).get_by_role(userrole_toget=userrole_toget)
     
 
-    
 
     async def search():
         """this is just for abstract this method doesnot do anything"""

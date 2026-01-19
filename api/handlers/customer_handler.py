@@ -100,8 +100,8 @@ class HandleCustomersRequest:
         )
         
     @catch_errors
-    async def delete(self,customer_id:str):
-        res=await CustomersService(session=self.session,user_role=self.user_role).delete(customer_id=customer_id)
+    async def delete(self,customer_id:str,soft_delete:bool=True):
+        res=await CustomersService(session=self.session,user_role=self.user_role).delete(customer_id=customer_id,soft_delete=soft_delete)
         if not res:
             raise HTTPException(
                 status_code=400,
@@ -118,6 +118,28 @@ class HandleCustomersRequest:
                 status_code=200,
                 success=True,
                 msg="Customer deleted successfully"
+            )
+        )
+    
+    @catch_errors  
+    async def recover(self,customer_id:str):    
+        res=await CustomersService(session=self.session,user_role=self.user_role).recover(customer_id=customer_id)
+        if not res:
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponseTypDict(
+                    status_code=400,
+                    success=False,
+                    msg="Error : Recovering customer",
+                    description="Invalid user input"
+                )
+            )
+        
+        return SuccessResponseTypDict(
+            detail=BaseResponseTypDict(
+                status_code=200,
+                success=True,
+                msg="Customer recovered successfully"
             )
         )
         

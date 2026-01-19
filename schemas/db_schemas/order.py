@@ -15,6 +15,7 @@ class AddOrderDbSchema(BaseModel):
     delivery_info:DeliveryInfo
     payment_status:PaymentStatus
     invoice_status:InvoiceStatus
+    invoice_number:Optional[str]=None
 
 
 class UpdateOrderDbSchema(BaseModel):
@@ -29,3 +30,4 @@ class UpdateOrderDbSchema(BaseModel):
     delivery_info:Optional[DeliveryInfo]=None
     payment_status:Optional[PaymentStatus]=None
     invoice_status:Optional[InvoiceStatus]=None
+    invoice_number:Optional[str]=None

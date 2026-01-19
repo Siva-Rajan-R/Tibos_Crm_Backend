@@ -1,4 +1,4 @@
-from fastapi import APIRouter,Depends,HTTPException,BackgroundTasks,Request
+from fastapi import APIRouter,Depends,HTTPException,BackgroundTasks,Request,Query
 from schemas.request_schemas.user import UserRoleUpdateSchema,AddUserSchema,UpdateUserSchema
 from ..handlers.user_handler import HandleUserRequest,UserRoles
 from infras.primary_db.main import get_pg_db_session
@@ -10,6 +10,7 @@ from icecream import ic
 import os
 from core.settings import SETTINGS
 from secrets import token_urlsafe
+from typing import Optional
 
 router=APIRouter(
     tags=['User Crud'],
@@ -47,6 +48,11 @@ async def update_user_role(data:UserRoleUpdateSchema,request:Request,bgt:Backgro
     return user
 
 @router.delete('/{user_id}')
-async def delete_user(user_id:str,request:Request,bgt:BackgroundTasks,user:dict=Depends(verify_user),session=Depends(get_pg_db_session)):
-    user=await HandleUserRequest(session=session,user_role=user['role'],bgt=bgt,request=request).delete(userid_toremove=user_id)
+async def delete_user(user_id:str,request:Request,bgt:BackgroundTasks,soft_delete:Optional[bool]=Query(True),user:dict=Depends(verify_user),session=Depends(get_pg_db_session)):
+    user=await HandleUserRequest(session=session,user_role=user['role'],bgt=bgt,request=request).delete(userid_toremove=user_id,soft_delete=soft_delete)
+    return user
+
+@router.delete('/recover/{user_id}')
+async def recover_user(user_id:str,request:Request,bgt:BackgroundTasks,user:dict=Depends(verify_user),session=Depends(get_pg_db_session)):
+    user=await HandleUserRequest(session=session,user_role=user['role'],bgt=bgt,request=request).recover(userid_torecover=user_id)
     return user

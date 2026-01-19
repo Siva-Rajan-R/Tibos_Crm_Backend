@@ -100,8 +100,8 @@ class HandleContactsRequest:
         )
         
     @catch_errors
-    async def delete(self,customer_id:str,contact_id:str):
-        res=await ContactsService(session=self.session,user_role=self.user_role).delete(customer_id=customer_id,contact_id=contact_id)
+    async def delete(self,customer_id:str,contact_id:str,soft_delete:bool=True):
+        res=await ContactsService(session=self.session,user_role=self.user_role).delete(customer_id=customer_id,contact_id=contact_id,soft_delete=soft_delete)
         if not res:
             raise HTTPException(
                 status_code=400,
@@ -118,6 +118,28 @@ class HandleContactsRequest:
                 status_code=200,
                 success=True,
                 msg="Contact deleted successfully"
+            )
+        )
+    
+    @catch_errors  
+    async def recover(self,customer_id:str,contact_id:str):
+        res=await ContactsService(session=self.session,user_role=self.user_role).recover(customer_id=customer_id,contact_id=contact_id)
+        if not res:
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponseTypDict(
+                    status_code=400,
+                    success=False,
+                    msg="Error : Recovering contact",
+                    description="Invalid user input"
+                )
+            )
+        
+        return SuccessResponseTypDict(
+            detail=BaseResponseTypDict(
+                status_code=200,
+                success=True,
+                msg="Contact recovered successfully"
             )
         )
     

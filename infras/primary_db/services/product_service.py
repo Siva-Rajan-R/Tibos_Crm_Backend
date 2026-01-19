@@ -32,10 +32,13 @@ class ProductsService(BaseServiceModel):
             return False
         return await ProductsRepo(session=self.session,user_role=self.user_role).update(data=UpdateProductDbSchema(**data_toupdate))
 
+    @catch_errors
+    async def recover(self,product_torecover:str):
+        return await ProductsRepo(session=self.session,user_role=self.user_role).recover(product_torecover=product_torecover)
 
     @catch_errors
-    async def delete(self,product_id:str):
-        return await ProductsRepo(session=self.session,user_role=self.user_role).delete(product_id=product_id)
+    async def delete(self,product_id:str,soft_delete:bool=True):
+        return await ProductsRepo(session=self.session,user_role=self.user_role).delete(product_id=product_id,soft_delete=soft_delete)
 
     @catch_errors   
     async def get(self,offset:int=1,limit:int=10,query:str=''):

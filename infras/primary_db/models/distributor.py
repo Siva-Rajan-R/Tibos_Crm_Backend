@@ -1,4 +1,4 @@
-from sqlalchemy import String,Integer,Float,Boolean,Column,ForeignKey,ARRAY,BigInteger,Identity,func,TIMESTAMP
+from sqlalchemy import String,Integer,Float,Boolean,Column,ForeignKey,ARRAY,BigInteger,Identity,func,TIMESTAMP,text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from ..main import PG_BASE
@@ -12,3 +12,4 @@ class Distributors(PG_BASE):
     product_id=Column(String,ForeignKey('products.id'),nullable=False)
     discount=Column(String,nullable=False)
     created_at=Column(TIMESTAMP(timezone=True),server_default=func.now())
+    is_deleted=Column(Boolean,server_default=text("false"),nullable=False)

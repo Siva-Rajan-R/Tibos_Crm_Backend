@@ -3,7 +3,7 @@ from schemas.request_schemas.contact import AddContactSchema,UpdateContactSchema
 from infras.primary_db.main import get_pg_db_session,AsyncSession
 from api.dependencies.token_verification import verify_user
 from ..handlers.contact_handler import HandleContactsRequest
-from typing import Optional
+from typing import Optional,Literal
 
 
 router=APIRouter(
@@ -33,14 +33,27 @@ async def update_contact(data:UpdateContactSchema,user:dict=Depends(verify_user)
 
 
 @router.delete('/{customer_id}/{contact_id}')
-async def delete_contact(customer_id:str,contact_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+async def delete_contact(customer_id:str,contact_id:str,user:dict=Depends(verify_user),soft_delete:Optional[bool]=Query(True),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleContactsRequest(
         session=session,
         user_role=user['role']
     ).delete(
         customer_id=customer_id,
+        contact_id=contact_id,
+        soft_delete=soft_delete
+    )
+
+
+@router.delete('/recover/{customer_id}/{contact_id}')
+async def recover_contact(customer_id:str,contact_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+    return await HandleContactsRequest(
+        session=session,
+        user_role=user['role']
+    ).recover(
+        customer_id=customer_id,
         contact_id=contact_id
     )
+
 
 
 @router.get('')

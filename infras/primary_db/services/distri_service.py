@@ -45,12 +45,17 @@ class DistributorService(BaseServiceModel):
         return await DistributorsRepo(session=self.session,user_role=self.user_role).update(data=UpdateDistriDbSchema(**data_toupdate))
         
     @catch_errors
-    async def delete(self,distributor_id:str):
-        if await OrdersRepo(session=self.session,user_role=self.user_role).get(query=distributor_id,limit=1):
+    async def delete(self,distributor_id:str,soft_delete:bool=True):
+        have_order=(await OrdersRepo(session=self.session,user_role=self.user_role).get(query=distributor_id,limit=1)).get('orders')
+        if have_order or len(have_order)>0:
             return False
         
-        return await DistributorsRepo(session=self.session,user_role=self.user_role).delete(distri_id=distributor_id)
-        
+        return await DistributorsRepo(session=self.session,user_role=self.user_role).delete(distri_id=distributor_id,soft_delete=soft_delete)
+    
+    @catch_errors
+    async def recover(self,distributor_id:str):
+        return await DistributorsRepo(session=self.session,user_role=self.user_role).recover(distri_id=distributor_id)
+     
     @catch_errors
     async def get(self,offset:int=1,limit:int=10,query:str=''):
         return await DistributorsRepo(session=self.session,user_role=self.user_role).get(offset=offset,limit=limit,query=query)

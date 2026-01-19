@@ -14,6 +14,8 @@ class AddCustomerDbSchema(BaseModel):
     industry:CustomerIndustries
     sector:CustomerSectors
     address:CustomerAddressTypDict
+    owner:str
+    tenant_id:str
 
 class UpdateCustomerDbSchema(BaseModel):
     customer_id:str
@@ -26,3 +28,5 @@ class UpdateCustomerDbSchema(BaseModel):
     industry:Optional[CustomerIndustries]=None
     sector:Optional[CustomerSectors]=None
     address:Optional[CustomerAddressTypDict]=None
+    owner:Optional[str]=None
+    tenant_id:Optional[str]=None

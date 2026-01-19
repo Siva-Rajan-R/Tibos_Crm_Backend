@@ -46,12 +46,14 @@ class ContactsRepo(BaseRepoModel):
 
         return is_exists
 
+
     @start_db_transaction
     async def add(self,data:AddContactDbSchema):
         """using this method we can add the contacts to the db"""
         self.session.add(Contacts(**data.model_dump(mode='json')))
         return True
-        
+
+
     @start_db_transaction   
     async def update(self,data:UpdateContactDbSchema):
         data_toupdate=data.model_dump(mode='json',exclude=['contact_id','customer_id'],exclude_unset=True,exclude_none=True)
@@ -65,21 +67,41 @@ class ContactsRepo(BaseRepoModel):
         is_updated=(await self.session.execute(contact_toupdate)).scalar_one_or_none()
 
         return is_updated
+
+
+    @start_db_transaction
+    async def delete(self,customer_id:str,contact_id:str,soft_delete:bool=True):
+        if soft_delete:
+            contact_todelete=update(Contacts).where(Contacts.id==contact_id,Contacts.customer_id==customer_id,Contacts.is_deleted==False).values(
+                is_deleted=True
+            ).returning(Contacts.id)
+            is_deleted=(await self.session.execute(contact_todelete)).scalar_one_or_none()
+            return is_deleted
+        
+        else:
+            if self.user_role if isinstance(self.user_role,UserRoles) else self.user_role!=UserRoles.SUPER_ADMIN.value:
+                return False
+            have_order=(await self.session.execute(select(Orders.id).where(Orders.customer_id==contact_id).limit(1))).scalar_one_or_none()
+            if have_order:
+                return False
+            contact_todelete=delete(Contacts).where(Contacts.id==contact_id,Contacts.customer_id==customer_id).returning(Contacts.id)
+            is_deleted=(await self.session.execute(contact_todelete)).scalar_one_or_none()
+
+            return is_deleted
         
     @start_db_transaction
-    async def delete(self,customer_id:str,contact_id:str):
-        have_order=(await self.session.execute(select(Orders.id).where(Orders.customer_id==contact_id).limit(1))).scalar_one_or_none()
-        if have_order:
+    async def recover(self,customer_id:str,contact_id:str):
+        if self.user_role if isinstance(self.user_role,UserRoles) else self.user_role!=UserRoles.SUPER_ADMIN.value:
             return False
         
-        contact_todelete=delete(Contacts).where(Contacts.id==contact_id,Contacts.customer_id==customer_id).returning(Contacts.id)
-
-        is_deleted=(await self.session.execute(contact_todelete)).scalar_one_or_none()
-
-        return is_deleted
-    
+        contact_torecover=update(Contacts).where(Contacts.id==contact_id,Contacts.customer_id==customer_id,Contacts.is_deleted==True).values(
+            is_deleted=False
+        ).returning(Contacts.id)
+        is_recovered=(await self.session.execute(contact_torecover)).scalar_one_or_none()
+        return is_recovered
         
-    async def get(self,offset:int,limit:int,query:str=''):
+
+    async def get(self,offset:int,limit:int,query:str='',include_deleted:bool=False):
         search_term=f"%{query.lower()}%"
         cursor=(offset-1)*limit
         date_expr=func.date(func.timezone("Asia/Kolkata",Contacts.created_at))
@@ -100,7 +122,8 @@ class ContactsRepo(BaseRepoModel):
                     Customers.email.ilike(search_term),
                     Customers.website_url.ilike(search_term)
                 ),
-                Contacts.sequence_id>cursor
+                Contacts.sequence_id>cursor,
+                Contacts.is_deleted==include_deleted
             )
         )).mappings().all()
 
@@ -134,6 +157,7 @@ class ContactsRepo(BaseRepoModel):
                     Customers.email.ilike(search_term),
                     Customers.website_url.ilike(search_term)
                 ),
+                Contacts.is_deleted==False
             ).limit(5)
         )).mappings().all()
 
@@ -147,7 +171,7 @@ class ContactsRepo(BaseRepoModel):
                 date_expr.label("contact_created_at")
             )
             .join(Customers,Customers.id==Contacts.customer_id,isouter=True)
-            .where(Contacts.id==contact_id)
+            .where(Contacts.id==contact_id,Contacts.is_deleted==False)
         )).mappings().one_or_none()
 
         return {'contact':queried_contacts}
@@ -176,7 +200,8 @@ class ContactsRepo(BaseRepoModel):
                     Customers.website_url.ilike(search_term)
                 ),
                 customer_id==Contacts.customer_id,
-                Contacts.sequence_id>cursor
+                Contacts.sequence_id>cursor,
+                Contacts.is_deleted==False
             )
             .limit(limit)
         )).mappings().all()

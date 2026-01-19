@@ -97,8 +97,8 @@ class HandleLeadsRequest:
         )
 
     @catch_errors
-    async def delete(self, lead_id: str):
-        res = await LeadsService(session=self.session,user_role=self.user_role).delete(lead_id=lead_id)
+    async def delete(self, lead_id: str, soft_delete: bool = True):
+        res = await LeadsService(session=self.session,user_role=self.user_role).delete(lead_id=lead_id,soft_delete=soft_delete)
         if not res:
             raise HTTPException(
                 status_code=400,
@@ -115,6 +115,28 @@ class HandleLeadsRequest:
                 status_code=200,
                 success=True,
                 msg="Lead deleted successfully"
+            )
+        )
+    
+    @catch_errors
+    async def recover(self, lead_id: str):      
+        res = await LeadsService(session=self.session,user_role=self.user_role).recover(lead_id=lead_id)
+        if not res:
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponseTypDict(
+                    status_code=400,
+                    success=False,
+                    msg="Error : Recovering lead",
+                    description="Invalid user input"
+                )
+            )
+        
+        return SuccessResponseTypDict(
+            detail=BaseResponseTypDict(
+                status_code=200,
+                success=True,
+                msg="Lead recovered successfully"
             )
         )
     

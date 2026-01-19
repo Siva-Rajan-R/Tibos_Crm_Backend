@@ -163,8 +163,8 @@ class HandleUserRequest:
         )
     
     @catch_errors
-    async def delete(self,userid_toremove:str):      
-        res = await UserService(session=self.session,user_role=self.user_role).delete(userid_toremove=userid_toremove)
+    async def delete(self,userid_toremove:str,soft_delete:bool=True):      
+        res = await UserService(session=self.session,user_role=self.user_role).delete(userid_toremove=userid_toremove,soft_delete=soft_delete)
         if not res:
             raise HTTPException(
                 status_code=400,
@@ -181,6 +181,27 @@ class HandleUserRequest:
                 status_code=200,
                 success=True,
                 msg="User deleted successfully"
+            )
+        )
+    
+    @catch_errors
+    async def recover(self,userid_torecover:str): 
+        res = await UserService(session=self.session,user_role=self.user_role).recover(userid_torecover=userid_torecover)
+        if not res:
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponseTypDict(
+                    status_code=400,
+                    success=False,
+                    msg="Error : Recovering user",
+                    description="Invalid user input"
+                )
+            )
+        return SuccessResponseTypDict(
+            detail=BaseResponseTypDict(
+                status_code=200,
+                success=True,
+                msg="User recovered successfully"
             )
         )
     

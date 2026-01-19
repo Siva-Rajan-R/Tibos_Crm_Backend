@@ -98,19 +98,45 @@ class UserRepo(BaseRepoModel):
         
         return is_updated
 
+
     @start_db_transaction
-    async def delete(self,userid_toremove:str):      
-        user_todelete=delete(Users).where(userid_toremove==Users.id).returning(Users.id)
-        is_deleted=(await self.session.execute(user_todelete)).scalar_one_or_none()
-        return is_deleted
+    async def delete(self,userid_toremove:str,soft_delete:bool=True):
+
+        if soft_delete:
+            user_todelete=update(Users).where(Users.id==userid_toremove,Users.is_deleted==False).values(
+                is_deleted=True
+            ).returning(Users.id)
+            is_deleted=(await self.session.execute(user_todelete)).scalar_one_or_none()
+            return is_deleted
+        
+        else:
+            if self.user_role if isinstance(self.user_role,UserRoles) else self.user_role!=UserRoles.SUPER_ADMIN.value:
+                return False
+            
+            user_todelete=delete(Users).where(Users.id==userid_toremove).returning(Users.id)
+            is_deleted=(await self.session.execute(user_todelete)).scalar_one_or_none()
+            return is_deleted
+    
+    @start_db_transaction
+    async def recover(self,userid_torecover:str):
+        if self.user_role.value if isinstance(self.user_role,UserRoles) else self.user_role!=UserRoles.SUPER_ADMIN.value:
+            return False
+        
+        user_torecover=update(Users).where(Users.id==userid_torecover,Users.is_deleted==True).values(
+            is_deleted=False
+        ).returning(Users.id)
+        is_recovered=(await self.session.execute(user_torecover)).scalar_one_or_none()
+        return is_recovered
         
     
 
-    async def get(self):   
+    async def get(self,include_deleted:bool=False):
         users=(await self.session.execute(
             select(
                 *self.users_cols,
                 func.date(func.timezone("Asia/Kolkata",Users.created_at)).label("user_created_at")
+            ).where(
+                Users.is_deleted==include_deleted
             )
         )).mappings().all()
 
@@ -122,7 +148,8 @@ class UserRepo(BaseRepoModel):
             *self.users_cols,
             func.date(func.timezone("Asia/Kolkata",Users.created_at)).label("user_created_at")
         ).where(
-            userid_toget==Users.id
+            userid_toget==Users.id,
+            Users.is_deleted==False
         )
 
         user=(await self.session.execute(user_toget)).mappings().one_or_none()
@@ -135,7 +162,8 @@ class UserRepo(BaseRepoModel):
             *self.users_cols,
             func.date(func.timezone("Asia/Kolkata",Users.created_at)).label("user_created_at")
         ).where(
-            userrole_toget.value==Users.role
+            userrole_toget.value==Users.role,
+            Users.is_deleted==False
         )
 
         user=(await self.session.execute(user_toget)).mappings().all()

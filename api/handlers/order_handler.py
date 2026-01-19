@@ -76,8 +76,8 @@ class HandleOrdersRequest:
         
 
     @catch_errors    
-    async def delete(self,order_id:str,customer_id:str):
-        res = await OrdersService(session=self.session,user_role=self.user_role).delete(order_id=order_id,customer_id=customer_id)
+    async def delete(self,order_id:str,customer_id:str,soft_delete:bool=True):
+        res = await OrdersService(session=self.session,user_role=self.user_role).delete(order_id=order_id,customer_id=customer_id,soft_delete=soft_delete)
         if not res:
             raise HTTPException(
                 status_code=400,
@@ -94,6 +94,28 @@ class HandleOrdersRequest:
                 status_code=200,
                 success=True,
                 msg="Order deleted successfully"
+            )
+        )
+    
+    @catch_errors  
+    async def recover(self,order_id:str,customer_id:str): 
+        res = await OrdersService(session=self.session,user_role=self.user_role).recover(order_id=order_id,customer_id=customer_id)
+        if not res:
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponseTypDict(
+                    status_code=400,
+                    success=False,
+                    msg="Error : Recovering order",
+                    description="Invalid user input"
+                )
+            )
+        
+        return SuccessResponseTypDict(
+            detail=BaseResponseTypDict(
+                status_code=200,
+                success=True,
+                msg="Order recovered successfully"
             )
         )
 

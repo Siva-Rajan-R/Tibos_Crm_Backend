@@ -36,11 +36,25 @@ async def update_order(data:UpdateOrderSchema,user:dict=Depends(verify_user),ses
 
 
 @router.delete('/{customer_id}/{order_id}')
-async def delete_order(customer_id:str,order_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+async def delete_order(customer_id:str,order_id:str,user:dict=Depends(verify_user),soft_delete:Optional[bool]=Query(True),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleOrdersRequest(
         session=session,
         user_role=user['role']
     ).delete(
+        customer_id=customer_id,
+        order_id=order_id,
+        soft_delete=soft_delete
+    )
+
+
+
+
+@router.delete('/recover/{customer_id}/{order_id}')
+async def recover_order(customer_id:str,order_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+    return await HandleOrdersRequest(
+        session=session,
+        user_role=user['role']
+    ).recover(
         customer_id=customer_id,
         order_id=order_id
     )

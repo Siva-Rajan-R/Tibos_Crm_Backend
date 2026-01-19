@@ -1,4 +1,4 @@
-from sqlalchemy import String,Integer,Float,Boolean,Column,ForeignKey,ARRAY,BigInteger,Identity,func,TIMESTAMP
+from sqlalchemy import String,Integer,Float,Boolean,Column,ForeignKey,ARRAY,BigInteger,Identity,func,TIMESTAMP,text
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from ..main import PG_BASE
@@ -19,6 +19,9 @@ class Customers(PG_BASE):
     industry=Column(String,nullable=False)
     sector=Column(String,nullable=False)
     address=Column(JSONB,nullable=True)
+    owner=Column(String,nullable=True)
+    tenant_id=Column(String,nullable=True)
+    is_deleted=Column(Boolean,server_default=text("false"),nullable=False)
 
 
     contact=relationship("Contacts",back_populates="customer",cascade="all, delete-orphan")

@@ -40,9 +40,13 @@ class LeadsService(BaseServiceModel):
         return await LeadsRepo(session=self.session,user_role=self.user_role).update(data=UpdateLeadDbSchema(**data_toupdate))
 
     @catch_errors
-    async def delete(self, lead_id: str):
-        return await LeadsRepo(session=self.session,user_role=self.user_role).delete(lead_id=lead_id)
+    async def delete(self, lead_id: str, soft_delete: bool = True):
+        return await LeadsRepo(session=self.session,user_role=self.user_role).delete(lead_id=lead_id, soft_delete=soft_delete)
     
+    @catch_errors  
+    async def recover(self, lead_id: str):
+        return await LeadsRepo(session=self.session,user_role=self.user_role).recover(lead_id=lead_id)
+
     @catch_errors
     async def get(self, offset: int = 1, limit: int = 10, query: str = ""):
         return await LeadsRepo(session=self.session,user_role=self.user_role).get(offset=offset,limit=limit,query=query)

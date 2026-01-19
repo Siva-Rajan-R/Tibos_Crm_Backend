@@ -49,9 +49,13 @@ class OpportunitiesService(BaseServiceModel):
         return await OpportunitiesRepo(session=self.session,user_role=self.user_role).update(data=UpdateOpportunityDbSchema(**data_toupdate))
 
     @catch_errors
-    async def delete(self, opportunity_id: str):
-        return await OpportunitiesRepo(session=self.session,user_role=self.user_role).delete(opportunity_id=opportunity_id)
+    async def delete(self, opportunity_id: str,soft_delete: bool = True):
+        return await OpportunitiesRepo(session=self.session,user_role=self.user_role).delete(opportunity_id=opportunity_id,soft_delete=soft_delete)
 
+    @catch_errors  
+    async def recover(self, opportunity_id: str):
+        return await OpportunitiesRepo(session=self.session,user_role=self.user_role).recover(opportunity_id=opportunity_id)
+    
     @catch_errors
     async def get(self, offset: int = 1, limit: int = 10, query: str = ""):
         return await OpportunitiesRepo(session=self.session,user_role=self.user_role).get(offset=offset,limit=limit,query=query)

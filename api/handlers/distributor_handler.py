@@ -101,8 +101,8 @@ class HandleDistributorRequest:
         )
         
     @catch_errors
-    async def delete(self,distributor_id:str):
-        res=await DistributorService(session=self.session,user_role=self.user_role).delete(distributor_id=distributor_id)
+    async def delete(self,distributor_id:str,soft_delete:bool=True):
+        res=await DistributorService(session=self.session,user_role=self.user_role).delete(distributor_id=distributor_id,soft_delete=soft_delete)
         if not res:
             raise HTTPException(
                 status_code=400,
@@ -119,6 +119,28 @@ class HandleDistributorRequest:
                 status_code=200,
                 success=True,
                 msg="Distributor deleted successfully"
+            )
+        )
+
+    @catch_errors
+    async def recover(self,distributor_id:str):
+        res=await DistributorService(session=self.session,user_role=self.user_role).recover(distributor_id=distributor_id)
+        if not res:
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponseTypDict(
+                    status_code=400,
+                    success=False,
+                    msg="Error : Recovering distributor",
+                    description="Invalid user input"
+                )
+            )
+        
+        return SuccessResponseTypDict(
+            detail=BaseResponseTypDict(
+                status_code=200,
+                success=True,
+                msg="Distributor recovered successfully"
             )
         )
         

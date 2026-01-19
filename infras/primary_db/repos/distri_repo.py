@@ -49,14 +49,35 @@ class DistributorsRepo(BaseRepoModel):
     
 
     @start_db_transaction
-    async def delete(self,distri_id:str):
-        distributor_todelete=delete(Distributors).where(Distributors.id==distri_id).returning(Distributors.id)
-        is_deleted=(await self.session.execute(distributor_todelete)).scalar_one_or_none()
+    async def delete(self,distri_id:str,soft_delete:bool=True):
+        ic(soft_delete)
+        if soft_delete:
+            distributor_todelete=update(Distributors).where(Distributors.id==distri_id,Distributors.is_deleted==False).values(
+                is_deleted=True
+            ).returning(Distributors.id)
+            is_deleted=(await self.session.execute(distributor_todelete)).scalar_one_or_none()
+            return is_deleted
+
+        else:
+            if self.user_role if isinstance(self.user_role,UserRoles) else self.user_role!=UserRoles.SUPER_ADMIN.value:
+                return False
+            distributor_todelete=delete(Distributors).where(Distributors.id==distri_id).returning(Distributors.id)
+            is_deleted=(await self.session.execute(distributor_todelete)).scalar_one_or_none()
+            return is_deleted
         
-        return is_deleted
+    @start_db_transaction
+    async def recover(self,distri_id:str):
+        if self.user_role if isinstance(self.user_role,UserRoles) else self.user_role!=UserRoles.SUPER_ADMIN.value:
+            return False
+        
+        distributor_torecover=update(Distributors).where(Distributors.id==distri_id,Distributors.is_deleted==True).values(
+            is_deleted=False
+        ).returning(Distributors.id)
+        is_recovered=(await self.session.execute(distributor_torecover)).scalar_one_or_none()
+        return is_recovered
         
 
-    async def get(self,offset:int=1,limit:int=10,query:str=''):
+    async def get(self,offset:int=1,limit:int=10,query:str='',include_deleted:bool=False):
         search_term=f"%{query.lower()}%"
         cursor=(offset-1)*limit
         date_expr=func.date(func.timezone("Asia/Kolkata",Distributors.created_at))
@@ -76,7 +97,8 @@ class DistributorsRepo(BaseRepoModel):
                     func.cast(Distributors.created_at,String).ilike(search_term),
 
                 ),
-                Distributors.sequence_id>cursor
+                Distributors.sequence_id>cursor,
+                Distributors.is_deleted==include_deleted
             )
         )).mappings().all()
 
@@ -110,7 +132,8 @@ class DistributorsRepo(BaseRepoModel):
                     Products.name.ilike(search_term),
                     Products.description.like(search_term),
                     func.cast(Distributors.created_at,String).ilike(search_term)
-                )
+                ),
+                Distributors.is_deleted==False
             )
             .limit(5)
         )).mappings().all()
@@ -126,7 +149,7 @@ class DistributorsRepo(BaseRepoModel):
                 date_expr.label("created_at")
             )
             .join(Products,Products.id==Distributors.product_id)
-            .where(Distributors.id==distributor_id)
+            .where(Distributors.id==distributor_id,Distributors.is_deleted==False)
         )).mappings().one_or_none()
         
         return {'distributors':queried_distributors}

@@ -28,7 +28,9 @@ class CustomersRepo(BaseRepoModel):
             Customers.website_url,
             Customers.industry,
             Customers.sector,
-            Customers.address
+            Customers.address,
+            Customers.owner,
+            Customers.tenant_id
         )
 
     async def is_customer_exists(self,email:EmailStr,mobile_number:str):
@@ -68,18 +70,39 @@ class CustomersRepo(BaseRepoModel):
         return is_updated
         
     @start_db_transaction
-    async def delete(self,customer_id:str):
-        have_order=(await self.session.execute(select(Orders.id).where(Orders.customer_id==customer_id).limit(1))).scalar_one_or_none()
+    async def delete(self,customer_id:str,soft_delete:bool=True):
+        have_order=(await self.session.execute(select(Orders.id).where(Orders.customer_id==customer_id,Orders.is_deleted==False).limit(1))).scalar_one_or_none()
         if have_order:
             return False
+
+        if soft_delete:
+            customer_todelete=update(Customers).where(Customers.id==customer_id,Customers.is_deleted==False).values(
+                is_deleted=True
+            ).returning(Customers.id)
+            is_deleted=(await self.session.execute(customer_todelete)).scalar_one_or_none()
+            return is_deleted
+
+        else:
+            if self.user_role if isinstance(self.user_role,UserRoles) else self.user_role!=UserRoles.SUPER_ADMIN.value:
+                return False
+            customer_todelete=delete(Customers).where(Customers.id==customer_id).returning(Customers.id)
+            is_deleted=(await self.session.execute(customer_todelete)).scalar_one_or_none()
+            
+            return is_deleted
         
-        customer_todelete=delete(Customers).where(Customers.id==customer_id).returning(Customers.id)
-        is_deleted=(await self.session.execute(customer_todelete)).scalar_one_or_none()
+    @start_db_transaction
+    async def recover(self,customer_id:str):
+        if self.user_role if isinstance(self.user_role,UserRoles) else self.user_role!=UserRoles.SUPER_ADMIN.value:
+            return False
         
-        return is_deleted
+        customer_torecover=update(Customers).where(Customers.id==customer_id,Customers.is_deleted==True).values(
+            is_deleted=False
+        ).returning(Customers.id)
+        is_recovered=(await self.session.execute(customer_torecover)).scalar_one_or_none()
+        return is_recovered
         
 
-    async def get(self,offset:int=1,limit:int=10,query:str=''):
+    async def get(self,offset:int=1,limit:int=10,query:str='',include_deleted:bool=False):
         search_term=f"%{query.lower()}%"
         cursor=(offset-1)*limit
         date_expr=func.date(func.timezone("Asia/Kolkata",Customers.created_at))
@@ -98,9 +121,12 @@ class CustomersRepo(BaseRepoModel):
                     Customers.website_url.ilike(search_term),
                     Customers.mobile_number.ilike(search_term),
                     Customers.sector.ilike(search_term),
-                    Customers.gst_number.ilike(search_term)
+                    Customers.gst_number.ilike(search_term),
+                    Customers.owner.ilike(search_term),
+                    Customers.tenant_id.ilike(search_term)
                 ),
-                Customers.sequence_id>cursor
+                Customers.sequence_id>cursor,
+                Customers.is_deleted==include_deleted
             )
         )).mappings().all()
 
@@ -133,8 +159,11 @@ class CustomersRepo(BaseRepoModel):
                     Customers.website_url.ilike(search_term),
                     Customers.mobile_number.ilike(search_term),
                     Customers.sector.ilike(search_term),
-                    Customers.gst_number.ilike(search_term)
-                )
+                    Customers.gst_number.ilike(search_term),
+                    Customers.owner.ilike(search_term),
+                    Customers.tenant_id.ilike(search_term)
+                ),
+                Customers.is_deleted==False
             )
             .limit(5)
         )).mappings().all()
@@ -149,7 +178,7 @@ class CustomersRepo(BaseRepoModel):
                 *self.customer_cols,
                 date_expr.label("customer_created_at")
             )
-            .where(Customers.id==customer_id)
+            .where(Customers.id==customer_id,Customers.is_deleted==False)
         )).mappings().one_or_none()
         
         return {'customer':queried_customers}

@@ -67,19 +67,44 @@ class OpportunitiesRepo(BaseRepoModel):
 
 
     @start_db_transaction
-    async def delete(self, opportunity_id: str):
+    async def delete(self, opportunity_id: str, soft_delete: bool = True):
+        if soft_delete:
+            stmt = (
+                update(Opportunities)
+                .where(Opportunities.id == opportunity_id, Opportunities.is_deleted == False)
+                .values(is_deleted=True)
+                .returning(Opportunities.id)
+            )
+            is_deleted = (await self.session.execute(stmt)).scalar_one_or_none()
+            return is_deleted
+        else:
+            if self.user_role if isinstance(self.user_role,UserRoles) else self.user_role!=UserRoles.SUPER_ADMIN.value:
+                return False
+            
+            stmt = (
+                delete(Opportunities)
+                .where(Opportunities.id == opportunity_id)
+                .returning(Opportunities.id)
+            )
+            is_deleted = (await self.session.execute(stmt)).scalar_one_or_none()
+            return is_deleted
+    
+    @start_db_transaction
+    async def recover(self, opportunity_id: str):
+        if self.user_role if isinstance(self.user_role,UserRoles) else self.user_role!=UserRoles.SUPER_ADMIN.value:
+            return False
+        
         stmt = (
-            delete(Opportunities)
-            .where(Opportunities.id == opportunity_id)
+            update(Opportunities)
+            .where(Opportunities.id == opportunity_id, Opportunities.is_deleted == True)
+            .values(is_deleted=False)
             .returning(Opportunities.id)
         )
-
-        is_deleted = (await self.session.execute(stmt)).scalar_one_or_none()
-
-        return is_deleted
+        is_recovered = (await self.session.execute(stmt)).scalar_one_or_none()
+        return is_recovered
 
 
-    async def get(self, offset: int = 1, limit: int = 10, query: str = ""):
+    async def get(self, offset: int = 1, limit: int = 10, query: str = "",include_deleted:bool=False):
         cursor = (offset - 1) * limit
         search = f"%{query.lower()}%"
         date_expr=func.date(func.timezone("Asia/Kolkata",Opportunities.created_at))
@@ -113,7 +138,8 @@ class OpportunitiesRepo(BaseRepoModel):
                     Leads.source.ilike(search),
                     Leads.description.ilike(search)
                 ),
-                Opportunities.sequence_id > cursor
+                Opportunities.sequence_id > cursor,
+                Opportunities.is_deleted==include_deleted
             )
             .limit(limit)
         )
@@ -151,7 +177,7 @@ class OpportunitiesRepo(BaseRepoModel):
                     Leads.assigned_to
                 )
                 .join(Leads, Leads.id == Opportunities.lead_id)
-                .where(Opportunities.lead_id == lead_id)
+                .where(Opportunities.lead_id == lead_id,Opportunities.is_deleted==False)
             )
         ).mappings().all()
 
@@ -185,7 +211,8 @@ class OpportunitiesRepo(BaseRepoModel):
                     Leads.status.ilike(search),
                     Leads.source.ilike(search),
                     Leads.description.ilike(search)
-                )
+                ),
+                Opportunities.is_deleted==False
             )
             .limit(5)
         )
@@ -213,7 +240,8 @@ class OpportunitiesRepo(BaseRepoModel):
             )
             .join(Leads, Leads.id == Opportunities.lead_id)
             .where(
-                Opportunities.id==opportunity_id
+                Opportunities.id==opportunity_id,
+                Opportunities.is_deleted==False
             )
         )
 

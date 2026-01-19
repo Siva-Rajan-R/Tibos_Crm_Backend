@@ -42,9 +42,13 @@ class CustomersService(BaseServiceModel):
         return await CustomersRepo(session=self.session,user_role=self.user_role).update(data=UpdateCustomerDbSchema(**data_toupdate))
         
     @catch_errors
-    async def delete(self,customer_id:str):
-        return await CustomersRepo(session=self.session,user_role=self.user_role).delete(customer_id=customer_id)
-        
+    async def delete(self,customer_id:str,soft_delete:bool=True):
+        return await CustomersRepo(session=self.session,user_role=self.user_role).delete(customer_id=customer_id,soft_delete=soft_delete)
+    
+    @catch_errors  
+    async def recover(self,customer_id:str):
+        return await CustomersRepo(session=self.session,user_role=self.user_role).recover(customer_id=customer_id)
+
     @catch_errors
     async def get(self,offset:int=1,limit:int=10,query:str=''):
         return await CustomersRepo(session=self.session,user_role=self.user_role).get(offset=offset,limit=limit,query=query)

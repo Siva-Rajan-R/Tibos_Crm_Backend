@@ -33,11 +33,22 @@ async def update_product(data:UpdateProductSchema,user:dict=Depends(verify_user)
 
 
 @router.delete('/{product_id}')
-async def delete_product(product_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+async def delete_product(product_id:str,user:dict=Depends(verify_user),soft_delete:Optional[bool]=Query(True),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleProductsRequest(
         session=session,
         user_role=user['role']
     ).delete(
+        product_id=product_id,
+        soft_delete=soft_delete
+    )
+
+
+@router.delete('/recover/{product_id}')
+async def recover_product(product_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+    return await HandleProductsRequest(
+        session=session,
+        user_role=user['role']
+    ).recover(
         product_id=product_id
     )
 

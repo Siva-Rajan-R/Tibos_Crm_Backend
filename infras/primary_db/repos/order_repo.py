@@ -38,7 +38,8 @@ class OrdersRepo(BaseRepoModel):
             Customers.name.label('customer_name'),
             Customers.mobile_number,
             Distributors.name.label('distributor_name'),
-            Distributors.discount.label('distributor_discount')
+            Distributors.discount.label('distributor_discount'),
+            Orders.invoice_number
         )
 
     async def is_order_exists(self,customer_id:str,product_id:str):
@@ -75,16 +76,39 @@ class OrdersRepo(BaseRepoModel):
         return is_updated
 
     @start_db_transaction    
-    async def delete(self,order_id:str,customer_id:str):
-        order_todelete=delete(Orders).where(Orders.id==order_id,Orders.customer_id==customer_id).returning(Orders.id)
+    async def delete(self,order_id:str,customer_id:str,soft_delete:bool=True):
+        ic(soft_delete)
+        if soft_delete:
+            order_todelete=update(Orders).where(Orders.id==order_id,Orders.customer_id==customer_id,Orders.is_deleted==False).values(
+                is_deleted=True
+            ).returning(Orders.id)
 
-        is_deleted=(await self.session.execute(order_todelete)).scalar_one_or_none()
+            is_deleted=(await self.session.execute(order_todelete)).scalar_one_or_none()
+
+            return is_deleted
+        else:
+            if self.user_role if isinstance(self.user_role,UserRoles) else self.user_role!=UserRoles.SUPER_ADMIN.value:
+                return False
+            
+            order_todelete=delete(Orders).where(Orders.id==order_id,Orders.customer_id==customer_id).returning(Orders.id)
+            is_deleted=(await self.session.execute(order_todelete)).scalar_one_or_none()
+            
+            # need to implement email sending "Your orders has been stoped from CRM"
+            return is_deleted
+    
+    @start_db_transaction
+    async def recover(self,order_id:str,customer_id:str):
+        if self.user_role if isinstance(self.user_role,UserRoles) else self.user_role!=UserRoles.SUPER_ADMIN.value:
+            return False
         
-        # need to implement email sending "Your orders has been stoped from CRM"
-        return is_deleted
+        order_torecover=update(Orders).where(Orders.id==order_id,Orders.customer_id==customer_id,Orders.is_deleted==True).values(
+            is_deleted=False
+        ).returning(Orders.id)
+        is_recovered=(await self.session.execute(order_torecover)).scalar_one_or_none()
+        return is_recovered
 
 
-    async def get(self,offset:int=1,limit:int=10,query:str=''):
+    async def get(self,offset:int=1,limit:int=10,query:str='',include_deleted:bool=False):
         search_term=f"%{query.lower()}%"
         cursor=(offset-1)*limit
         date_expr=func.date(func.timezone("Asia/Kolkata",Orders.created_at))
@@ -110,8 +134,10 @@ class OrdersRepo(BaseRepoModel):
                     func.cast(Orders.created_at,String).ilike(search_term),
                     Orders.invoice_status.ilike(search_term),
                     Orders.payment_status.ilike(search_term),
+                    Orders.invoice_number.ilike(search_term),
                 ),
-                Orders.sequence_id>cursor
+                Orders.sequence_id>cursor,
+                Orders.is_deleted==include_deleted
             )
         )).mappings().all()
 
@@ -179,7 +205,9 @@ class OrdersRepo(BaseRepoModel):
                     func.cast(Orders.created_at,String).ilike(search_term),
                     Orders.invoice_status.ilike(search_term),
                     Orders.payment_status.ilike(search_term),
+                    Orders.invoice_number.ilike(search_term),
                 ),
+                Orders.is_deleted==False
             )
             .limit(5)
         )).mappings().all()
@@ -197,7 +225,7 @@ class OrdersRepo(BaseRepoModel):
             .join(Products,Products.id==Orders.product_id,isouter=True)
             .join(Customers,Customers.id==Orders.customer_id,isouter=True)
             .join(Distributors,Distributors.id==Orders.distributor_id,isouter=True) 
-            .where(Orders.id==order_id)
+            .where(Orders.id==order_id,Orders.is_deleted==False)
         )).mappings().one_or_none()
 
         return {'order':queried_orders}
@@ -214,7 +242,7 @@ class OrdersRepo(BaseRepoModel):
             .join(Products,Products.id==Orders.product_id,isouter=True)
             .join(Customers,Customers.id==Orders.customer_id,isouter=True)
             .join(Distributors,Distributors.id==Orders.distributor_id,isouter=True) 
-            .where(Orders.customer_id==customer_id,Orders.sequence_id>cursor)
+            .where(Orders.customer_id==customer_id,Orders.sequence_id>cursor,Orders.is_deleted==False)
             .limit(limit)
         )).mappings().all()
 

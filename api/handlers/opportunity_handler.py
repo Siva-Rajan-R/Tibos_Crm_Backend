@@ -76,8 +76,8 @@ class HandleOpportunitiesRequest:
         )
 
     @catch_errors
-    async def delete(self, opportunity_id: str):
-        res = await OpportunitiesService(session=self.session,user_role=self.user_role).delete(opportunity_id=opportunity_id)
+    async def delete(self, opportunity_id: str, soft_delete: bool = True):
+        res = await OpportunitiesService(session=self.session,user_role=self.user_role).delete(opportunity_id=opportunity_id,soft_delete=soft_delete)
         if not res:
             raise HTTPException(
                 status_code=400,
@@ -94,6 +94,28 @@ class HandleOpportunitiesRequest:
                 status_code=200,
                 success=True,
                 msg="Opportunity deleted successfully"
+            )
+        )
+    
+    @catch_errors
+    async def recover(self, opportunity_id: str):
+        res = await OpportunitiesService(session=self.session,user_role=self.user_role).recover(opportunity_id=opportunity_id)
+        if not res:
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponseTypDict(
+                    status_code=400,
+                    success=False,
+                    msg="Error : Recovering opportunity",
+                    description="Invalid user input"
+                )
+            )
+        
+        return SuccessResponseTypDict(
+            detail=BaseResponseTypDict(
+                status_code=200,
+                success=True,
+                msg="Opportunity recovered successfully"
             )
         )
 

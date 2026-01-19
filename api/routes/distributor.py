@@ -33,11 +33,22 @@ async def update_distributor(data:UpdateDistriSchema,user:dict=Depends(verify_us
 
 
 @router.delete('/{distributor_id}')
-async def delete_distributor(distributor_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+async def delete_distributor(distributor_id:str,user:dict=Depends(verify_user),soft_delete:Optional[bool]=Query(True),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleDistributorRequest(
         session=session,
         user_role=user['role']
     ).delete(
+        distributor_id=distributor_id,
+        soft_delete=soft_delete
+    )
+
+
+@router.delete('/recover/{distributor_id}')
+async def recover_distributor(distributor_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+    return await HandleDistributorRequest(
+        session=session,
+        user_role=user['role']
+    ).recover(
         distributor_id=distributor_id
     )
 

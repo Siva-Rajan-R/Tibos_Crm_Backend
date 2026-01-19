@@ -43,12 +43,26 @@ async def update_lead(
 async def delete_lead(
     lead_id: str,
     user: dict = Depends(verify_user),
+    session: AsyncSession = Depends(get_pg_db_session),
+    soft_delete:Optional[bool]=Query(True)
+):
+    return await HandleLeadsRequest(
+        session=session,
+        user_role=user["role"]
+    ).delete(lead_id=lead_id,soft_delete=soft_delete)
+
+
+
+@router.delete("/recover/{lead_id}")
+async def recover_lead(
+    lead_id: str,
+    user: dict = Depends(verify_user),
     session: AsyncSession = Depends(get_pg_db_session)
 ):
     return await HandleLeadsRequest(
         session=session,
         user_role=user["role"]
-    ).delete(lead_id=lead_id)
+    ).recover(lead_id=lead_id)
 
 
 @router.get("")

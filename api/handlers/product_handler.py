@@ -75,8 +75,8 @@ class HandleProductsRequest:
 
 
     @catch_errors
-    async def delete(self,product_id:str):
-        res = await ProductsService(session=self.session,user_role=self.user_role).delete(product_id=product_id)
+    async def delete(self,product_id:str,soft_delete:bool=True):
+        res = await ProductsService(session=self.session,user_role=self.user_role).delete(product_id=product_id,soft_delete=soft_delete)
         if not res:
             raise HTTPException(
                 status_code=400,
@@ -95,6 +95,28 @@ class HandleProductsRequest:
                 msg="Product deleted successfully"
             )
         )
+    
+    @catch_errors  
+    async def recover(self,product_id:str):
+        res = await ProductsService(session=self.session,user_role=self.user_role).recover(product_torecover=product_id)
+        if not res:
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponseTypDict(
+                    status_code=400,
+                    success=False,
+                    msg="Error : Recovering product",
+                    description="Invalid user input"
+                )
+            )
+        
+        return SuccessResponseTypDict(
+            detail=BaseResponseTypDict(
+                status_code=200,
+                success=True,
+                msg="Product recovered successfully"
+            )
+        )   
 
     @catch_errors   
     async def get(self,offset:int=1,limit:int=10,query:str=''):

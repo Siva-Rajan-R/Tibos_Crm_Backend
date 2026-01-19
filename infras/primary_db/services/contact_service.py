@@ -53,9 +53,13 @@ class ContactsService(BaseServiceModel):
         return await ContactsRepo(session=self.session,user_role=self.user_role).update(data=UpdateContactDbSchema(**data_toupdate))
         
     @catch_errors
-    async def delete(self,customer_id:str,contact_id:str):
-        return await ContactsRepo(session=self.session,user_role=self.user_role).delete(customer_id=customer_id,contact_id=contact_id)
+    async def delete(self,customer_id:str,contact_id:str,soft_delete:bool=True):
+        return await ContactsRepo(session=self.session,user_role=self.user_role).delete(customer_id=customer_id,contact_id=contact_id,soft_delete=soft_delete)
     
+    @catch_errors  
+    async def recover(self,customer_id:str,contact_id:str):
+        return await ContactsRepo(session=self.session,user_role=self.user_role).recover(customer_id=customer_id,contact_id=contact_id)
+
     @catch_errors  
     async def get(self,offset:int,limit:int,query:str=''):
         return await ContactsRepo(session=self.session,user_role=self.user_role).get(offset=offset,limit=limit,query=query)

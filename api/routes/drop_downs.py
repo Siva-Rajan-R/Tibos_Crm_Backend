@@ -1,7 +1,7 @@
 from fastapi import APIRouter,Depends
 from api.dependencies.token_verification import verify_user
 from infras.primary_db.main import AsyncSession,get_pg_db_session
-from core.data_formats.enums.common_enums import UserRoles
+from core.data_formats.enums.common_enums import UserRoles,IndianStatesEnum,OwnersEnum
 from core.data_formats.enums.pg_enums import ProductTypes,CustomerSectors,ShippingMethods,CustomerIndustries,PaymentStatus,InvoiceStatus,BillingType,LeadSource,LeadStatus,OpportunityStatus
 from core.data_formats.enums.payment_enums import PaymentTermsEnum
 
@@ -24,7 +24,9 @@ async def get_all_dd(user:dict=Depends(verify_user)):
         'billing_type':list(BillingType._value2member_map_.values()),
         'lead_status':list(LeadStatus._value2member_map_.values()),
         'lead_source':list(LeadSource._value2member_map_.values()),
-        'payment_terms':list(PaymentTermsEnum._value2member_map_.values())
+        'payment_terms':list(PaymentTermsEnum._value2member_map_.values()),
+        'indian_states':list(IndianStatesEnum._value2member_map_.values()),
+        'owners':list(OwnersEnum._value2member_map_.values())
     }
 
 

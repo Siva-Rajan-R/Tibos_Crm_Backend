@@ -70,14 +70,39 @@ class LeadsRepo(BaseRepoModel):
         return is_updated
 
     @start_db_transaction
-    async def delete(self, lead_id: str):
-        stmt = delete(Leads).where(Leads.id == lead_id).returning(Leads.id)
-        is_deleted = (await self.session.execute(stmt)).scalar_one_or_none()
-
-        return is_deleted
+    async def delete(self, lead_id: str, soft_delete: bool = True):
+        if soft_delete:
+            stmt = (
+                update(Leads)
+                .where(Leads.id == lead_id, Leads.is_deleted == False)
+                .values(is_deleted=True)
+                .returning(Leads.id)
+            )
+            is_deleted = (await self.session.execute(stmt)).scalar_one_or_none()
+            return is_deleted
+        else:
+            if self.user_role if isinstance(self.user_role,UserRoles) else self.user_role!=UserRoles.SUPER_ADMIN.value:
+                return False
+            stmt = delete(Leads).where(Leads.id == lead_id).returning(Leads.id)
+            is_deleted = (await self.session.execute(stmt)).scalar_one_or_none()
+            return is_deleted
+    
+    @start_db_transaction
+    async def recover(self, lead_id: str):
+        if self.user_role if isinstance(self.user_role,UserRoles) else self.user_role!=UserRoles.SUPER_ADMIN.value:
+            return False
+        
+        stmt = (
+            update(Leads)
+            .where(Leads.id == lead_id, Leads.is_deleted == True)
+            .values(is_deleted=False)
+            .returning(Leads.id)
+        )
+        is_recovered = (await self.session.execute(stmt)).scalar_one_or_none()
+        return is_recovered
     
 
-    async def get(self, offset: int = 1, limit: int = 10, query: str = ""):
+    async def get(self, offset: int = 1, limit: int = 10, query: str = "",include_deleted:bool=False):
         cursor = (offset - 1) * limit
         search = f"%{query.lower()}%"
         date_expr=func.date(func.timezone("Asia/Kolkata",Leads.created_at))
@@ -103,7 +128,8 @@ class LeadsRepo(BaseRepoModel):
                         Leads.description.ilike(search),
                         func.cast(Leads.created_at,String).ilike(search)
                     ),
-                    Leads.sequence_id > cursor
+                    Leads.sequence_id > cursor,
+                    Leads.is_deleted==include_deleted
                 )
                 .limit(limit)
             )
@@ -130,7 +156,7 @@ class LeadsRepo(BaseRepoModel):
                     follwup_expr.label("lead_next_followup"),
                     lastcont_expr.label("lead_last_contacted"),
                     date_expr.label("lead_created_at")
-                ).where(Leads.id == lead_id)
+                ).where(Leads.id == lead_id,Leads.is_deleted==False)
             )
         ).mappings().one_or_none()
 
@@ -160,7 +186,8 @@ class LeadsRepo(BaseRepoModel):
                     Leads.source.ilike(search),
                     Leads.status.ilike(search),
                     Leads.description.ilike(search)
-                )
+                ),
+                Leads.is_deleted==False
             )
             .limit(5)
         )

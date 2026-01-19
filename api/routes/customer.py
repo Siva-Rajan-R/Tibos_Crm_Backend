@@ -33,11 +33,24 @@ async def update_customer(data:UpdateCustomerSchema,user:dict=Depends(verify_use
 
 
 @router.delete('/{customer_id}')
-async def delete_customer(customer_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+async def delete_customer(customer_id:str,user:dict=Depends(verify_user),soft_delete:Optional[bool]=Query(True),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleCustomersRequest(
         session=session,
         user_role=user['role']
     ).delete(
+        customer_id=customer_id,
+        soft_delete=soft_delete
+    )
+
+
+
+
+@router.delete('/recover/{customer_id}')
+async def recover_customer(customer_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+    return await HandleCustomersRequest(
+        session=session,
+        user_role=user['role']
+    ).recover(
         customer_id=customer_id
     )
 

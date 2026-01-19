@@ -42,12 +42,28 @@ async def update_opportunity(
 async def delete_opportunity(
     opportunity_id: str,
     user: dict = Depends(verify_user),
+    session: AsyncSession = Depends(get_pg_db_session),
+    soft_delete:Optional[bool]=Query(True)
+):
+    return await HandleOpportunitiesRequest(
+        session=session,
+        user_role=user["role"]
+    ).delete(opportunity_id=opportunity_id,soft_delete=soft_delete)
+
+
+
+@router.delete("/recover/{opportunity_id}")
+async def recover_opportunity(
+    opportunity_id: str,
+    user: dict = Depends(verify_user),
     session: AsyncSession = Depends(get_pg_db_session)
 ):
     return await HandleOpportunitiesRequest(
         session=session,
         user_role=user["role"]
-    ).delete(opportunity_id=opportunity_id)
+    ).recover(opportunity_id=opportunity_id)
+
+
 
 @router.get("")
 async def get_leads(

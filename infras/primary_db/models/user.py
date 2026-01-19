@@ -1,4 +1,4 @@
-from sqlalchemy import String,Integer,Float,Boolean,Column,ForeignKey,Enum,ARRAY,func,TIMESTAMP
+from sqlalchemy import String,Integer,Float,Boolean,Column,ForeignKey,Enum,ARRAY,func,TIMESTAMP,text
 from ..main import PG_BASE
 from core.data_formats.enums.common_enums import UserRoles
 
@@ -10,5 +10,6 @@ class Users(PG_BASE):
     name=Column(String,nullable=False)
     role=Column(String,nullable=False)
     tf_secret=Column(String,nullable=True)
+    is_deleted=Column(Boolean,server_default=text("false"),default=False)
 
     created_at=Column(TIMESTAMP(timezone=True),server_default=func.now())

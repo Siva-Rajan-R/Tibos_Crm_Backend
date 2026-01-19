@@ -1,4 +1,4 @@
-from sqlalchemy import String,Integer,Float,Boolean,Column,ForeignKey,Enum,BigInteger,Identity,func,TIMESTAMP
+from sqlalchemy import String,Integer,Float,Boolean,Column,ForeignKey,Enum,BigInteger,Identity,func,TIMESTAMP,text
 from sqlalchemy.orm import relationship
 from ..main import PG_BASE
 
@@ -11,6 +11,7 @@ class Contacts(PG_BASE):
     name=Column(String,nullable=False)
     mobile_number=Column(String,nullable=False)
     email=Column(String,nullable=False)
+    is_deleted=Column(Boolean,server_default=text("false"),nullable=False)
 
     customer=relationship("Customers",back_populates="contact")
 
