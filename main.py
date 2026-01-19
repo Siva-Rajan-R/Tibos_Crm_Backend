@@ -2,7 +2,7 @@ from fastapi import FastAPI,Request
 from api.routes import auth,contact,customer,order,product,user,drop_downs,dashboard,opportunity,leads,twofactor,distributor
 from fastapi.middleware.cors import CORSMiddleware
 from infras.primary_db.services.user_service import UserService,UserRoles
-from infras.primary_db.main import init_pg_db,add_delete
+from infras.primary_db.main import init_pg_db
 from infras.caching.main import check_redis_health,redis_client
 from icecream import ic
 from infras.primary_db.main import AsyncLocalSession
@@ -32,7 +32,6 @@ async def api_lifespan(app:FastAPI):
     try:
         ic("🏎️ Executing API Lifespan... ")
         await init_pg_db()
-        await add_delete()
         async with AsyncLocalSession() as session:
             await UserService(session=session,user_role=UserRoles.SUPER_ADMIN).init_superadmin()
         await check_redis_health()
