@@ -2,7 +2,7 @@ from fastapi import APIRouter,Depends
 from api.dependencies.token_verification import verify_user
 from infras.primary_db.main import AsyncSession,get_pg_db_session
 from core.data_formats.enums.common_enums import UserRoles,IndianStatesEnum,OwnersEnum
-from core.data_formats.enums.pg_enums import ProductTypes,CustomerSectors,ShippingMethods,CustomerIndustries,PaymentStatus,InvoiceStatus,BillingType,LeadSource,LeadStatus,OpportunityStatus
+from core.data_formats.enums.pg_enums import ProductTypes,CustomerSectors,ShippingMethods,CustomerIndustries,PaymentStatus,InvoiceStatus,BillingType,LeadSource,LeadStatus,OpportunityStatus,PurchaseTypes,RenewalTypes
 from core.data_formats.enums.payment_enums import PaymentTermsEnum
 
 router=APIRouter(
@@ -26,7 +26,9 @@ async def get_all_dd(user:dict=Depends(verify_user)):
         'lead_source':list(LeadSource._value2member_map_.values()),
         'payment_terms':list(PaymentTermsEnum._value2member_map_.values()),
         'indian_states':list(IndianStatesEnum._value2member_map_.values()),
-        'owners':list(OwnersEnum._value2member_map_.values())
+        'owners':list(OwnersEnum._value2member_map_.values()),
+        'renewal_types':list(RenewalTypes._value2member_map_.values()),
+        'purchase_types':list(PurchaseTypes._value2member_map_.values())
     }
 
 

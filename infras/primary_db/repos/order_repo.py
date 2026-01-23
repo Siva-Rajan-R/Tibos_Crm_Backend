@@ -39,7 +39,10 @@ class OrdersRepo(BaseRepoModel):
             Customers.mobile_number,
             Distributors.name.label('distributor_name'),
             Distributors.discount.label('distributor_discount'),
-            Orders.invoice_number
+            Orders.invoice_number,
+            Orders.invoice_date,
+            Orders.purchase_type,
+            Orders.renewal_type
         )
 
     async def is_order_exists(self,customer_id:str,product_id:str):
@@ -135,6 +138,9 @@ class OrdersRepo(BaseRepoModel):
                     Orders.invoice_status.ilike(search_term),
                     Orders.payment_status.ilike(search_term),
                     Orders.invoice_number.ilike(search_term),
+                    Orders.invoice_date.ilike(search_term),
+                    Orders.purchase_type.ilike(search_term),
+                    Orders.renewal_type.ilike(search_term)
                 ),
                 Orders.sequence_id>cursor,
                 Orders.is_deleted==include_deleted
@@ -206,6 +212,9 @@ class OrdersRepo(BaseRepoModel):
                     Orders.invoice_status.ilike(search_term),
                     Orders.payment_status.ilike(search_term),
                     Orders.invoice_number.ilike(search_term),
+                    Orders.invoice_date.ilike(search_term),
+                    Orders.purchase_type.ilike(search_term),
+                    Orders.renewal_type.ilike(search_term)
                 ),
                 Orders.is_deleted==False
             )

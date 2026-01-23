@@ -1,4 +1,4 @@
-from sqlalchemy import String,Integer,Float,Boolean,Column,ForeignKey,ARRAY,BigInteger,Identity,func,TIMESTAMP,text
+from sqlalchemy import String,Integer,Float,Boolean,Column,ForeignKey,ARRAY,BigInteger,Identity,func,TIMESTAMP,text,Date
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from ..main import PG_BASE
@@ -20,6 +20,10 @@ class Orders(PG_BASE):
     payment_status=Column(String,nullable=False)
     invoice_status=Column(String,nullable=False)
     invoice_number=Column(String,nullable=True)
+    invoice_date=Column(String,nullable=True)
+    purchase_type=Column(String,nullable=True)
+    renewal_type=Column(String,nullable=True)
+
 
     customer=relationship("Customers",back_populates="order")
     product=relationship("Products",back_populates="order")

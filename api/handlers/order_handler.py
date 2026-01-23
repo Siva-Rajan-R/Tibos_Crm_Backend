@@ -34,6 +34,17 @@ class HandleOrdersRequest:
 
     @catch_errors
     async def add(self,data:AddOrderSchema):
+        if data.invoice_status.value==InvoiceStatus.COMPLETED.value and ((not data.invoice_number or len(data.invoice_number)<1 or (not data.invoice_date))):
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponseTypDict(
+                    status_code=400,
+                    success=False,
+                    msg="Error : Creading Order",
+                    description="Enter a vaid Inovice number or Date"
+                )
+            )
+        
         res=await OrdersService(session=self.session,user_role=self.user_role).add(data=data)
         if not res:
             raise HTTPException(
@@ -54,6 +65,16 @@ class HandleOrdersRequest:
     
     @catch_errors
     async def update(self,data:UpdateOrderSchema):
+        if data.invoice_status.value==InvoiceStatus.COMPLETED.value and ((not data.invoice_number or len(data.invoice_number)<1 or (not data.invoice_date))):
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponseTypDict(
+                    status_code=400,
+                    success=False,
+                    msg="Error : Creading Order",
+                    description="Enter a vaid Inovice number or Date"
+                )
+            )
         res = await OrdersService(session=self.session,user_role=self.user_role).update(data=data)
         if not res:
             raise HTTPException(
