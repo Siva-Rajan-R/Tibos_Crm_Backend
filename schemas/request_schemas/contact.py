@@ -16,3 +16,7 @@ class UpdateContactSchema(BaseModel):
     customer_id:str
     mobile_number:Optional[str]=None
     email:Optional[EmailStr]=None
+
+class RecoverContactSchema(BaseModel):
+    contact_id:str
+    customer_id:str

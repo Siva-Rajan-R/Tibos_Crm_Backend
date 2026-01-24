@@ -29,3 +29,6 @@ class UpdateCustomerSchema(BaseModel):
     address:Optional[CustomerAddressTypDict]=None
     owner:Optional[str]=None
     tenant_id:Optional[str]=None
+
+class RecoverCustomerSchema(BaseModel):
+    customer_id:str

@@ -12,12 +12,14 @@ from typing import Optional
 from schemas.db_schemas.lead import AddLeadDbSchema,UpdateLeadDbSchema
 from core.decorators.db_session_handler_dec import start_db_transaction
 from pydantic import EmailStr
+from ..models.user import Users
 
 
 class LeadsRepo(BaseRepoModel):
-    def __init__(self, session: AsyncSession, user_role: UserRoles):
+    def __init__(self, session: AsyncSession, user_role: UserRoles,cur_user_id:str):
         self.session = session
         self.user_role = user_role
+        self.cur_user_id=cur_user_id
         self.leads_cols=(
             Leads.id.label("lead_id"),
             Leads.name.label("lead_name"), 
@@ -75,7 +77,11 @@ class LeadsRepo(BaseRepoModel):
             stmt = (
                 update(Leads)
                 .where(Leads.id == lead_id, Leads.is_deleted == False)
-                .values(is_deleted=True)
+                .values(
+                    is_deleted=True,
+                    deleted_at=func.now(),
+                    deleted_by=self.cur_user_id
+                )
                 .returning(Leads.id)
             )
             is_deleted = (await self.session.execute(stmt)).scalar_one_or_none()
@@ -105,18 +111,25 @@ class LeadsRepo(BaseRepoModel):
     async def get(self, offset: int = 1, limit: int = 10, query: str = "",include_deleted:bool=False):
         cursor = (offset - 1) * limit
         search = f"%{query.lower()}%"
+
         date_expr=func.date(func.timezone("Asia/Kolkata",Leads.created_at))
         follwup_expr=func.date(func.timezone("Asia/Kolkata",Leads.next_followup))
         lastcont_expr=func.date(func.timezone("Asia/Kolkata",Leads.last_contacted))
+        deleted_at=func.date(func.timezone("Asia/Kolkata",Leads.deleted_at))
+
+        cols=[*self.leads_cols]
+        if include_deleted:
+            cols.extend([Users.name.label('deleted_by'),deleted_at.label('deleted_at')])
 
         leads = (
             await self.session.execute(
                 select(
-                    *self.leads_cols,
+                    *cols,
                     lastcont_expr.label("lead_last_contacted"),
                     follwup_expr.label("lead_next_followup"),
                     date_expr.label("lead_created_at")
                 )
+                .join(Users,Users.id==Leads.deleted_by,isouter=True)
                 .where(
                     or_(
                         Leads.id.ilike(search),

@@ -16,15 +16,16 @@ from core.decorators.error_handler_dec import catch_errors
 
 
 class LeadsService(BaseServiceModel):
-    def __init__(self, session: AsyncSession, user_role: UserRoles):
+    def __init__(self, session: AsyncSession, user_role: UserRoles,cur_user_id:str):
         self.session = session
         self.user_role = user_role
+        self.cur_user_id=cur_user_id
 
 
     @catch_errors
     async def add(self,data:AddLeadSchema):
         # Need to check the given emailor phone have exisiting leads
-        lead_obj=LeadsRepo(session=self.session,user_role=self.user_role)
+        lead_obj=LeadsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id)
         if (await lead_obj.is_lead_exists(email=data.email,mobile_number=data.phone)):
             return False
         
@@ -37,24 +38,24 @@ class LeadsService(BaseServiceModel):
         if not data_toupdate or len(data_toupdate)<1:
             return False
         
-        return await LeadsRepo(session=self.session,user_role=self.user_role).update(data=UpdateLeadDbSchema(**data_toupdate))
+        return await LeadsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateLeadDbSchema(**data_toupdate))
 
     @catch_errors
     async def delete(self, lead_id: str, soft_delete: bool = True):
-        return await LeadsRepo(session=self.session,user_role=self.user_role).delete(lead_id=lead_id, soft_delete=soft_delete)
+        return await LeadsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete(lead_id=lead_id, soft_delete=soft_delete)
     
     @catch_errors  
     async def recover(self, lead_id: str):
-        return await LeadsRepo(session=self.session,user_role=self.user_role).recover(lead_id=lead_id)
+        return await LeadsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).recover(lead_id=lead_id)
 
     @catch_errors
-    async def get(self, offset: int = 1, limit: int = 10, query: str = ""):
-        return await LeadsRepo(session=self.session,user_role=self.user_role).get(offset=offset,limit=limit,query=query)
+    async def get(self, offset: int = 1, limit: int = 10, query: str = "",include_deleted:Optional[bool]=False):
+        return await LeadsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(offset=offset,limit=limit,query=query,include_deleted=include_deleted)
 
     @catch_errors
     async def get_by_id(self, lead_id: str):
-        return await LeadsRepo(session=self.session,user_role=self.user_role).get_by_id(lead_id=lead_id)
+        return await LeadsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(lead_id=lead_id)
     
     @catch_errors
     async def search(self, query: str):
-        return await LeadsRepo(session=self.session,user_role=self.user_role).search(query=query)
+        return await LeadsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).search(query=query)

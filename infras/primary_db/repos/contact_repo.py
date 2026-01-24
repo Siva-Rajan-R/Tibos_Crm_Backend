@@ -12,15 +12,17 @@ from typing import Optional,List
 from math import ceil
 from core.decorators.db_session_handler_dec import start_db_transaction
 from core.decorators.error_handler_dec import catch_errors
+from ..models.user import Users
 from schemas.db_schemas.contact import AddContactDbSchema,UpdateContactDbSchema
 
 
 
 class ContactsRepo(BaseRepoModel):
     """on this calss have a multiple methods"""
-    def __init__(self,session:AsyncSession,user_role:UserRoles):
+    def __init__(self,session:AsyncSession,user_role:UserRoles,cur_user_id:str):
         self.session=session
         self.user_role=user_role
+        self.cur_user_id=cur_user_id
         self.contact_cols=(
             Contacts.id,
             Contacts.customer_id,
@@ -73,7 +75,9 @@ class ContactsRepo(BaseRepoModel):
     async def delete(self,customer_id:str,contact_id:str,soft_delete:bool=True):
         if soft_delete:
             contact_todelete=update(Contacts).where(Contacts.id==contact_id,Contacts.customer_id==customer_id,Contacts.is_deleted==False).values(
-                is_deleted=True
+                is_deleted=True,
+                deleted_at=func.now(),
+                deleted_by=self.cur_user_id
             ).returning(Contacts.id)
             is_deleted=(await self.session.execute(contact_todelete)).scalar_one_or_none()
             return is_deleted
@@ -105,12 +109,21 @@ class ContactsRepo(BaseRepoModel):
         search_term=f"%{query.lower()}%"
         cursor=(offset-1)*limit
         date_expr=func.date(func.timezone("Asia/Kolkata",Contacts.created_at))
+        deleted_at=func.date(func.timezone("Asia/Kolkata",Contacts.deleted_at))
+        cols=[
+            *self.contact_cols
+        ]
+        if include_deleted:
+            cols.extend([Users.name.label('deleted_by'),deleted_at.label('deleted_at')])
+
         queried_contacts=(await self.session.execute(
             select(
-                *self.contact_cols,
+                *cols,
                 date_expr.label("contact_created_at")
             )
-            .join(Customers,Customers.id==Contacts.customer_id,isouter=True).limit(limit)
+            .join(Customers,Customers.id==Contacts.customer_id,isouter=True)
+            .join(Users,Users.id==Contacts.deleted_by,isouter=True)
+            .limit(limit)
             .where(
                 or_(
                     Contacts.name.ilike(search_term),

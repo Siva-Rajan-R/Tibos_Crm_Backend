@@ -3,7 +3,7 @@ from typing import Optional
 from  infras.primary_db.main import get_pg_db_session, AsyncSession
 from api.dependencies.token_verification import verify_user
 from ..handlers.lead_handler import HandleLeadsRequest
-from schemas.request_schemas.lead import AddLeadSchema, UpdateLeadSchema
+from schemas.request_schemas.lead import AddLeadSchema, UpdateLeadSchema, RecoverLeadSchema
 
 router = APIRouter(
     tags=["Leads CRUD"],
@@ -33,7 +33,8 @@ async def update_lead(
 ):
     return await HandleLeadsRequest(
         session=session,
-        user_role=user["role"]
+        user_role=user["role"],
+        cur_user_id=user['id']
     ).update(
         data=data
     )
@@ -48,21 +49,23 @@ async def delete_lead(
 ):
     return await HandleLeadsRequest(
         session=session,
-        user_role=user["role"]
+        user_role=user["role"],
+        cur_user_id=user['id']
     ).delete(lead_id=lead_id,soft_delete=soft_delete)
 
 
 
-@router.delete("/recover/{lead_id}")
+@router.put("/recover")
 async def recover_lead(
-    lead_id: str,
+    data:RecoverLeadSchema,
     user: dict = Depends(verify_user),
     session: AsyncSession = Depends(get_pg_db_session)
 ):
     return await HandleLeadsRequest(
         session=session,
-        user_role=user["role"]
-    ).recover(lead_id=lead_id)
+        user_role=user["role"],
+        cur_user_id=user['id']
+    ).recover(data=data)
 
 
 @router.get("")
@@ -75,7 +78,8 @@ async def get_leads(
 ):
     return await HandleLeadsRequest(
         session=session,
-        user_role=user["role"]
+        user_role=user["role"],
+        cur_user_id=user['id']
     ).get(offset=offset, limit=limit, query=q)
 
 @router.get("/search")
@@ -86,7 +90,8 @@ async def get_leads(
 ):
     return await HandleLeadsRequest(
         session=session,
-        user_role=user["role"]
+        user_role=user["role"],
+        cur_user_id=user['id']
     ).search(query=q)
 
 @router.get("/{lead_id}")
@@ -97,5 +102,6 @@ async def get_lead_by_id(
 ):
     return await HandleLeadsRequest(
         session=session,
-        user_role=user["role"]
+        user_role=user["role"],
+        cur_user_id=user['id']
     ).get_by_id(lead_id=lead_id)

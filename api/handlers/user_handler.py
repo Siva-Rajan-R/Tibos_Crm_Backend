@@ -8,7 +8,7 @@ from icecream import ic
 from core.data_formats.enums.common_enums import UserRoles
 import os,json
 from schemas.db_schemas.user import AddUserDbSchema,UpdateUserDbSchema
-from schemas.request_schemas.user import AddUserSchema,UpdateUserSchema
+from schemas.request_schemas.user import AddUserSchema,UpdateUserSchema,RecoverUserSchema
 from schemas.request_schemas.auth import AuthForgotAcceptSchema,AuthForgotEmailSchema,AuthSchema
 from typing import Optional
 from security.data_hashing import verfiy_hashed,hash_data
@@ -25,11 +25,12 @@ FRONTEND_URL=SETTINGS.FRONTEND_URL
  
  
 class HandleUserRequest:
-    def __init__(self,session:AsyncSession,user_role:UserRoles,bgt:BackgroundTasks,request:Request):
+    def __init__(self,session:AsyncSession,user_role:UserRoles,cur_user_id:str,bgt:BackgroundTasks,request:Request):
         self.session=session
         self.user_role=user_role
         self.bgt=bgt
         self.request=request
+        self.cur_user_id=cur_user_id
 
         if isinstance(self.user_role,UserRoles):
             self.user_role=self.user_role.value
@@ -48,7 +49,7 @@ class HandleUserRequest:
 
     @catch_errors
     async def add(self,data:AddUserSchema):
-        res=await UserService(session=self.session,user_role=self.user_role).add(data=data)
+        res=await UserService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(data=data)
 
         if not res:
             raise HTTPException(
@@ -83,8 +84,8 @@ class HandleUserRequest:
         
     
     @catch_errors
-    async def update(self,data:UpdateUserDbSchema):
-        res = await UserService(session=self.session,user_role=self.user_role).update(data=data)
+    async def update(self,data:UpdateUserSchema):
+        res = await UserService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=data)
         if not res:
             raise HTTPException(
                 status_code=400,
@@ -108,7 +109,7 @@ class HandleUserRequest:
 
     @catch_errors
     async def update_role(self,user_toupdate_id:str,role_toupdate:UserRoles):    
-        res=await UserService(session=self.session,user_role=self.user_role).update_role(user_toupdate_id=user_toupdate_id,role_toupdate=role_toupdate)
+        res=await UserService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update_role(user_toupdate_id=user_toupdate_id,role_toupdate=role_toupdate)
         if not res:
             raise HTTPException(
                 status_code=400,
@@ -142,7 +143,7 @@ class HandleUserRequest:
                 )
             )
         
-        res=await UserService(session=self.session,user_role=self.user_role).update_password(user_toupdate_id=user_toupdate_id,new_password=data.confirm_password)
+        res=await UserService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update_password(user_toupdate_id=user_toupdate_id,new_password=data.confirm_password)
         if not res:
             raise HTTPException(
                 status_code=404,
@@ -164,7 +165,7 @@ class HandleUserRequest:
     
     @catch_errors
     async def delete(self,userid_toremove:str,soft_delete:bool=True):      
-        res = await UserService(session=self.session,user_role=self.user_role).delete(userid_toremove=userid_toremove,soft_delete=soft_delete)
+        res = await UserService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete(userid_toremove=userid_toremove,soft_delete=soft_delete)
         if not res:
             raise HTTPException(
                 status_code=400,
@@ -185,8 +186,8 @@ class HandleUserRequest:
         )
     
     @catch_errors
-    async def recover(self,userid_torecover:str): 
-        res = await UserService(session=self.session,user_role=self.user_role).recover(userid_torecover=userid_torecover)
+    async def recover(self,data:RecoverUserSchema): 
+        res = await UserService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).recover(userid_torecover=data.user_id)
         if not res:
             raise HTTPException(
                 status_code=400,
@@ -207,15 +208,15 @@ class HandleUserRequest:
     
     @catch_errors
     async def get(self):   
-        return await UserService(session=self.session,user_role=self.user_role).get()
+        return await UserService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get()
     
     @catch_errors
     async def get_by_id(self,userid_toget:str):  
-        return await UserService(session=self.session,user_role=self.user_role).get_by_id(userid_toget=userid_toget)
+        return await UserService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(userid_toget=userid_toget)
     
     @catch_errors
     async def get_by_role(self,userrole_toget:UserRoles):    
-        return await UserService(session=self.session,user_role=self.user_role).get_by_role(userrole_toget=userrole_toget)
+        return await UserService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_role(userrole_toget=userrole_toget)
     
 
     

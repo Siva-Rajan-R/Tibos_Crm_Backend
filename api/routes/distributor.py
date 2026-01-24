@@ -1,5 +1,5 @@
 from fastapi import Depends,APIRouter,Query
-from schemas.request_schemas.distributor import CreateDistriSchema,UpdateDistriSchema
+from schemas.request_schemas.distributor import CreateDistriSchema,UpdateDistriSchema,RecoverDistriSchema
 from infras.primary_db.main import get_pg_db_session,AsyncSession
 from api.dependencies.token_verification import verify_user
 from ..handlers.distributor_handler import HandleDistributorRequest
@@ -16,7 +16,8 @@ router=APIRouter(
 async def add_distributor(data:CreateDistriSchema,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleDistributorRequest(
         session=session,
-        user_role=user['role']
+        user_role=user['role'],
+        cur_user_id=user['id']
     ).add(
         data=data
     )
@@ -26,7 +27,8 @@ async def add_distributor(data:CreateDistriSchema,user:dict=Depends(verify_user)
 async def update_distributor(data:UpdateDistriSchema,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleDistributorRequest(
         session=session,
-        user_role=user['role']
+        user_role=user['role'],
+        cur_user_id=user['id']
     ).update(
         data=data
     )
@@ -36,20 +38,22 @@ async def update_distributor(data:UpdateDistriSchema,user:dict=Depends(verify_us
 async def delete_distributor(distributor_id:str,user:dict=Depends(verify_user),soft_delete:Optional[bool]=Query(True),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleDistributorRequest(
         session=session,
-        user_role=user['role']
+        user_role=user['role'],
+        cur_user_id=user['id']
     ).delete(
         distributor_id=distributor_id,
         soft_delete=soft_delete
     )
 
 
-@router.delete('/recover/{distributor_id}')
-async def recover_distributor(distributor_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+@router.put('/recover')
+async def recover_distributor(data:RecoverDistriSchema,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleDistributorRequest(
         session=session,
-        user_role=user['role']
+        user_role=user['role'],
+        cur_user_id=user['id']
     ).recover(
-        distributor_id=distributor_id
+        data=data
     )
 
 
@@ -57,7 +61,8 @@ async def recover_distributor(distributor_id:str,user:dict=Depends(verify_user),
 async def get_all_distributor(user:dict=Depends(verify_user),q:str=Query(''),offset:Optional[int]=Query(1),limit:Optional[int]=Query(10),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleDistributorRequest(
         session=session,
-        user_role=user['role']
+        user_role=user['role'],
+        cur_user_id=user['id']
     ).get(offset=offset,limit=limit,query=q)
 
 
@@ -65,7 +70,8 @@ async def get_all_distributor(user:dict=Depends(verify_user),q:str=Query(''),off
 async def get_searched_distributors(q:str=Query(...),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleDistributorRequest(
         session=session,
-        user_role=user['role']
+        user_role=user['role'],
+        cur_user_id=user['id']
     ).search(query=q)
 
 
@@ -73,7 +79,8 @@ async def get_searched_distributors(q:str=Query(...),user:dict=Depends(verify_us
 async def get_distributor_by_id(distributor_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleDistributorRequest(
         session=session,
-        user_role=user['role']
+        user_role=user['role'],
+        cur_user_id=user['id']
     ).get_by_id(distributor_id=distributor_id)
 
 

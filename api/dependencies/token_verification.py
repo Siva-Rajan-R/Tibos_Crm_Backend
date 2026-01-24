@@ -65,7 +65,7 @@ async def verify_user(request:Request,credentials:HTTPAuthorizationCredentials=D
                 else:
                     await unlink_redis(key=[f"token-verify-{user_id}"])
 
-    user_data=(await UserRepo(session=session,user_role='').isuser_exists(user_id_email=decoded_token['email']))
+    user_data=(await UserRepo(session=session,user_role='',cur_user_id='').isuser_exists(user_id_email=decoded_token['email']))
     ic(user_data)
     if not user_data:
         raise HTTPException(

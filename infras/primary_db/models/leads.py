@@ -1,4 +1,4 @@
-from sqlalchemy import String,Integer,Float,Boolean,Column,ForeignKey,ARRAY,BigInteger,Identity,func,TIMESTAMP,text
+from sqlalchemy import String,Integer,Float,Boolean,Column,ForeignKey,ARRAY,BigInteger,Identity,func,TIMESTAMP,text,DateTime
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from ..main import PG_BASE
@@ -26,6 +26,8 @@ class Leads(PG_BASE):
 
     description = Column(String,nullable=True)
     is_deleted=Column(Boolean,server_default=text("false"),nullable=False)
+    deleted_by=Column(String,ForeignKey('users.id'))
+    deleted_at=Column(DateTime(timezone=True),nullable=True)
 
     # relationship
     opportunity = relationship(

@@ -19,20 +19,21 @@ DEFAULT_SUPERADMIN_INFO=json.loads(os.getenv('DEFAULT_SUPERADMIN_INFO'))
  
  
 class UserService(BaseServiceModel):
-    def __init__(self,session:AsyncSession,user_role:UserRoles):
+    def __init__(self,session:AsyncSession,user_role:UserRoles,cur_user_id:str):
         self.session=session
         self.user_role=user_role
+        self.cur_user_id=cur_user_id
 
     
     @catch_errors
     async def init_superadmin(self):
         ic(f"🔃 Creating Default Super-Admin... {DEFAULT_SUPERADMIN_INFO} {type(DEFAULT_SUPERADMIN_INFO)}")
         for superadmins in DEFAULT_SUPERADMIN_INFO:
-            user_obj=UserRepo(session=self.session,user_role=self.user_role)
+            user_obj=UserRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id)
             if (await user_obj.isuser_exists(user_id_email=superadmins['email'])):
                 ic("✅ Default Super-Admin Already Exists")
                 return
-            await UserRepo(session=self.session,user_role=self.user_role).add(
+            await UserRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(
                 data=AddUserDbSchema(
                     id=generate_uuid(),
                     email=superadmins['email'],
@@ -47,7 +48,7 @@ class UserService(BaseServiceModel):
 
     @catch_errors
     async def add(self,data:AddUserSchema):
-        user_obj=UserRepo(session=self.session,user_role=self.user_role)
+        user_obj=UserRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id)
         if (await user_obj.isuser_exists(user_id_email=data.email)):
             return False
 
@@ -65,42 +66,42 @@ class UserService(BaseServiceModel):
         if not data_toupdate or len(data_toupdate)<1:
             return False
         
-        return await UserRepo(session=self.session,user_role=self.user_role).update(data=UpdateUserDbSchema(**data_toupdate))
+        return await UserRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateUserDbSchema(**data_toupdate))
         
 
     @catch_errors
     async def update_role(self,user_toupdate_id:str,role_toupdate:UserRoles):    
-        return await UserRepo(session=self.session,user_role=self.user_role).update_role(user_toupdate_id=user_toupdate_id,role_toupdate=role_toupdate)
+        return await UserRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update_role(user_toupdate_id=user_toupdate_id,role_toupdate=role_toupdate)
     
     @catch_errors
     async def update_twofactor(self,user_toupdate_id:str,tf_secret:str):    
-        return await UserRepo(session=self.session,user_role=self.user_role).update_twofactor(user_toupdate_id=user_toupdate_id,tf_secret=tf_secret)
+        return await UserRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update_twofactor(user_toupdate_id=user_toupdate_id,tf_secret=tf_secret)
 
     @catch_errors
     async def update_password(self,user_toupdate_id:str,new_password:str):
         hashed_pwd=hash_data(data=new_password)
-        return await UserRepo(session=self.session,user_role=self.user_role).update_password(user_toupdate_id=user_toupdate_id,new_hashed_password=hashed_pwd)
+        return await UserRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update_password(user_toupdate_id=user_toupdate_id,new_hashed_password=hashed_pwd)
 
     @catch_errors
     async def delete(self,userid_toremove:str,soft_delete:bool=True):      
-        return await UserRepo(session=self.session,user_role=self.user_role).delete(userid_toremove=userid_toremove,soft_delete=soft_delete)
+        return await UserRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete(userid_toremove=userid_toremove,soft_delete=soft_delete)
 
 
     @catch_errors  
     async def recover(self,userid_torecover:str):
-        return await UserRepo(session=self.session,user_role=self.user_role).recover(userid_torecover=userid_torecover)
+        return await UserRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).recover(userid_torecover=userid_torecover)
 
     @catch_errors
-    async def get(self):   
-        return await UserRepo(session=self.session,user_role=self.user_role).get()
+    async def get(self,include_deleted:Optional[bool]=False):   
+        return await UserRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(include_deleted=include_deleted)
     
     @catch_errors
     async def get_by_id(self,userid_toget:str):  
-        return await UserRepo(session=self.session,user_role=self.user_role).get_by_id(userid_toget=userid_toget)
+        return await UserRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(userid_toget=userid_toget)
     
     @catch_errors
     async def get_by_role(self,userrole_toget:UserRoles):    
-        return await UserRepo(session=self.session,user_role=self.user_role).get_by_role(userrole_toget=userrole_toget)
+        return await UserRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_role(userrole_toget=userrole_toget)
     
 
 

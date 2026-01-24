@@ -11,13 +11,14 @@ from core.data_formats.enums.common_enums import UserRoles
 from schemas.db_schemas.distributor import CreateDistriDbSchema,UpdateDistriDbSchema
 from core.decorators.db_session_handler_dec import start_db_transaction
 from math import ceil
-
+from ..models.user import Users
 
 
 class DistributorsRepo(BaseRepoModel):
-    def __init__(self,session:AsyncSession,user_role:UserRoles):
+    def __init__(self,session:AsyncSession,user_role:UserRoles,cur_user_id:str):
         self.session=session
         self.user_role=user_role
+        self.cur_user_id=cur_user_id
         self.distri_cols=(
             Distributors.id,
             Distributors.name,
@@ -53,7 +54,9 @@ class DistributorsRepo(BaseRepoModel):
         ic(soft_delete)
         if soft_delete:
             distributor_todelete=update(Distributors).where(Distributors.id==distri_id,Distributors.is_deleted==False).values(
-                is_deleted=True
+                is_deleted=True,
+                deleted_at=func.now(),
+                deleted_by=self.cur_user_id
             ).returning(Distributors.id)
             is_deleted=(await self.session.execute(distributor_todelete)).scalar_one_or_none()
             return is_deleted
@@ -81,12 +84,18 @@ class DistributorsRepo(BaseRepoModel):
         search_term=f"%{query.lower()}%"
         cursor=(offset-1)*limit
         date_expr=func.date(func.timezone("Asia/Kolkata",Distributors.created_at))
+        deleted_at=func.date(func.timezone("Asia/Kolkata",Distributors.deleted_at))
+        cols=[*self.distri_cols]
+        if include_deleted:
+            cols.extend([Users.name.label('deleted_by'),deleted_at.label('deleted_at')])
+
         queried_distri=(await self.session.execute(
             select(
-                *self.distri_cols,
+                *cols,
                 date_expr.label("created_at")
             ).limit(limit)
-            .join(Products,Products.id==Distributors.product_id)
+            .join(Products,Products.id==Distributors.product_id,isouter=True)
+            .join(Users,Users.id==Products.deleted_by)
             .where(
                 or_(
                     Distributors.id.ilike(search_term),

@@ -20,9 +20,11 @@ from ..repos.contact_repo import ContactsRepo
 
 class ContactsService(BaseServiceModel):
     """on this calss have a multiple methods"""
-    def __init__(self,session:AsyncSession,user_role:UserRoles):
+    def __init__(self,session:AsyncSession,user_role:UserRoles,cur_user_id:str):
         self.session=session
         self.user_role=user_role
+        self.cur_user_id=cur_user_id
+
 
         
 
@@ -33,11 +35,11 @@ class ContactsService(BaseServiceModel):
         # then check the email or number that matches to the customer_id that matches to the contact db
 
         
-        contact_obj=ContactsRepo(session=self.session,user_role=self.user_role)
+        contact_obj=ContactsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id)
         if (await contact_obj.is_contact_exists(email=data.email,mobile_number=data.mobile_number,customer_id=data.customer_id)):
             return False
         
-        is_cust_exists=await CustomersRepo(session=self.session,user_role=self.user_role).get_by_id(customer_id=data.customer_id)
+        is_cust_exists=await CustomersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(customer_id=data.customer_id)
         if not is_cust_exists or len(is_cust_exists)<1:
             return False
         
@@ -50,31 +52,31 @@ class ContactsService(BaseServiceModel):
         if not data_toupdate or len(data_toupdate)<1:
             return False
         
-        return await ContactsRepo(session=self.session,user_role=self.user_role).update(data=UpdateContactDbSchema(**data_toupdate))
+        return await ContactsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateContactDbSchema(**data_toupdate))
         
     @catch_errors
     async def delete(self,customer_id:str,contact_id:str,soft_delete:bool=True):
-        return await ContactsRepo(session=self.session,user_role=self.user_role).delete(customer_id=customer_id,contact_id=contact_id,soft_delete=soft_delete)
+        return await ContactsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete(customer_id=customer_id,contact_id=contact_id,soft_delete=soft_delete)
     
     @catch_errors  
     async def recover(self,customer_id:str,contact_id:str):
-        return await ContactsRepo(session=self.session,user_role=self.user_role).recover(customer_id=customer_id,contact_id=contact_id)
+        return await ContactsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).recover(customer_id=customer_id,contact_id=contact_id)
 
     @catch_errors  
-    async def get(self,offset:int,limit:int,query:str=''):
-        return await ContactsRepo(session=self.session,user_role=self.user_role).get(offset=offset,limit=limit,query=query)
+    async def get(self,offset:int,limit:int,query:str='',include_deleted:Optional[bool]=False):
+        return await ContactsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(offset=offset,limit=limit,query=query,include_deleted=include_deleted)
 
     @catch_errors
     async def search(self,query:str):
-        return await ContactsRepo(session=self.session,user_role=self.user_role).search(query=query)
+        return await ContactsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).search(query=query)
 
     @catch_errors  
     async def get_by_id(self,contact_id:str):
-        return await ContactsRepo(session=self.session,user_role=self.user_role).get_by_id(contact_id=contact_id)
+        return await ContactsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(contact_id=contact_id)
     
     @catch_errors
     async def get_by_customer_id(self,customer_id:str,offset:int,limit:int,query:str=''):
-        return await ContactsRepo(session=self.session,user_role=self.user_role).get_by_customer_id(customer_id=customer_id,offset=offset,limit=limit,query=query)
+        return await ContactsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_customer_id(customer_id=customer_id,offset=offset,limit=limit,query=query)
 
 
 

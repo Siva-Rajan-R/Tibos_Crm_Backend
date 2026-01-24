@@ -2,7 +2,7 @@ from fastapi import Depends, APIRouter,Query
 from infras.primary_db.main import get_pg_db_session, AsyncSession
 from api.dependencies.token_verification import verify_user
 from ..handlers.opportunity_handler import HandleOpportunitiesRequest
-from schemas.request_schemas.opportunity import CreateOpportunitySchema,UpdateOpportunitySchema,Optional
+from schemas.request_schemas.opportunity import CreateOpportunitySchema,UpdateOpportunitySchema,Optional,RecoverOpportunitySchema
 
 router = APIRouter(
     tags=["Opportunities CRUD"],
@@ -18,7 +18,8 @@ async def create_opportunity(
 ):
     return await HandleOpportunitiesRequest(
         session=session,
-        user_role=user["role"]
+        user_role=user["role"],
+        cur_user_id=user['id']
     ).add(
         data=data
     )
@@ -32,7 +33,8 @@ async def update_opportunity(
 ):
     return await HandleOpportunitiesRequest(
         session=session,
-        user_role=user["role"]
+        user_role=user["role"],
+        cur_user_id=user['id']
     ).update(
         data=data
     )
@@ -47,21 +49,23 @@ async def delete_opportunity(
 ):
     return await HandleOpportunitiesRequest(
         session=session,
-        user_role=user["role"]
+        user_role=user["role"],
+        cur_user_id=user['id']
     ).delete(opportunity_id=opportunity_id,soft_delete=soft_delete)
 
 
 
-@router.delete("/recover/{opportunity_id}")
+@router.put("/recover")
 async def recover_opportunity(
-    opportunity_id: str,
+    data:RecoverOpportunitySchema,
     user: dict = Depends(verify_user),
     session: AsyncSession = Depends(get_pg_db_session)
 ):
     return await HandleOpportunitiesRequest(
         session=session,
-        user_role=user["role"]
-    ).recover(opportunity_id=opportunity_id)
+        user_role=user["role"],
+        cur_user_id=user['id']
+    ).recover(data=data)
 
 
 
@@ -75,7 +79,8 @@ async def get_leads(
 ):
     return await HandleOpportunitiesRequest(
         session=session,
-        user_role=user["role"]
+        user_role=user["role"],
+        cur_user_id=user['id']
     ).get(offset=offset, limit=limit, query=q)
 
 
@@ -87,7 +92,8 @@ async def get_leads(
 ):
     return await HandleOpportunitiesRequest(
         session=session,
-        user_role=user["role"]
+        user_role=user["role"],
+        cur_user_id=user['id']
     ).search(query=q)
 
 
@@ -99,12 +105,14 @@ async def get_opportunity_by_lead(
 ):
     return await HandleOpportunitiesRequest(
         session=session,
-        user_role=user["role"]
+        user_role=user["role"],
+        cur_user_id=user['id']
     ).get_by_lead(lead_id=lead_id)
 
 @router.get("/{opportunity_id}")
 async def get_opportunity_byid(opportunity_id:str,session:AsyncSession=Depends(get_pg_db_session),user:dict=Depends(verify_user)):
     return await HandleOpportunitiesRequest(
         session=session,
-        user_role=user["role"]
+        user_role=user["role"],
+        cur_user_id=user['id']
     ).get_by_id(opportunity_id=opportunity_id)

@@ -1,5 +1,5 @@
 from fastapi import Depends,APIRouter,Query
-from schemas.request_schemas.customer import AddCustomerSchema,UpdateCustomerSchema
+from schemas.request_schemas.customer import AddCustomerSchema,UpdateCustomerSchema,RecoverCustomerSchema
 from infras.primary_db.main import get_pg_db_session,AsyncSession
 from api.dependencies.token_verification import verify_user
 from ..handlers.customer_handler import HandleCustomersRequest
@@ -16,7 +16,8 @@ router=APIRouter(
 async def add_customer(data:AddCustomerSchema,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleCustomersRequest(
         session=session,
-        user_role=user['role']
+        user_role=user['role'],
+        cur_user_id=user['id']
     ).add(
         data=data
     )
@@ -26,7 +27,8 @@ async def add_customer(data:AddCustomerSchema,user:dict=Depends(verify_user),ses
 async def update_customer(data:UpdateCustomerSchema,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleCustomersRequest(
         session=session,
-        user_role=user['role']
+        user_role=user['role'],
+        cur_user_id=user['id']
     ).update(
         data=data
     )
@@ -36,7 +38,8 @@ async def update_customer(data:UpdateCustomerSchema,user:dict=Depends(verify_use
 async def delete_customer(customer_id:str,user:dict=Depends(verify_user),soft_delete:Optional[bool]=Query(True),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleCustomersRequest(
         session=session,
-        user_role=user['role']
+        user_role=user['role'],
+        cur_user_id=user['id']
     ).delete(
         customer_id=customer_id,
         soft_delete=soft_delete
@@ -45,13 +48,14 @@ async def delete_customer(customer_id:str,user:dict=Depends(verify_user),soft_de
 
 
 
-@router.delete('/recover/{customer_id}')
-async def recover_customer(customer_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+@router.put('/recover')
+async def recover_customer(data:RecoverCustomerSchema,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleCustomersRequest(
         session=session,
-        user_role=user['role']
+        user_role=user['role'],
+        cur_user_id=user['id']
     ).recover(
-        customer_id=customer_id
+        data=data
     )
 
 
@@ -59,7 +63,8 @@ async def recover_customer(customer_id:str,user:dict=Depends(verify_user),sessio
 async def get_all_customer(user:dict=Depends(verify_user),q:str=Query(''),offset:Optional[int]=Query(1),limit:Optional[int]=Query(10),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleCustomersRequest(
         session=session,
-        user_role=user['role']
+        user_role=user['role'],
+        cur_user_id=user['id']
     ).get(offset=offset,limit=limit,query=q)
 
 
@@ -67,7 +72,8 @@ async def get_all_customer(user:dict=Depends(verify_user),q:str=Query(''),offset
 async def get_searched_customers(q:str=Query(...),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleCustomersRequest(
         session=session,
-        user_role=user['role']
+        user_role=user['role'],
+        cur_user_id=user['id']
     ).search(query=q)
 
 
@@ -75,7 +81,8 @@ async def get_searched_customers(q:str=Query(...),user:dict=Depends(verify_user)
 async def get_customer_by_id(customer_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleCustomersRequest(
         session=session,
-        user_role=user['role']
+        user_role=user['role'],
+        cur_user_id=user['id']
     ).get_by_id(customer_id=customer_id)
 
 

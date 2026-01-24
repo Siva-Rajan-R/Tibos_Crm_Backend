@@ -27,3 +27,6 @@ class UpdateLeadSchema(BaseModel):
     last_contacted: Optional[date] = None
     next_followup: Optional[date] = None
     description: Optional[str] = None
+
+class RecoverLeadSchema(BaseModel):
+    lead_id:str

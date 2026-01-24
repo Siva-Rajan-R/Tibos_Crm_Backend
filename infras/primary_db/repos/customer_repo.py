@@ -11,13 +11,15 @@ from typing import Optional,List
 from schemas.db_schemas.customer import AddCustomerDbSchema,UpdateCustomerDbSchema
 from core.decorators.db_session_handler_dec import start_db_transaction
 from math import ceil
+from ..models.user import Users
 
 
 
 class CustomersRepo(BaseRepoModel):
-    def __init__(self,session:AsyncSession,user_role:UserRoles):
+    def __init__(self,session:AsyncSession,user_role:UserRoles,cur_user_id:str):
         self.session=session
         self.user_role=user_role
+        self.cur_user_id=cur_user_id
         self.customer_cols=(
             Customers.id,
             Customers.name,
@@ -77,7 +79,9 @@ class CustomersRepo(BaseRepoModel):
 
         if soft_delete:
             customer_todelete=update(Customers).where(Customers.id==customer_id,Customers.is_deleted==False).values(
-                is_deleted=True
+                is_deleted=True,
+                deleted_at=func.now(),
+                deleted_by=self.cur_user_id
             ).returning(Customers.id)
             is_deleted=(await self.session.execute(customer_todelete)).scalar_one_or_none()
             return is_deleted
@@ -106,11 +110,16 @@ class CustomersRepo(BaseRepoModel):
         search_term=f"%{query.lower()}%"
         cursor=(offset-1)*limit
         date_expr=func.date(func.timezone("Asia/Kolkata",Customers.created_at))
+        deleted_at=func.date(func.timezone("Asia/Kolkata",Customers.deleted_at))
+        cols=[*self.customer_cols]
+        if include_deleted:
+            cols.extend([Users.name.label('deleted_by'),deleted_at.label('deleted_at')])
         queried_customers=(await self.session.execute(
             select(
-                *self.customer_cols,
+                *cols,
                 date_expr.label("customer_created_at")
-            ).limit(limit)
+            )
+            .join(Users,Users.id==Customers.deleted_by,isouter=True)
             .where(
                 or_(
                     Customers.id.ilike(search_term),
@@ -127,7 +136,7 @@ class CustomersRepo(BaseRepoModel):
                 ),
                 Customers.sequence_id>cursor,
                 Customers.is_deleted==include_deleted
-            )
+            ).limit(limit)
         )).mappings().all()
 
         total_customers:int=0

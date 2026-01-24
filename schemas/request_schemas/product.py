@@ -16,3 +16,6 @@ class UpdateProductSchema(BaseModel):
     price:Optional[float]=None
     available_qty:Optional[int]=None
     product_type:Optional[ProductTypes]=None
+
+class RecoverProductSchema(BaseModel):
+    product_id:str

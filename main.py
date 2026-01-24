@@ -1,5 +1,5 @@
 from fastapi import FastAPI,Request
-from api.routes import auth,contact,customer,order,product,user,drop_downs,dashboard,opportunity,leads,twofactor,distributor
+from api.routes import auth,contact,customer,order,product,user,drop_downs,dashboard,opportunity,leads,twofactor,distributor,recyclebin
 from fastapi.middleware.cors import CORSMiddleware
 from infras.primary_db.services.user_service import UserService,UserRoles
 from infras.primary_db.main import init_pg_db
@@ -33,7 +33,7 @@ async def api_lifespan(app:FastAPI):
         ic("🏎️ Executing API Lifespan... ")
         await init_pg_db()
         async with AsyncLocalSession() as session:
-            await UserService(session=session,user_role=UserRoles.SUPER_ADMIN).init_superadmin()
+            await UserService(session=session,user_role=UserRoles.SUPER_ADMIN,cur_user_id='').init_superadmin()
         await check_redis_health()
         # await redis_client.flushall()
         yield
@@ -83,6 +83,7 @@ app.include_router(leads.router)
 app.include_router(opportunity.router)
 app.include_router(drop_downs.router)
 app.include_router(dashboard.router)
+app.include_router(recyclebin.router)
 
 #Middlewares
 app.add_middleware(

@@ -9,14 +9,16 @@ from core.data_formats.enums.common_enums import UserRoles
 from core.decorators.db_session_handler_dec import start_db_transaction
 from schemas.db_schemas.product import AddProductDbSchema,UpdateProductDbSchema
 from math import ceil
+from ..models.user import Users
 
 
 
 class ProductsRepo(BaseRepoModel):
-    def __init__(self,session:AsyncSession,user_role:UserRoles):
+    def __init__(self,session:AsyncSession,user_role:UserRoles,cur_user_id:str):
         self.session=session
         self.user_role=user_role
         self.low_qty_thershold=5
+        self.cur_user_id=cur_user_id
         self.products_cols=(
             Products.id,
             Products.name,
@@ -55,7 +57,9 @@ class ProductsRepo(BaseRepoModel):
 
         if soft_delete:
             prod_todelete=update(Products).where(Products.id==product_id,Products.is_deleted==False).values(
-                is_deleted=True
+                is_deleted=True,
+                deleted_at=func.now(),
+                deleted_by=self.cur_user_id
             ).returning(Products.id)
 
             is_deleted=(await self.session.execute(prod_todelete)).scalar_one_or_none()
@@ -84,13 +88,17 @@ class ProductsRepo(BaseRepoModel):
         search_term=f"%{query.lower()}%"
         cursor=(offset-1)*limit
         date_expr=func.date(func.timezone("Asia/Kolkata",Products.created_at))
+        deleted_at=func.date(func.timezone("Asia/Kolkata",Products.deleted_at))
+        cols=[*self.products_cols]
+        if include_deleted:
+            cols.extend([Users.name.label('deleted_by'),deleted_at.label('deleted_at')])
+
         queried_products=(await self.session.execute(
             select(
-                *self.products_cols,
+                *cols,
                 date_expr.label("product_created_at")
             )
-            .limit(limit)
-            .order_by(Products.name)
+            .join(Users,Users.id==Products.deleted_by,isouter=True)
             .where(
                 or_(
                     Products.id.ilike(search_term),
@@ -103,6 +111,8 @@ class ProductsRepo(BaseRepoModel):
                 Products.is_deleted==include_deleted
 
             )
+            .limit(limit)
+            .order_by(Products.name)
         )).mappings().all()
 
         total_products:int=0

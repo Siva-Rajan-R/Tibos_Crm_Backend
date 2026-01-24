@@ -7,7 +7,7 @@ from core.data_formats.enums.common_enums import UserRoles
 from pydantic import EmailStr
 from typing import Optional,List
 from schemas.db_schemas.customer import AddCustomerDbSchema,UpdateCustomerDbSchema
-from schemas.request_schemas.distributor import CreateDistriSchema,UpdateDistriSchema
+from schemas.request_schemas.distributor import CreateDistriSchema,UpdateDistriSchema,RecoverDistriSchema
 from core.decorators.error_handler_dec import catch_errors
 from math import ceil
 from . import HTTPException,ErrorResponseTypDict,SuccessResponseTypDict,BaseResponseTypDict
@@ -16,9 +16,10 @@ from core.utils.discount_validator import validate_discount
 
 
 class HandleDistributorRequest:
-    def __init__(self,session:AsyncSession,user_role:UserRoles):
+    def __init__(self,session:AsyncSession,user_role:UserRoles,cur_user_id:str):
         self.session=session
         self.user_role=user_role
+        self.cur_user_id=cur_user_id
 
         if isinstance(self.user_role,UserRoles):
             self.user_role=self.user_role.value
@@ -47,7 +48,7 @@ class HandleDistributorRequest:
                 )
             )
 
-        res = await DistributorService(session=self.session,user_role=self.user_role).add(data=data)
+        res = await DistributorService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(data=data)
         if not res:
             raise HTTPException(
                 status_code=400,
@@ -80,7 +81,7 @@ class HandleDistributorRequest:
                 )
             )
         
-        res=await DistributorService(session=self.session,user_role=self.user_role).update(data=data)
+        res=await DistributorService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=data)
         if not res:
             raise HTTPException(
                 status_code=400,
@@ -102,7 +103,7 @@ class HandleDistributorRequest:
         
     @catch_errors
     async def delete(self,distributor_id:str,soft_delete:bool=True):
-        res=await DistributorService(session=self.session,user_role=self.user_role).delete(distributor_id=distributor_id,soft_delete=soft_delete)
+        res=await DistributorService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete(distributor_id=distributor_id,soft_delete=soft_delete)
         if not res:
             raise HTTPException(
                 status_code=400,
@@ -123,8 +124,8 @@ class HandleDistributorRequest:
         )
 
     @catch_errors
-    async def recover(self,distributor_id:str):
-        res=await DistributorService(session=self.session,user_role=self.user_role).recover(distributor_id=distributor_id)
+    async def recover(self,data:RecoverDistriSchema):
+        res=await DistributorService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).recover(distributor_id=data.distributor_id)
         if not res:
             raise HTTPException(
                 status_code=400,
@@ -146,15 +147,15 @@ class HandleDistributorRequest:
         
     @catch_errors
     async def get(self,offset:int=1,limit:int=10,query:str=''):
-        return await DistributorService(session=self.session,user_role=self.user_role).get(offset=offset,limit=limit,query=query)
+        return await DistributorService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(offset=offset,limit=limit,query=query)
         
     @catch_errors
     async def search(self,query:str):
-        return await DistributorService(session=self.session,user_role=self.user_role).search(query=query)
+        return await DistributorService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).search(query=query)
 
     @catch_errors
     async def get_by_id(self,distributor_id:str):
-        return await DistributorService(session=self.session,user_role=self.user_role).get_by_id(distributor_id=distributor_id)
+        return await DistributorService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(distributor_id=distributor_id)
 
 
 

@@ -17,13 +17,15 @@ from schemas.db_schemas.order import AddOrderDbSchema,UpdateOrderDbSchema
 from schemas.request_schemas.order import AddOrderSchema,UpdateOrderSchema
 from core.decorators.error_handler_dec import catch_errors
 from math import ceil
+from typing import Optional
 
 
 
 class OrdersService(BaseServiceModel):
-    def __init__(self,session:AsyncSession,user_role:UserRoles):
+    def __init__(self,session:AsyncSession,user_role:UserRoles,cur_user_id:str):
         self.session=session
         self.user_role=user_role
+        self.cur_user_id=cur_user_id
 
 
     @catch_errors
@@ -31,19 +33,19 @@ class OrdersService(BaseServiceModel):
         # need to check if the customer and the product is exists on the order
         # then check customer is exists or not
         # then chck product is exists or not
-        order_obj=OrdersRepo(session=self.session,user_role=self.user_role)
+        order_obj=OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id)
         if (await order_obj.is_order_exists(customer_id=data.customer_id,product_id=data.product_id)):
             return False
         
-        cust_exists=await CustomersRepo(session=self.session,user_role=self.user_role).get_by_id(customer_id=data.customer_id)
+        cust_exists=await CustomersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(customer_id=data.customer_id)
         if not cust_exists or len(cust_exists)<1:
             return False
         
-        prod_exists=await ProductsRepo(session=self.session,user_role=self.user_role).get_by_id(product_id=data.product_id)
+        prod_exists=await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(product_id=data.product_id)
         if not prod_exists or len(prod_exists)<1:
             return False
         
-        distri_exists=await DistributorsRepo(session=self.session,user_role=self.user_role).get_by_id(distributor_id=data.distributor_id)
+        distri_exists=await DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(distributor_id=data.distributor_id)
         if not distri_exists or len(distri_exists)<1:
             return False
         
@@ -57,33 +59,33 @@ class OrdersService(BaseServiceModel):
         if not data_toupdate or len(data_toupdate)<1:
             return False
         
-        return await OrdersRepo(session=self.session,user_role=self.user_role).update(data=UpdateOrderDbSchema(**data_toupdate))
+        return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateOrderDbSchema(**data_toupdate))
         
         # need to implement invoice generation process + email sending
 
     @catch_errors    
     async def delete(self,order_id:str,customer_id:str,soft_delete:bool=True):
-        return await OrdersRepo(session=self.session,user_role=self.user_role).delete(order_id=order_id,customer_id=customer_id,soft_delete=soft_delete)
+        return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete(order_id=order_id,customer_id=customer_id,soft_delete=soft_delete)
     
     @catch_errors  
     async def recover(self,order_id:str,customer_id:str):
-        return await OrdersRepo(session=self.session,user_role=self.user_role).recover(order_id=order_id,customer_id=customer_id)
+        return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).recover(order_id=order_id,customer_id=customer_id)
 
     @catch_errors
-    async def get(self,offset:int=1,limit:int=10,query:str=''):
-        return await OrdersRepo(session=self.session,user_role=self.user_role).get(offset=offset,limit=limit,query=query)
+    async def get(self,offset:int=1,limit:int=10,query:str='',include_deleted:Optional[bool]=False):
+        return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(offset=offset,limit=limit,query=query,include_deleted=include_deleted)
     
     @catch_errors
     async def search(self,query:str):
-        return await OrdersRepo(session=self.session,user_role=self.user_role).search(query=query)
+        return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).search(query=query)
 
     @catch_errors  
     async def get_by_id(self,order_id:str):
-        return await OrdersRepo(session=self.session,user_role=self.user_role).get_by_id(order_id=order_id)
+        return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(order_id=order_id)
         
     @catch_errors
     async def get_by_customer_id(self,customer_id:str,offset:int,limit:int):
-        return await OrdersRepo(session=self.session,user_role=self.user_role).get_by_customer_id(customer_id=customer_id,offset=offset,limit=limit)
+        return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_customer_id(customer_id=customer_id,offset=offset,limit=limit)
 
 
 

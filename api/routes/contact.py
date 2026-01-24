@@ -1,5 +1,5 @@
 from fastapi import Depends,APIRouter,Query
-from schemas.request_schemas.contact import AddContactSchema,UpdateContactSchema
+from schemas.request_schemas.contact import AddContactSchema,UpdateContactSchema,RecoverContactSchema
 from infras.primary_db.main import get_pg_db_session,AsyncSession
 from api.dependencies.token_verification import verify_user
 from ..handlers.contact_handler import HandleContactsRequest
@@ -16,7 +16,8 @@ router=APIRouter(
 async def add_contact(data:AddContactSchema,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleContactsRequest(
         session=session,
-        user_role=user['role']
+        user_role=user['role'],
+        cur_user_id=user['id']
     ).add(
         data=data
     )
@@ -26,7 +27,8 @@ async def add_contact(data:AddContactSchema,user:dict=Depends(verify_user),sessi
 async def update_contact(data:UpdateContactSchema,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleContactsRequest(
         session=session,
-        user_role=user['role']
+        user_role=user['role'],
+        cur_user_id=user['id']
     ).update(
         data=data
     )
@@ -36,7 +38,8 @@ async def update_contact(data:UpdateContactSchema,user:dict=Depends(verify_user)
 async def delete_contact(customer_id:str,contact_id:str,user:dict=Depends(verify_user),soft_delete:Optional[bool]=Query(True),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleContactsRequest(
         session=session,
-        user_role=user['role']
+        user_role=user['role'],
+        cur_user_id=user['id']
     ).delete(
         customer_id=customer_id,
         contact_id=contact_id,
@@ -44,14 +47,14 @@ async def delete_contact(customer_id:str,contact_id:str,user:dict=Depends(verify
     )
 
 
-@router.delete('/recover/{customer_id}/{contact_id}')
-async def recover_contact(customer_id:str,contact_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+@router.put('/recover')
+async def recover_contact(data:RecoverContactSchema,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleContactsRequest(
         session=session,
-        user_role=user['role']
+        user_role=user['role'],
+        cur_user_id=user['id']
     ).recover(
-        customer_id=customer_id,
-        contact_id=contact_id
+        data=data
     )
 
 
@@ -60,7 +63,8 @@ async def recover_contact(customer_id:str,contact_id:str,user:dict=Depends(verif
 async def get_all_contact(user:dict=Depends(verify_user),q:str=Query(''),offset:Optional[int]=Query(1),limit:Optional[int]=Query(10),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleContactsRequest(
         session=session,
-        user_role=user['role']
+        user_role=user['role'],
+        cur_user_id=user['id']
     ).get(offset=offset,limit=limit,query=q)
 
 
@@ -68,7 +72,8 @@ async def get_all_contact(user:dict=Depends(verify_user),q:str=Query(''),offset:
 async def get_all_contact(q:str=Query(...),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleContactsRequest(
         session=session,
-        user_role=user['role']
+        user_role=user['role'],
+        cur_user_id=user['id']
     ).search(query=q)
 
 
@@ -76,12 +81,14 @@ async def get_all_contact(q:str=Query(...),user:dict=Depends(verify_user),sessio
 async def get_contact_by_contact_id(contact_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleContactsRequest(
         session=session,
-        user_role=user['role']
+        user_role=user['role'],
+        cur_user_id=user['id']
     ).get_by_id(contact_id=contact_id)
 
 @router.get('/customer/{customer_id}')
 async def get_contact_by_customer_id(customer_id:str,user:dict=Depends(verify_user),q:Optional[str]=Query(''),offset:Optional[int]=Query(1),limit:Optional[int]=Query(10),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleContactsRequest(
         session=session,
-        user_role=user['role']
+        user_role=user['role'],
+        cur_user_id=user['id']
     ).get_by_customer_id(customer_id=customer_id,offset=offset,limit=limit,query=q)

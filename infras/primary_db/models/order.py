@@ -1,4 +1,4 @@
-from sqlalchemy import String,Integer,Float,Boolean,Column,ForeignKey,ARRAY,BigInteger,Identity,func,TIMESTAMP,text,Date
+from sqlalchemy import String,Integer,Float,Boolean,Column,ForeignKey,ARRAY,BigInteger,Identity,func,TIMESTAMP,text,DateTime
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from ..main import PG_BASE
@@ -28,5 +28,7 @@ class Orders(PG_BASE):
     customer=relationship("Customers",back_populates="order")
     product=relationship("Products",back_populates="order")
     is_deleted=Column(Boolean,server_default=text("false"),nullable=False)
+    deleted_by=Column(String,ForeignKey('users.id'))
 
     created_at=Column(TIMESTAMP(timezone=True),server_default=func.now())
+    deleted_at=Column(DateTime(timezone=True),nullable=True)

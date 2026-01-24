@@ -34,7 +34,7 @@ template=Jinja2Templates("templates/site")
 
 @router.post('')
 async def auth_user(data:AuthSchema,request:Request,session=Depends(get_pg_db_session)):
-    user=(await UserRepo(session=session,user_role='').isuser_exists(user_id_email=data.email))
+    user=(await UserRepo(session=session,user_role='',cur_user_id='').isuser_exists(user_id_email=data.email))
     if user is None:
         raise HTTPException(
             status_code=401,
@@ -64,7 +64,7 @@ async def forgot_password(data:AuthForgotEmailSchema,bgt:BackgroundTasks,request
                 detail="Already in progress..."
             )
         
-        user=(await UserRepo(session=session,user_role='').isuser_exists(user_id_email=data.user_email))
+        user=(await UserRepo(session=session,user_role='',cur_user_id='').isuser_exists(user_id_email=data.user_email))
         auth_id:str=generate_uuid("Authenticayion id")
         ic(auth_id)
         if user is None:
@@ -130,7 +130,7 @@ async def accept_new_password(data:AuthForgotAcceptSchema,bgt:BackgroundTasks,re
         )
     
     
-    user=await HandleUserRequest(session=session,user_role=UserRoles.SUPER_ADMIN,bgt=bgt,request=request).update_password(user_toupdate_id=auth_info['id'],data=data)
+    user=await HandleUserRequest(session=session,user_role=UserRoles.SUPER_ADMIN,bgt=bgt,request=request,cur_user_id='').update_password(user_toupdate_id=auth_info['id'],data=data)
 
     email_content=get_password_reset_success_email(
         user_email=auth_info['email'],

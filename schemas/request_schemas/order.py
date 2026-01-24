@@ -37,3 +37,7 @@ class UpdateOrderSchema(BaseModel):
     invoice_date:Optional[date]=None
     purchase_type:Optional[PurchaseTypes]=None
     renewal_type:Optional[RenewalTypes]=None
+
+class RecoverOrderSchema(BaseModel):
+    order_id:str
+    customer_id:str

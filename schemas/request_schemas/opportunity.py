@@ -21,3 +21,6 @@ class UpdateOpportunitySchema(BaseModel):
     deal_value: Optional[float]=None
     description: Optional[str] = None
     status: Optional[OpportunityStatus]=None
+
+class RecoverOpportunitySchema(BaseModel):
+    opportunity_id:str

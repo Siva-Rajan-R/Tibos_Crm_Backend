@@ -12,12 +12,14 @@ from core.utils.uuid_generator import generate_uuid
 from core.decorators.db_session_handler_dec import start_db_transaction
 from datetime import datetime
 from math import ceil
+from ..models.user import Users
 
 
 class OpportunitiesRepo(BaseRepoModel):
-    def __init__(self, session: AsyncSession, user_role: UserRoles):
+    def __init__(self, session: AsyncSession, user_role: UserRoles,cur_user_id:str):
         self.session = session
         self.user_role = user_role
+        self.cur_user_id=cur_user_id
         self.oppr_cols=(
             Opportunities.id.label("opportunity_id"),
             Opportunities.name.label("opportunity_name"),
@@ -72,7 +74,11 @@ class OpportunitiesRepo(BaseRepoModel):
             stmt = (
                 update(Opportunities)
                 .where(Opportunities.id == opportunity_id, Opportunities.is_deleted == False)
-                .values(is_deleted=True)
+                .values(
+                    is_deleted=True,
+                    deleted_at=func.now(),
+                    deleted_by=self.cur_user_id
+                )
                 .returning(Opportunities.id)
             )
             is_deleted = (await self.session.execute(stmt)).scalar_one_or_none()
@@ -108,10 +114,13 @@ class OpportunitiesRepo(BaseRepoModel):
         cursor = (offset - 1) * limit
         search = f"%{query.lower()}%"
         date_expr=func.date(func.timezone("Asia/Kolkata",Opportunities.created_at))
-
+        deleted_at=func.date(func.timezone("Asia/Kolkata",Opportunities.deleted_at))
+        cols=[*self.oppr_cols]
+        if include_deleted:
+            cols.extend([Users.name.label('deleted_by'),deleted_at.label('deleted_at')])
         result = await self.session.execute(
             select(
-                *self.oppr_cols,
+                *cols,
                 date_expr.label("oppotunity_created_at"),
 
                 # Lead fields
@@ -123,6 +132,7 @@ class OpportunitiesRepo(BaseRepoModel):
                 Leads.assigned_to.label("lead_assigned_to")
             )
             .join(Leads, Leads.id == Opportunities.lead_id)
+            .join(Users,Users.id==Leads.deleted_by,isouter=True)
             .where(
                 or_(
                     Opportunities.name.ilike(search),

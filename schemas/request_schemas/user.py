@@ -15,3 +15,6 @@ class UpdateUserSchema(BaseModel):
 class UserRoleUpdateSchema(BaseModel):
     user_id:str
     role:UserRoles
+
+class RecoverUserSchema(BaseModel):
+    user_id:str

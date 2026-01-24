@@ -18,9 +18,10 @@ DEFAULT_SUPERADMIN_INFO=json.loads(os.getenv('DEFAULT_SUPERADMIN_INFO'))
  
  
 class UserRepo(BaseRepoModel):
-    def __init__(self,session:AsyncSession,user_role:UserRoles):
+    def __init__(self,session:AsyncSession,user_role:UserRoles,cur_user_id:str):
         self.session=session
         self.user_role=user_role
+        self.cur_user_id=cur_user_id
         self.users_cols=(
             Users.id,
             Users.email,
@@ -104,7 +105,9 @@ class UserRepo(BaseRepoModel):
 
         if soft_delete:
             user_todelete=update(Users).where(Users.id==userid_toremove,Users.is_deleted==False).values(
-                is_deleted=True
+                is_deleted=True,
+                deleted_at=func.now(),
+                deleted_by=self.cur_user_id
             ).returning(Users.id)
             is_deleted=(await self.session.execute(user_todelete)).scalar_one_or_none()
             return is_deleted
@@ -131,11 +134,13 @@ class UserRepo(BaseRepoModel):
     
 
     async def get(self,include_deleted:bool=False):
+
         users=(await self.session.execute(
             select(
                 *self.users_cols,
                 func.date(func.timezone("Asia/Kolkata",Users.created_at)).label("user_created_at")
-            ).where(
+            )
+            .where(
                 Users.is_deleted==include_deleted
             )
         )).mappings().all()

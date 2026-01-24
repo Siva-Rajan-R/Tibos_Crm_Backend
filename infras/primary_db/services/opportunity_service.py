@@ -18,26 +18,27 @@ from math import ceil
 
 
 class OpportunitiesService(BaseServiceModel):
-    def __init__(self, session: AsyncSession, user_role: UserRoles):
+    def __init__(self, session: AsyncSession, user_role: UserRoles,cur_user_id:str):
         self.session = session
         self.user_role = user_role
+        self.cur_user_id=cur_user_id
     
     @catch_errors
     async def add(self,data:CreateOpportunitySchema):
         # need check the lead is already exists on Opprtunity
         # and to check the given lead id is exists or not 
 
-        oppor_obj=OpportunitiesRepo(session=self.session,user_role=self.user_role)
+        oppor_obj=OpportunitiesRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id)
         if (await oppor_obj.is_opportunity_exists(lead_id=data.lead_id)):
             return False
         
-        is_lead_exists=await LeadsRepo(session=self.session,user_role=self.user_role).get_by_id(lead_id=data.lead_id)
+        is_lead_exists=await LeadsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(lead_id=data.lead_id)
         if not is_lead_exists or len(is_lead_exists)<1:
             return False
         
         
         oppr_id:str=generate_uuid()
-        return await OpportunitiesRepo(session=self.session,user_role=self.user_role).add(data=CreateOpportunityDbSchema(**data.model_dump(mode='json'),id=oppr_id))
+        return await OpportunitiesRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(data=CreateOpportunityDbSchema(**data.model_dump(mode='json'),id=oppr_id))
 
 
     @catch_errors
@@ -46,28 +47,28 @@ class OpportunitiesService(BaseServiceModel):
         if not data_toupdate or len(data_toupdate)<1:
             return False
         
-        return await OpportunitiesRepo(session=self.session,user_role=self.user_role).update(data=UpdateOpportunityDbSchema(**data_toupdate))
+        return await OpportunitiesRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateOpportunityDbSchema(**data_toupdate))
 
     @catch_errors
     async def delete(self, opportunity_id: str,soft_delete: bool = True):
-        return await OpportunitiesRepo(session=self.session,user_role=self.user_role).delete(opportunity_id=opportunity_id,soft_delete=soft_delete)
+        return await OpportunitiesRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete(opportunity_id=opportunity_id,soft_delete=soft_delete)
 
     @catch_errors  
     async def recover(self, opportunity_id: str):
-        return await OpportunitiesRepo(session=self.session,user_role=self.user_role).recover(opportunity_id=opportunity_id)
+        return await OpportunitiesRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).recover(opportunity_id=opportunity_id)
     
     @catch_errors
-    async def get(self, offset: int = 1, limit: int = 10, query: str = ""):
-        return await OpportunitiesRepo(session=self.session,user_role=self.user_role).get(offset=offset,limit=limit,query=query)
+    async def get(self, offset: int = 1, limit: int = 10, query: str = "",include_deleted:Optional[bool]=False):
+        return await OpportunitiesRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(offset=offset,limit=limit,query=query,include_deleted=include_deleted)
             
     @catch_errors
     async def get_by_lead(self, lead_id: str):
-        return await OpportunitiesRepo(session=self.session,user_role=self.user_role).get_by_lead(lead_id=lead_id)
+        return await OpportunitiesRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_lead(lead_id=lead_id)
     
     @catch_errors
     async def search(self, query: str):
-        return await OpportunitiesRepo(session=self.session,user_role=self.user_role).search(query=query)
+        return await OpportunitiesRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).search(query=query)
         
     @catch_errors
     async def get_by_id(self, opportunity_id:str):
-        return await OpportunitiesRepo(session=self.session,user_role=self.user_role).get_by_id(opportunity_id=opportunity_id)
+        return await OpportunitiesRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(opportunity_id=opportunity_id)

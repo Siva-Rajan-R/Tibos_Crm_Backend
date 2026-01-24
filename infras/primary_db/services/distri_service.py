@@ -19,18 +19,19 @@ from math import ceil
 
 
 class DistributorService(BaseServiceModel):
-    def __init__(self,session:AsyncSession,user_role:UserRoles):
+    def __init__(self,session:AsyncSession,user_role:UserRoles,cur_user_id:str):
         self.session=session
         self.user_role=user_role
+        self.cur_user_id=cur_user_id
 
        
     @catch_errors
     async def add(self,data:CreateDistriSchema):
-        if not (await ProductsRepo(session=self.session,user_role=self.user_role).get_by_id(product_id=data.product_id)):
+        if not (await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(product_id=data.product_id)):
             return False
         
         distri_id:str=generate_uuid()
-        return await DistributorsRepo(session=self.session,user_role=self.user_role).add(data=CreateDistriDbSchema(**data.model_dump(mode='json'),id=distri_id))
+        return await DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(data=CreateDistriDbSchema(**data.model_dump(mode='json'),id=distri_id))
         
     @catch_errors  
     async def update(self,data:UpdateDistriSchema):
@@ -39,34 +40,34 @@ class DistributorService(BaseServiceModel):
         if not data_toupdate or len(data_toupdate)<1:
             return False
         
-        if data.product_id and not (await ProductsRepo(session=self.session,user_role=self.user_role).get_by_id(product_id=data.product_id)):
+        if data.product_id and not (await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(product_id=data.product_id)):
             return False
         
-        return await DistributorsRepo(session=self.session,user_role=self.user_role).update(data=UpdateDistriDbSchema(**data_toupdate))
+        return await DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateDistriDbSchema(**data_toupdate))
         
     @catch_errors
     async def delete(self,distributor_id:str,soft_delete:bool=True):
-        have_order=(await OrdersRepo(session=self.session,user_role=self.user_role).get(query=distributor_id,limit=1)).get('orders')
+        have_order=(await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(query=distributor_id,limit=1)).get('orders')
         if have_order or len(have_order)>0:
             return False
         
-        return await DistributorsRepo(session=self.session,user_role=self.user_role).delete(distri_id=distributor_id,soft_delete=soft_delete)
+        return await DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete(distri_id=distributor_id,soft_delete=soft_delete)
     
     @catch_errors
     async def recover(self,distributor_id:str):
-        return await DistributorsRepo(session=self.session,user_role=self.user_role).recover(distri_id=distributor_id)
+        return await DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).recover(distri_id=distributor_id)
      
     @catch_errors
-    async def get(self,offset:int=1,limit:int=10,query:str=''):
-        return await DistributorsRepo(session=self.session,user_role=self.user_role).get(offset=offset,limit=limit,query=query)
+    async def get(self,offset:int=1,limit:int=10,query:str='',include_deleted:Optional[bool]=False):
+        return await DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(offset=offset,limit=limit,query=query,include_deleted=include_deleted)
         
     @catch_errors
     async def search(self,query:str):
-        return await DistributorsRepo(session=self.session,user_role=self.user_role).search(query=query)
+        return await DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).search(query=query)
 
     @catch_errors
     async def get_by_id(self,distributor_id:str):
-        return await DistributorsRepo(session=self.session,user_role=self.user_role).get_by_id(distributor_id=distributor_id)
+        return await DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(distributor_id=distributor_id)
 
 
 

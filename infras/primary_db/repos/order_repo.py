@@ -13,13 +13,15 @@ from core.data_formats.typed_dicts.pg_dict import DeliveryInfo
 from schemas.db_schemas.order import AddOrderDbSchema,UpdateOrderDbSchema
 from core.decorators.db_session_handler_dec import start_db_transaction
 from math import ceil
+from ..models.user import Users
 
 
 
 class OrdersRepo(BaseRepoModel):
-    def __init__(self,session:AsyncSession,user_role:UserRoles):
+    def __init__(self,session:AsyncSession,user_role:UserRoles,cur_user_id:str):
         self.session=session
         self.user_role=user_role
+        self.cur_user_id=cur_user_id
         self.orders_cols=(
             Orders.id,
             Orders.customer_id,
@@ -83,7 +85,9 @@ class OrdersRepo(BaseRepoModel):
         ic(soft_delete)
         if soft_delete:
             order_todelete=update(Orders).where(Orders.id==order_id,Orders.customer_id==customer_id,Orders.is_deleted==False).values(
-                is_deleted=True
+                is_deleted=True,
+                deleted_at=func.now(),
+                deleted_by=self.cur_user_id
             ).returning(Orders.id)
 
             is_deleted=(await self.session.execute(order_todelete)).scalar_one_or_none()
@@ -115,14 +119,20 @@ class OrdersRepo(BaseRepoModel):
         search_term=f"%{query.lower()}%"
         cursor=(offset-1)*limit
         date_expr=func.date(func.timezone("Asia/Kolkata",Orders.created_at))
+        deleted_at=func.date(func.timezone("Asia/Kolkata",Orders.deleted_at))
+        cols=[*self.orders_cols]
+        if include_deleted:
+            cols.extend([Users.name.label('deleted_by'),deleted_at.label('deleted_at')])
+
         queried_orders=(await self.session.execute(
             select(
-                *self.orders_cols,
+                *cols,
                 date_expr.label("order_created_at") 
             )
             .join(Products,Products.id==Orders.product_id,isouter=True)
             .join(Customers,Customers.id==Orders.customer_id,isouter=True)
-            .join(Distributors,Distributors.id==Orders.distributor_id,isouter=True) 
+            .join(Distributors,Distributors.id==Orders.distributor_id,isouter=True)
+            .join(Users,Users.id==Orders.deleted_by,isouter=True) 
             .limit(limit)
             .where(
                 or_(

@@ -12,3 +12,6 @@ class UpdateDistriSchema(BaseModel):
     name:Optional[str]=None
     product_id:Optional[str]=None
     discount:Optional[str]=None
+
+class RecoverDistriSchema(BaseModel):
+    distributor_id:str

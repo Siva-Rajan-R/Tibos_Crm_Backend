@@ -1,5 +1,5 @@
 from fastapi import Depends,APIRouter,Query
-from schemas.request_schemas.order import AddOrderSchema,UpdateOrderSchema
+from schemas.request_schemas.order import AddOrderSchema,UpdateOrderSchema,RecoverOrderSchema
 from infras.primary_db.main import get_pg_db_session,AsyncSession
 from api.dependencies.token_verification import verify_user
 from ..handlers.order_handler import HandleOrdersRequest
@@ -19,7 +19,8 @@ async def add_order(data:AddOrderSchema,user:dict=Depends(verify_user),session:A
     data.delivery_info['requested_date']=str(data.delivery_info['requested_date'])
     return await HandleOrdersRequest(
         session=session,
-        user_role=user['role']
+        user_role=user['role'],
+        cur_user_id=user['id']
     ).add(
         data=data
     )
@@ -29,7 +30,8 @@ async def add_order(data:AddOrderSchema,user:dict=Depends(verify_user),session:A
 async def update_order(data:UpdateOrderSchema,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleOrdersRequest(
         session=session,
-        user_role=user['role']
+        user_role=user['role'],
+        cur_user_id=user['id']
     ).update(
         data=data
     )
@@ -39,7 +41,8 @@ async def update_order(data:UpdateOrderSchema,user:dict=Depends(verify_user),ses
 async def delete_order(customer_id:str,order_id:str,user:dict=Depends(verify_user),soft_delete:Optional[bool]=Query(True),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleOrdersRequest(
         session=session,
-        user_role=user['role']
+        user_role=user['role'],
+        cur_user_id=user['id']
     ).delete(
         customer_id=customer_id,
         order_id=order_id,
@@ -49,14 +52,14 @@ async def delete_order(customer_id:str,order_id:str,user:dict=Depends(verify_use
 
 
 
-@router.delete('/recover/{customer_id}/{order_id}')
-async def recover_order(customer_id:str,order_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+@router.put('/recover')
+async def recover_order(data:RecoverOrderSchema,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleOrdersRequest(
         session=session,
-        user_role=user['role']
+        user_role=user['role'],
+        cur_user_id=user['id']
     ).recover(
-        customer_id=customer_id,
-        order_id=order_id
+        data=data
     )
 
 
@@ -64,7 +67,8 @@ async def recover_order(customer_id:str,order_id:str,user:dict=Depends(verify_us
 async def get_all_order(q:str=Query(''),offset:Optional[int]=Query(1),limit:Optional[int]=Query(10),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleOrdersRequest(
         session=session,
-        user_role=user['role']
+        user_role=user['role'],
+        cur_user_id=user['id']
     ).get(offset=offset,limit=limit,query=q)
 
 
@@ -72,7 +76,8 @@ async def get_all_order(q:str=Query(''),offset:Optional[int]=Query(1),limit:Opti
 async def get_all_order(q:str=Query(...),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleOrdersRequest(
         session=session,
-        user_role=user['role']
+        user_role=user['role'],
+        cur_user_id=user['id']
     ).search(query=q)
 
 
@@ -80,7 +85,8 @@ async def get_all_order(q:str=Query(...),user:dict=Depends(verify_user),session:
 async def get_order_by_order_id(order_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleOrdersRequest(
         session=session,
-        user_role=user['role']
+        user_role=user['role'],
+        cur_user_id=user['id']
     ).get_by_id(order_id=order_id)
 
 
@@ -89,5 +95,6 @@ async def get_order_by_order_id(order_id:str,user:dict=Depends(verify_user),sess
 async def get_order_by_customer_id(customer_id:str,user:dict=Depends(verify_user),offset:Optional[int]=Query(1),limit:Optional[int]=Query(10),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleOrdersRequest(
         session=session,
-        user_role=user['role']
+        user_role=user['role'],
+        cur_user_id=user['id']
     ).get_by_customer_id(customer_id=customer_id,offset=offset,limit=limit)
