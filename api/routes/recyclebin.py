@@ -11,6 +11,6 @@ router=APIRouter(
 )
 
 ASYNC_PG_SESSION=Annotated[AsyncSession,Depends(get_pg_db_session)]
-@router.get('/')
-async def get_recyclebin(session:ASYNC_PG_SESSION):
+@router.get('')
+async def get_recyclebin(session:ASYNC_PG_SESSION,user:dict=Depends(verify_user)):
     return await HandleRecycleBinRequests(session=session).get()
