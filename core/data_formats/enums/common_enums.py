@@ -9,8 +9,6 @@ class EnvironmentEnum(Enum):
     DEVELOPMENT="DEVELOPMENT"
     PRODUCTION="PRODUCTION"
 
-from enum import Enum
-
 class IndianStatesEnum(Enum):
     ANDHRA_PRADESH = "Andhra Pradesh"
     ARUNACHAL_PRADESH = "Arunachal Pradesh"
@@ -60,3 +58,7 @@ class OwnersEnum(Enum):
     NAGARAJ_D="NAGARAJ D"
     DANIEL_VENKAT="DANIEL VENKAT"
     SANJAYJAS_KUMAR="SANJAYJAS KUMAR"
+
+class ImportExportTypeEnum(Enum):
+    EXCEL="EXCEL"
+    # CSV="CSV"

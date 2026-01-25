@@ -1,10 +1,10 @@
-from fastapi import Depends,APIRouter,Query
+from fastapi import Depends,APIRouter,Query,File,UploadFile,Form
 from schemas.request_schemas.product import AddProductSchema,UpdateProductSchema,RecoverProductSchema
 from infras.primary_db.main import get_pg_db_session,AsyncSession
 from api.dependencies.token_verification import verify_user
 from ..handlers.product_handler import HandleProductsRequest
-from typing import Optional
-
+from typing import Optional,Literal
+from core.data_formats.enums.common_enums import ImportExportTypeEnum
 
 router=APIRouter(
     tags=['Product Crud'],
@@ -20,6 +20,17 @@ async def add_product(data:AddProductSchema,user:dict=Depends(verify_user),sessi
         cur_user_id=user['id']
     ).add(
         data=data
+    )
+
+@router.post("/bulk")
+async def add_product_bulk(type: ImportExportTypeEnum = Form(...),file: UploadFile = File(...),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+    return await HandleProductsRequest(
+        session=session,
+        user_role=user['role'],
+        cur_user_id=user['id']
+    ).add_bulk(
+        type=type,
+        file=file
     )
 
 

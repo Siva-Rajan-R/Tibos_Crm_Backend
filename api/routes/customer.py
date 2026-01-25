@@ -1,9 +1,10 @@
-from fastapi import Depends,APIRouter,Query
+from fastapi import Depends,APIRouter,Query,File,UploadFile,Form
 from schemas.request_schemas.customer import AddCustomerSchema,UpdateCustomerSchema,RecoverCustomerSchema
 from infras.primary_db.main import get_pg_db_session,AsyncSession
 from api.dependencies.token_verification import verify_user
 from ..handlers.customer_handler import HandleCustomersRequest
 from typing import Optional
+from core.data_formats.enums.common_enums import ImportExportTypeEnum
 
 
 router=APIRouter(
@@ -22,6 +23,13 @@ async def add_customer(data:AddCustomerSchema,user:dict=Depends(verify_user),ses
         data=data
     )
 
+@router.post('/bulk')
+async def add_customer_bulk(user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session),type:ImportExportTypeEnum=Form(...),file:UploadFile=File(...)):
+    return await HandleCustomersRequest(
+        session=session,
+        user_role=user['role'],
+        cur_user_id=user['id']
+    ).add_bulk(type=type,file=file)
 
 @router.put('')
 async def update_customer(data:UpdateCustomerSchema,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):

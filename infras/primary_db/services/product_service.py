@@ -11,7 +11,7 @@ from ..repos.product_repo import ProductsRepo
 from schemas.db_schemas.product import AddProductDbSchema,UpdateProductDbSchema
 from schemas.request_schemas.product import AddProductSchema,UpdateProductSchema
 from math import ceil
-from typing import Optional
+from typing import Optional,List
 
 
 class ProductsService(BaseServiceModel):
@@ -22,9 +22,25 @@ class ProductsService(BaseServiceModel):
         
     @catch_errors
     async def add(self,data:AddProductSchema):
+        if (await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_part_number(part_number=data.part_number)):
+            return False
         prod_id:str=generate_uuid()
         return await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(data=AddProductDbSchema(**data.model_dump(mode='json'),id=prod_id))
 
+    @catch_errors
+    async def add_bulk(self,datas:List[dict]):
+        datas_toadd=[]
+        skipped_items=[]
+        for data in datas:
+            ic(data)
+            if (await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_part_number(part_number=data.get('part_number'))):
+                skipped_items.append(data)
+            else:
+                prod_id:str=generate_uuid()
+                datas_toadd.append(Products(**data,id=prod_id))
+            
+        ic(datas_toadd,skipped_items)
+        return await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add_bulk(datas=datas_toadd)
 
     @catch_errors   
     async def update(self,data:UpdateProductDbSchema):

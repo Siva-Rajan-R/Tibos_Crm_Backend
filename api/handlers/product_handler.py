@@ -9,7 +9,10 @@ from schemas.db_schemas.product import AddProductDbSchema,UpdateProductDbSchema
 from schemas.request_schemas.product import AddProductSchema,UpdateProductSchema,RecoverProductSchema
 from math import ceil
 from . import HTTPException,ErrorResponseTypDict,SuccessResponseTypDict,BaseResponseTypDict
-
+from core.utils.excel_data_extractor import extract_excel_data
+from models.import_export_models.excel_headings_mapper import PRODUCTS_MAPPER
+from fastapi import UploadFile
+from core.data_formats.enums.common_enums import ImportExportTypeEnum
 
 
 class HandleProductsRequest:
@@ -51,6 +54,42 @@ class HandleProductsRequest:
                 msg="Product created successfully"
             )
         )
+    
+    @catch_errors
+    async def add_bulk(self,type:ImportExportTypeEnum,file:UploadFile):
+
+        if type.value==ImportExportTypeEnum.EXCEL.value:
+            datas=extract_excel_data(excel_file=file.file,headings_mapper=PRODUCTS_MAPPER)
+            if not datas or len(datas)<=0:
+                raise HTTPException(
+                    status_code=400,
+                    detail=ErrorResponseTypDict(
+                        status_code=400,
+                        success=False,
+                        msg="Adding bulk products",
+                        description="Invalid columns or insufficent datas to add"
+                    )
+                )
+            res= await ProductsService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add_bulk(datas=datas)
+            if res:
+                return SuccessResponseTypDict(
+                    detail=BaseResponseTypDict(
+                        status_code=200,
+                        success=True,
+                        msg="Products added successfully"
+                    )
+                )
+        
+        raise HTTPException(
+            status_code=400,
+            detail=ErrorResponseTypDict(
+                status_code=400,
+                success=False,
+                msg="Error : Adding datas",
+                description="Enter a valid import format (excel)"
+            )
+        )
+
 
     @catch_errors   
     async def update(self,data:UpdateProductDbSchema):

@@ -42,7 +42,8 @@ class CustomersRepo(BaseRepoModel):
                 or_(
                     Customers.email==email,
                     Customers.mobile_number==mobile_number
-                )
+                ),
+                Customers.is_deleted==False
             )
         )).scalar_one_or_none()
 
@@ -54,6 +55,11 @@ class CustomersRepo(BaseRepoModel):
 
         self.session.add(Customers(**data.model_dump(mode='json')))
 
+        return True
+    
+    @start_db_transaction
+    async def add_bulk(self,datas:List[Customers]):
+        self.session.add_all(datas)
         return True
         
     @start_db_transaction  

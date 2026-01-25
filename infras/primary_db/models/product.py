@@ -9,6 +9,7 @@ class Products(PG_BASE):
     id=Column(String,primary_key=True)
     sequence_id=Column(Integer,Identity(always=True),nullable=False)
     name=Column(String,nullable=False)
+    part_number=Column(String,nullable=False,unique=True)
     description=Column(String,nullable=False)
     price=Column(Float,nullable=False)
     available_qty=Column(Integer,nullable=False)

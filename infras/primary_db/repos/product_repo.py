@@ -10,6 +10,7 @@ from core.decorators.db_session_handler_dec import start_db_transaction
 from schemas.db_schemas.product import AddProductDbSchema,UpdateProductDbSchema
 from math import ceil
 from ..models.user import Users
+from typing import List
 
 
 
@@ -25,13 +26,25 @@ class ProductsRepo(BaseRepoModel):
             Products.description,
             Products.available_qty.label('quantity'),
             Products.price,
-            Products.product_type
+            Products.product_type,
+            Products.part_number
         )
 
-
+    async def get_by_part_number(self,part_number:str):
+        queried_products=(await self.session.execute(
+            select(Products.id)
+            .where(Products.part_number==part_number,Products.is_deleted==False)
+        )).scalar_one_or_none()
+        return queried_products
+    
     @start_db_transaction
     async def add(self,data:AddProductDbSchema):
         self.session.add(Products(**data.model_dump(mode='json')))
+        return True
+    
+    @start_db_transaction
+    async def add_bulk(self,datas:List[Products]):
+        self.session.add_all(datas)
         return True
 
 
@@ -168,7 +181,7 @@ class ProductsRepo(BaseRepoModel):
                 *self.products_cols,
                 date_expr.label("product_created_at")
             )
-            .where(Products.id==product_id,Products.is_deleted==False)
+            .where(or_(Products.id==product_id,Products.part_number==product_id),Products.is_deleted==False)
             .order_by(Products.name)
         )).mappings().one_or_none()
 

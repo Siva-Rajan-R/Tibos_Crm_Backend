@@ -32,6 +32,21 @@ class CustomersService(BaseServiceModel):
         
         customer_id:str=generate_uuid()
         return await customer_obj.add(data=AddCustomerDbSchema(**data.model_dump(mode='json'),id=customer_id))
+    
+    @catch_errors
+    async def add_bulk(self,datas:List[dict]):
+        skipped_items=[]
+        
+        datas_toadd=[]
+        customer_obj=CustomersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id)
+        for data in datas:
+            if (await customer_obj.is_customer_exists(email=data['email'],mobile_number=data['mobile_number'])):
+                skipped_items.append(data)
+            else:
+                customer_id:str=generate_uuid()
+                datas_toadd.append(Customers(**data, id=customer_id))
+        ic(skipped_items,datas_toadd)
+        return await customer_obj.add_bulk(datas=datas_toadd)
         
     @catch_errors  
     async def update(self,data:UpdateCustomerSchema):

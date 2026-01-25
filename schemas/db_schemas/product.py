@@ -8,6 +8,7 @@ class AddProductDbSchema(BaseModel):
     description:str
     price:float
     available_qty:int
+    part_number:str
     product_type:ProductTypes
 
 class UpdateProductDbSchema(BaseModel):
@@ -17,3 +18,4 @@ class UpdateProductDbSchema(BaseModel):
     price:Optional[float]=None
     available_qty:Optional[int]=None
     product_type:Optional[ProductTypes]=None
+    part_number:Optional[str]=None
