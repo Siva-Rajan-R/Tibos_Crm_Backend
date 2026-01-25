@@ -35,7 +35,7 @@ def catch_errors(func):
                     detail=ErrorResponseTypDict(
                         status_code=500,
                         msg="Error : Internal server error",
-                        description="Try agin the request after sometimes , if it's persist. contact our team support@debuggers.com",
+                        description=f"Try agin the request after sometimes , if it's persist. contact our team support@debuggers.com {e}",
                         succsess=False
                     )
                 )
