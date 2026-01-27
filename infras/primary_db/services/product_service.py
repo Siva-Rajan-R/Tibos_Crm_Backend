@@ -12,6 +12,7 @@ from schemas.db_schemas.product import AddProductDbSchema,UpdateProductDbSchema
 from schemas.request_schemas.product import AddProductSchema,UpdateProductSchema
 from math import ceil
 from typing import Optional,List
+from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
 
 
 class ProductsService(BaseServiceModel):
@@ -23,7 +24,7 @@ class ProductsService(BaseServiceModel):
     @catch_errors
     async def add(self,data:AddProductSchema):
         if (await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_part_number(part_number=data.part_number)):
-            return False
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Product",description="Product with the given part number already exists")
         prod_id:str=generate_uuid()
         return await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(data=AddProductDbSchema(**data.model_dump(mode='json'),id=prod_id))
 
@@ -46,7 +47,7 @@ class ProductsService(BaseServiceModel):
     async def update(self,data:UpdateProductDbSchema):
         data_toupdate=data.model_dump(mode='json',exclude_none=True,exclude_unset=True)
         if not data_toupdate or len(data_toupdate)<1:
-            return False
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Product",description="No valid fields to update provided")
         return await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateProductDbSchema(**data_toupdate))
 
     @catch_errors

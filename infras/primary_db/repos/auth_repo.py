@@ -4,6 +4,7 @@ from icecream import ic
 import httpx,os,json
 from core.configs.security_configs.pyjwt_config import jwt_token
 from core.settings import SETTINGS
+from models.response_models.req_res_models import ErrorResponseTypDict
 
 DEB_AUTH_APIKEY=SETTINGS.DEB_AUTH_APIKEY
 DEB_AUTH_CLIENT_SECRET=SETTINGS.DEB_AUTH_CLIENT_SECRET
@@ -19,7 +20,12 @@ class AuthRepo(AuthenticationRepo):
                 return response.json()
         raise HTTPException(
             status_code=response.status_code,
-            detail=response.text
+            detail=ErrorResponseTypDict(
+                status_code=response.status_code,
+                msg="Error : Fetching Login Link",
+                description="Unable to fetch login link, Please Try Again Later!",
+                success=False
+            ).model_dump(mode='json')
         )
     
     async def get_authenticated_user(self,code:str):
@@ -32,7 +38,12 @@ class AuthRepo(AuthenticationRepo):
             if response.status_code!=200:
                 raise HTTPException(
                     status_code=response.status_code,
-                    detail=response.text
+                    detail=ErrorResponseTypDict(
+                        status_code=response.status_code,
+                        msg="Error : Fetching Authenticated User",
+                        description="Unable to fetch authenticated user, Please Try Again Later!",
+                        success=False
+                    ).model_dump(mode='json')
                 )
             
             decoded_token:dict=jwt_token.decode(response.json()['token'],options={'verify_signature':False})

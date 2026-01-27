@@ -13,6 +13,7 @@ from typing import Optional
 from security.data_hashing import verfiy_hashed,hash_data
 from core.decorators.db_session_handler_dec import start_db_transaction
 from secrets import token_urlsafe
+from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
 
 DEFAULT_SUPERADMIN_INFO=json.loads(os.getenv('DEFAULT_SUPERADMIN_INFO'))
  
@@ -66,7 +67,7 @@ class UserRepo(BaseRepoModel):
         ).returning(Users.id)
         is_updated = (await self.session.execute(username_toupdate)).scalar_one_or_none()
 
-        return is_updated
+        return is_updated if is_updated else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating User",description="Unable to update the user, may be invalid user id or no changes in data")
         
     @start_db_transaction
     async def update_role(self,user_toupdate_id:str,role_toupdate:UserRoles):    
@@ -76,7 +77,7 @@ class UserRepo(BaseRepoModel):
 
         is_updated=(await self.session.execute(userrole_toupdate)).scalar_one_or_none()
         
-        return is_updated
+        return is_updated if is_updated else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating User Role",description="Unable to update the user role, may be invalid user id or no changes in data")
     
 
     @start_db_transaction
@@ -87,7 +88,7 @@ class UserRepo(BaseRepoModel):
 
         is_updated=(await self.session.execute(userpwd_toupdate)).scalar_one_or_none()
         
-        return is_updated
+        return is_updated if is_updated else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating User Password",description="Unable to update the user password, may be invalid user id or no changes in data")
     
     @start_db_transaction
     async def update_twofactor(self,user_toupdate_id:str,tf_secret:str):
@@ -97,7 +98,7 @@ class UserRepo(BaseRepoModel):
 
         is_updated=(await self.session.execute(usertf_toupdate)).scalar_one_or_none()
         
-        return is_updated
+        return is_updated if is_updated else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating User Two Factor Secret",description="Unable to update the user two factor secret, may be invalid user id or no changes in data")
 
 
     @start_db_transaction
@@ -110,26 +111,25 @@ class UserRepo(BaseRepoModel):
                 deleted_by=self.cur_user_id
             ).returning(Users.id)
             is_deleted=(await self.session.execute(user_todelete)).scalar_one_or_none()
-            return is_deleted
         
         else:
             if self.user_role if isinstance(self.user_role,UserRoles) else self.user_role!=UserRoles.SUPER_ADMIN.value:
-                return False
+                return ErrorResponseTypDict(status_code=403,success=False,msg="Error : Deleting User",description="Only super admin can perform hard delete operation")
             
             user_todelete=delete(Users).where(Users.id==userid_toremove).returning(Users.id)
             is_deleted=(await self.session.execute(user_todelete)).scalar_one_or_none()
-            return is_deleted
+        return is_deleted if is_deleted else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Deleting User",description="Unable to delete the user, may be invalid user id or user already deleted")
     
     @start_db_transaction
     async def recover(self,userid_torecover:str):
         if self.user_role.value if isinstance(self.user_role,UserRoles) else self.user_role!=UserRoles.SUPER_ADMIN.value:
-            return False
-        
+            return ErrorResponseTypDict(status_code=403,success=False,msg="Error : Recovering User",description="Only super admin can perform recover operation")
+
         user_torecover=update(Users).where(Users.id==userid_torecover,Users.is_deleted==True).values(
             is_deleted=False
         ).returning(Users.id)
         is_recovered=(await self.session.execute(user_torecover)).scalar_one_or_none()
-        return is_recovered
+        return is_recovered if is_recovered else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Recovering User",description="Unable to recover the user, may user is not deleted or already recovered")
         
     
 

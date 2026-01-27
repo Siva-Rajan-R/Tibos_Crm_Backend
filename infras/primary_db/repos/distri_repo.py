@@ -11,6 +11,7 @@ from core.data_formats.enums.common_enums import UserRoles
 from schemas.db_schemas.distributor import CreateDistriDbSchema,UpdateDistriDbSchema
 from core.decorators.db_session_handler_dec import start_db_transaction
 from math import ceil
+from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
 from ..models.user import Users
 
 
@@ -38,7 +39,7 @@ class DistributorsRepo(BaseRepoModel):
         data_toupdate=data.model_dump(mode='json',exclude=['id'],exclude_none=True,exclude_unset=True)
 
         if not data_toupdate or len(data_toupdate)<1:
-            return False
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Distributor",description="No valid fields to update provided")
         
         distributor_toupdate=update(Distributors).where(Distributors.id==data.id).values(
             **data_toupdate
@@ -46,7 +47,7 @@ class DistributorsRepo(BaseRepoModel):
 
         is_updated=(await self.session.execute(distributor_toupdate)).scalar_one_or_none()
         
-        return is_updated
+        return is_updated if is_updated else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Distributor",description="Unable to update the distributor, may be invalid distributor id or no changes in data")
     
 
     @start_db_transaction
@@ -59,26 +60,24 @@ class DistributorsRepo(BaseRepoModel):
                 deleted_by=self.cur_user_id
             ).returning(Distributors.id)
             is_deleted=(await self.session.execute(distributor_todelete)).scalar_one_or_none()
-            return is_deleted
 
         else:
             if self.user_role if isinstance(self.user_role,UserRoles) else self.user_role!=UserRoles.SUPER_ADMIN.value:
-                return False
+                return ErrorResponseTypDict(status_code=403,success=False,msg="Error : Deleting Distributor",description="Only super admin can perform hard delete operation")
             distributor_todelete=delete(Distributors).where(Distributors.id==distri_id).returning(Distributors.id)
             is_deleted=(await self.session.execute(distributor_todelete)).scalar_one_or_none()
-            return is_deleted
+        return is_deleted if is_deleted else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Deleting Distributor",description="Unable to delete the distributor, may be invalid distributor id or distributor already deleted")
         
     @start_db_transaction
     async def recover(self,distri_id:str):
         if self.user_role if isinstance(self.user_role,UserRoles) else self.user_role!=UserRoles.SUPER_ADMIN.value:
-            return False
+            return ErrorResponseTypDict(status_code=403,success=False,msg="Error : Recovering Distributor",description="Only super admin can perform recover operation")
         
         distributor_torecover=update(Distributors).where(Distributors.id==distri_id,Distributors.is_deleted==True).values(
             is_deleted=False
         ).returning(Distributors.id)
         is_recovered=(await self.session.execute(distributor_torecover)).scalar_one_or_none()
-        return is_recovered
-        
+        return is_recovered if is_recovered else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Recovering Distributor",description="Unable to recover the distributor, may distributor is not deleted or already recovered")
 
     async def get(self,offset:int=1,limit:int=10,query:str='',include_deleted:bool=False):
         search_term=f"%{query.lower()}%"
@@ -95,7 +94,7 @@ class DistributorsRepo(BaseRepoModel):
                 date_expr.label("created_at")
             ).limit(limit)
             .join(Products,Products.id==Distributors.product_id,isouter=True)
-            .join(Users,Users.id==Products.deleted_by)
+            .join(Users,Users.id==Products.deleted_by,isouter=True)
             .where(
                 or_(
                     Distributors.id.ilike(search_term),

@@ -43,7 +43,7 @@ class HandleUserRequest:
                     description="Insufficient permission",
                     status_code=401,
                     success=False
-                )
+                ).model_dump(mode='json')
             )
 
 
@@ -51,14 +51,16 @@ class HandleUserRequest:
     async def add(self,data:AddUserSchema):
         res=await UserService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(data=data)
 
-        if not res:
-            raise HTTPException(
-                status_code=400,
-                detail=ErrorResponseTypDict(
+        if not res or isinstance(res,ErrorResponseTypDict):
+            detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
                     msg="Error : Creating User",
-                    description="A User or Account already exists or Invalid inputs !"
-                )
+                    description="A Unknown Error, Please Try Again Later!"
+                ) if not isinstance(res,ErrorResponseTypDict) else res
+            
+            raise HTTPException(
+                status_code=detail.status_code,
+                detail=detail.model_dump(mode='json')
             )
         
         password=res.get('password')
@@ -86,15 +88,16 @@ class HandleUserRequest:
     @catch_errors
     async def update(self,data:UpdateUserSchema):
         res = await UserService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=data)
-        if not res:
-            raise HTTPException(
-                status_code=400,
-                detail=ErrorResponseTypDict(
+        if not res or isinstance(res,ErrorResponseTypDict):
+            detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
-                    success=False,
-                    msg="Error : Updaing user",
-                    description="Invalid user input"
-                )
+                    msg="Error : Updating User",
+                    description="A Unknown Error, Please Try Again Later!"
+                ) if not isinstance(res,ErrorResponseTypDict) else res
+            
+            raise HTTPException(
+                status_code=detail.status_code,
+                detail=detail.model_dump(mode='json')
             )
         
         await unlink_redis(key=[f"token-verify-{data.user_id}"])
@@ -110,16 +113,18 @@ class HandleUserRequest:
     @catch_errors
     async def update_role(self,user_toupdate_id:str,role_toupdate:UserRoles):    
         res=await UserService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update_role(user_toupdate_id=user_toupdate_id,role_toupdate=role_toupdate)
-        if not res:
-            raise HTTPException(
-                status_code=400,
-                detail=ErrorResponseTypDict(
+        if not res or isinstance(res,ErrorResponseTypDict):
+            detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
-                    success=False,
-                    msg="Error : Updaing user",
-                    description="Invalid user input"
-                )
+                    msg="Error : Updating User Role",
+                    description="A Unknown Error, Please Try Again Later!"
+                ) if not isinstance(res,ErrorResponseTypDict) else res
+            
+            raise HTTPException(
+                status_code=detail.status_code,
+                detail=detail.model_dump(mode='json')
             )
+        
         await unlink_redis(key=[f"token-verify-{user_toupdate_id}"])
         return SuccessResponseTypDict(
             detail=BaseResponseTypDict(
@@ -144,15 +149,16 @@ class HandleUserRequest:
             )
         
         res=await UserService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update_password(user_toupdate_id=user_toupdate_id,new_password=data.confirm_password)
-        if not res:
+        if not res or isinstance(res,ErrorResponseTypDict):
+            detail:ErrorResponseTypDict=ErrorResponseTypDict(
+                    status_code=400,
+                    msg="Error : Reseting Password",
+                    description="A Unknown Error, Please Try Again Later!"
+                ) if not isinstance(res,ErrorResponseTypDict) else res
+            
             raise HTTPException(
-                status_code=404,
-                detail=ErrorResponseTypDict(
-                    status_code=404,
-                    success=False,
-                    msg="Error : Resetting password",
-                    description="Invalid User id"
-                )
+                status_code=detail.status_code,
+                detail=detail.model_dump(mode='json')
             )
         
         return SuccessResponseTypDict(
@@ -166,16 +172,18 @@ class HandleUserRequest:
     @catch_errors
     async def delete(self,userid_toremove:str,soft_delete:bool=True):      
         res = await UserService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete(userid_toremove=userid_toremove,soft_delete=soft_delete)
-        if not res:
-            raise HTTPException(
-                status_code=400,
-                detail=ErrorResponseTypDict(
+        if not res or isinstance(res,ErrorResponseTypDict):
+            detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
-                    success=False,
-                    msg="Error : Deleting user",
-                    description="Invalid user input"
-                )
+                    msg="Error : Deleting User",
+                    description="A Unknown Error, Please Try Again Later!"
+                ) if not isinstance(res,ErrorResponseTypDict) else res
+            
+            raise HTTPException(
+                status_code=detail.status_code,
+                detail=detail.model_dump(mode='json')
             )
+        
         await unlink_redis(key=[f"token-verify-{userid_toremove}"])
         return SuccessResponseTypDict(
             detail=BaseResponseTypDict(
@@ -188,16 +196,18 @@ class HandleUserRequest:
     @catch_errors
     async def recover(self,data:RecoverUserSchema): 
         res = await UserService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).recover(userid_torecover=data.user_id)
-        if not res:
-            raise HTTPException(
-                status_code=400,
-                detail=ErrorResponseTypDict(
+        if not res or isinstance(res,ErrorResponseTypDict):
+            detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
-                    success=False,
-                    msg="Error : Recovering user",
-                    description="Invalid user input"
-                )
+                    msg="Error : Recovering User",
+                    description="A Unknown Error, Please Try Again Later!"
+                ) if not isinstance(res,ErrorResponseTypDict) else res
+            
+            raise HTTPException(
+                status_code=detail.status_code,
+                detail=detail.model_dump(mode='json')
             )
+        
         return SuccessResponseTypDict(
             detail=BaseResponseTypDict(
                 status_code=200,

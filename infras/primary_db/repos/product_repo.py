@@ -11,6 +11,7 @@ from schemas.db_schemas.product import AddProductDbSchema,UpdateProductDbSchema
 from math import ceil
 from ..models.user import Users
 from typing import List
+from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
 
 
 
@@ -52,7 +53,7 @@ class ProductsRepo(BaseRepoModel):
     async def update(self,data:UpdateProductDbSchema):
         data_toupdate=data.model_dump(mode='json',exclude=['product_id'],exclude_none=True,exclude_unset=True)
         if not data_toupdate or len(data_toupdate)<1:
-            return False
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Product",description="No valid fields to update provided")
         
         prod_toupdate=update(Products).where(Products.id==data.product_id).values(
             **data_toupdate
@@ -60,13 +61,13 @@ class ProductsRepo(BaseRepoModel):
 
         is_updated=(await self.session.execute(prod_toupdate)).scalar_one_or_none()
         
-        return is_updated
+        return is_updated if is_updated else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Product",description="Unable to update the product, may be invalid product id or no changes in data")
 
     @start_db_transaction
     async def delete(self,product_id:str,soft_delete:bool=True):
         have_order=(await self.session.execute(select(Orders.id).where(Orders.product_id==product_id,Orders.is_deleted==False).limit(1))).scalar_one_or_none()
         if have_order:
-            return False
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Deleting Product",description="Unable to delete the product, as there are existing orders associated with this product")
 
         if soft_delete:
             prod_todelete=update(Products).where(Products.id==product_id,Products.is_deleted==False).values(
@@ -76,26 +77,26 @@ class ProductsRepo(BaseRepoModel):
             ).returning(Products.id)
 
             is_deleted=(await self.session.execute(prod_todelete)).scalar_one_or_none()
-            return is_deleted
+            
 
         else:
             if self.user_role if isinstance(self.user_role,UserRoles) else self.user_role!=UserRoles.SUPER_ADMIN.value:
-                return False
+                return ErrorResponseTypDict(status_code=403,success=False,msg="Error : Deleting Product",description="Only super admin can perform hard delete operation")
             
             prod_todelete=delete(Products).where(Products.id==product_id).returning(Products.id)
             is_deleted=(await self.session.execute(prod_todelete)).scalar_one_or_none()
-            return is_deleted
+        return is_deleted if is_deleted else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Deleting Product",description="Unable to delete the product, may be invalid product id or product already deleted")
     
     @start_db_transaction
     async def recover(self,product_torecover:str):
         if self.user_role if isinstance(self.user_role,UserRoles) else self.user_role!=UserRoles.SUPER_ADMIN.value:
-            return False
+            return ErrorResponseTypDict(status_code=403,success=False,msg="Error : Recovering Product",description="Only super admin can perform recover operation")
 
         prod_torecover=update(Products).where(Products.id==product_torecover,Products.is_deleted==True).values(
             is_deleted=False
         ).returning(Products.id)
         is_recovered=(await self.session.execute(prod_torecover)).scalar_one_or_none()
-        return is_recovered
+        return is_recovered if is_recovered else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Recovering Product",description="Unable to recover the product, may product is not deleted or already recovered")
         
     async def get(self,offset:int=1,limit:int=10,query:str='',include_deleted:bool=False):
         search_term=f"%{query.lower()}%"

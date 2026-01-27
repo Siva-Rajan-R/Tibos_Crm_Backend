@@ -14,6 +14,7 @@ from schemas.db_schemas.order import AddOrderDbSchema,UpdateOrderDbSchema
 from core.decorators.db_session_handler_dec import start_db_transaction
 from math import ceil
 from ..models.user import Users
+from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
 
 
 
@@ -69,7 +70,7 @@ class OrdersRepo(BaseRepoModel):
     async def update(self,data:UpdateOrderDbSchema):
         data_toupdate=data.model_dump(mode='json',exclude=['product_id','customer_id','order_id'],exclude_none=True,exclude_unset=True)
         if not data_toupdate or len(data_toupdate)<1:
-            return False
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Order",description="No valid fields to update provided")
         
         order_toupdate=update(Orders).where(Orders.id==data.order_id,Orders.customer_id==data.customer_id).values(
             **data_toupdate
@@ -78,7 +79,7 @@ class OrdersRepo(BaseRepoModel):
         is_updated=(await self.session.execute(order_toupdate)).scalar_one_or_none()
         
         # need to implement invoice generation process + email sending
-        return is_updated
+        return is_updated if is_updated else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Order",description="Unable to update the order, may be invalid order id or no changes in data")
 
     @start_db_transaction    
     async def delete(self,order_id:str,customer_id:str,soft_delete:bool=True):
@@ -92,27 +93,26 @@ class OrdersRepo(BaseRepoModel):
 
             is_deleted=(await self.session.execute(order_todelete)).scalar_one_or_none()
 
-            return is_deleted
         else:
             if self.user_role if isinstance(self.user_role,UserRoles) else self.user_role!=UserRoles.SUPER_ADMIN.value:
-                return False
+                return ErrorResponseTypDict(status_code=403,success=False,msg="Error : Deleting Order",description="Only super admin can perform hard delete operation")
             
             order_todelete=delete(Orders).where(Orders.id==order_id,Orders.customer_id==customer_id).returning(Orders.id)
             is_deleted=(await self.session.execute(order_todelete)).scalar_one_or_none()
             
             # need to implement email sending "Your orders has been stoped from CRM"
-            return is_deleted
+        return is_deleted if is_deleted else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Deleting Order",description="Unable to delete the order, may be invalid order id or order already deleted")
     
     @start_db_transaction
     async def recover(self,order_id:str,customer_id:str):
         if self.user_role if isinstance(self.user_role,UserRoles) else self.user_role!=UserRoles.SUPER_ADMIN.value:
-            return False
+            return ErrorResponseTypDict(status_code=403,success=False,msg="Error : Recovering Order",description="Only super admin can perform recover operation")
         
         order_torecover=update(Orders).where(Orders.id==order_id,Orders.customer_id==customer_id,Orders.is_deleted==True).values(
             is_deleted=False
         ).returning(Orders.id)
         is_recovered=(await self.session.execute(order_torecover)).scalar_one_or_none()
-        return is_recovered
+        return is_recovered if is_recovered else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Recovering Order",description="Unable to recover the order, may order is not deleted or already recovered")
 
 
     async def get(self,offset:int=1,limit:int=10,query:str='',include_deleted:bool=False):

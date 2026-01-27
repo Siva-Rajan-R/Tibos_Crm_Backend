@@ -15,6 +15,7 @@ from core.utils.uuid_generator import generate_uuid
 from core.decorators.error_handler_dec import catch_errors
 from datetime import datetime
 from math import ceil
+from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
 
 
 class OpportunitiesService(BaseServiceModel):
@@ -30,11 +31,11 @@ class OpportunitiesService(BaseServiceModel):
 
         oppor_obj=OpportunitiesRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id)
         if (await oppor_obj.is_opportunity_exists(lead_id=data.lead_id)):
-            return False
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Opportunity",description="Opportunity with the given lead id already exists")
         
         is_lead_exists=await LeadsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(lead_id=data.lead_id)
         if not is_lead_exists or len(is_lead_exists)<1:
-            return False
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Opportunity",description="Lead with the given id does not exist")
         
         
         oppr_id:str=generate_uuid()
@@ -45,7 +46,7 @@ class OpportunitiesService(BaseServiceModel):
     async def update(self,data:UpdateOpportunitySchema):
         data_toupdate=data.model_dump(mode='json',exclude_none=True,exclude_unset=True)
         if not data_toupdate or len(data_toupdate)<1:
-            return False
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Opportunity",description="No valid fields to update provided")
         
         return await OpportunitiesRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateOpportunityDbSchema(**data_toupdate))
 

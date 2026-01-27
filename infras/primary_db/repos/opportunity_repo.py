@@ -13,6 +13,7 @@ from core.decorators.db_session_handler_dec import start_db_transaction
 from datetime import datetime
 from math import ceil
 from ..models.user import Users
+from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
 
 
 class OpportunitiesRepo(BaseRepoModel):
@@ -53,7 +54,7 @@ class OpportunitiesRepo(BaseRepoModel):
     async def update(self,data:UpdateOpportunityDbSchema):
         data_toupdate=data.model_dump(mode='json',exclude=['opportunity_id'],exclude_none=True,exclude_unset=True)
         if not data_toupdate or len(data_toupdate)<1:
-            return False
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Opportunity",description="No valid fields to update provided")
         
         stmt = (
             update(Opportunities)
@@ -65,7 +66,7 @@ class OpportunitiesRepo(BaseRepoModel):
         )
 
         is_updated = (await self.session.execute(stmt)).scalar_one_or_none()
-        return is_updated
+        return is_updated if is_updated else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Opportunity",description="Unable to update the opportunity, may be invalid opportunity id or no changes in data")
 
 
     @start_db_transaction
@@ -82,10 +83,9 @@ class OpportunitiesRepo(BaseRepoModel):
                 .returning(Opportunities.id)
             )
             is_deleted = (await self.session.execute(stmt)).scalar_one_or_none()
-            return is_deleted
         else:
             if self.user_role if isinstance(self.user_role,UserRoles) else self.user_role!=UserRoles.SUPER_ADMIN.value:
-                return False
+                return ErrorResponseTypDict(status_code=403,success=False,msg="Error : Deleting Opportunity",description="Only super admin can perform hard delete operation")
             
             stmt = (
                 delete(Opportunities)
@@ -93,12 +93,13 @@ class OpportunitiesRepo(BaseRepoModel):
                 .returning(Opportunities.id)
             )
             is_deleted = (await self.session.execute(stmt)).scalar_one_or_none()
-            return is_deleted
+
+        return is_deleted if is_deleted else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Deleting Opportunity",description="Unable to delete the opportunity, may be invalid opportunity id or opportunity already deleted")
     
     @start_db_transaction
     async def recover(self, opportunity_id: str):
         if self.user_role if isinstance(self.user_role,UserRoles) else self.user_role!=UserRoles.SUPER_ADMIN.value:
-            return False
+            return ErrorResponseTypDict(status_code=403,success=False,msg="Error : Recovering Opportunity",description="Only super admin can perform recover operation")
         
         stmt = (
             update(Opportunities)
@@ -107,7 +108,7 @@ class OpportunitiesRepo(BaseRepoModel):
             .returning(Opportunities.id)
         )
         is_recovered = (await self.session.execute(stmt)).scalar_one_or_none()
-        return is_recovered
+        return is_recovered if is_recovered else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Recovering Opportunity",description="Unable to recover the opportunity, may opportunity is not deleted or already recovered")
 
 
     async def get(self, offset: int = 1, limit: int = 10, query: str = "",include_deleted:bool=False):

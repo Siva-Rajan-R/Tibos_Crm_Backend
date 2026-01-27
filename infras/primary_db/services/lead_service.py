@@ -13,6 +13,7 @@ from typing import Optional
 from schemas.db_schemas.lead import AddLeadDbSchema,UpdateLeadDbSchema
 from schemas.request_schemas.lead import AddLeadSchema,UpdateLeadSchema
 from core.decorators.error_handler_dec import catch_errors
+from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
 
 
 class LeadsService(BaseServiceModel):
@@ -27,7 +28,7 @@ class LeadsService(BaseServiceModel):
         # Need to check the given emailor phone have exisiting leads
         lead_obj=LeadsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id)
         if (await lead_obj.is_lead_exists(email=data.email,mobile_number=data.phone)):
-            return False
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Lead",description="Lead with the given email or phone number already exists")
         
         lead_id:str=generate_uuid()
         return await lead_obj.add(data=AddLeadDbSchema(**data.model_dump(),id=lead_id))
@@ -36,7 +37,7 @@ class LeadsService(BaseServiceModel):
     async def update(self,data:UpdateLeadSchema):
         data_toupdate=data.model_dump(exclude_none=True,exclude_unset=True)
         if not data_toupdate or len(data_toupdate)<1:
-            return False
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Lead",description="No valid fields to update provided")
         
         return await LeadsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateLeadDbSchema(**data_toupdate))
 

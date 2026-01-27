@@ -13,6 +13,7 @@ from schemas.db_schemas.lead import AddLeadDbSchema,UpdateLeadDbSchema
 from core.decorators.db_session_handler_dec import start_db_transaction
 from pydantic import EmailStr
 from ..models.user import Users
+from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
 
 
 class LeadsRepo(BaseRepoModel):
@@ -56,7 +57,7 @@ class LeadsRepo(BaseRepoModel):
     async def update(self,data:UpdateLeadDbSchema):
         data_toupdate=data.model_dump(exclude=['lead_id'],exclude_none=True,exclude_unset=True)
         if not data_toupdate or len(data_toupdate)<1:
-            return False
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Lead",description="No valid fields to update provided")
         
         stmt = (
             update(Leads)
@@ -69,7 +70,7 @@ class LeadsRepo(BaseRepoModel):
 
         is_updated = (await self.session.execute(stmt)).scalar_one_or_none()
 
-        return is_updated
+        return is_updated if is_updated else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Lead",description="Unable to update the lead, may be invalid lead id or no changes in data")
 
     @start_db_transaction
     async def delete(self, lead_id: str, soft_delete: bool = True):
@@ -85,18 +86,18 @@ class LeadsRepo(BaseRepoModel):
                 .returning(Leads.id)
             )
             is_deleted = (await self.session.execute(stmt)).scalar_one_or_none()
-            return is_deleted
         else:
             if self.user_role if isinstance(self.user_role,UserRoles) else self.user_role!=UserRoles.SUPER_ADMIN.value:
-                return False
+                return ErrorResponseTypDict(status_code=403,success=False,msg="Error : Deleting Lead",description="Only super admin can perform hard delete operation")
             stmt = delete(Leads).where(Leads.id == lead_id).returning(Leads.id)
             is_deleted = (await self.session.execute(stmt)).scalar_one_or_none()
-            return is_deleted
+
+        return is_deleted if is_deleted else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Deleting Lead",description="Unable to delete the lead, may be invalid lead id or lead already deleted")
     
     @start_db_transaction
     async def recover(self, lead_id: str):
         if self.user_role if isinstance(self.user_role,UserRoles) else self.user_role!=UserRoles.SUPER_ADMIN.value:
-            return False
+            return ErrorResponseTypDict(status_code=403,success=False,msg="Error : Recovering Lead",description="Only super admin can perform recover operation")
         
         stmt = (
             update(Leads)
@@ -105,7 +106,7 @@ class LeadsRepo(BaseRepoModel):
             .returning(Leads.id)
         )
         is_recovered = (await self.session.execute(stmt)).scalar_one_or_none()
-        return is_recovered
+        return is_recovered if is_recovered else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Recovering Lead",description="Unable to recover the lead, may lead is not deleted or already recovered")
     
 
     async def get(self, offset: int = 1, limit: int = 10, query: str = "",include_deleted:bool=False):

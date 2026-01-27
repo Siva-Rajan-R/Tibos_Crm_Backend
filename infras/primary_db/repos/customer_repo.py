@@ -12,6 +12,7 @@ from schemas.db_schemas.customer import AddCustomerDbSchema,UpdateCustomerDbSche
 from core.decorators.db_session_handler_dec import start_db_transaction
 from math import ceil
 from ..models.user import Users
+from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
 
 
 
@@ -67,7 +68,7 @@ class CustomersRepo(BaseRepoModel):
         data_toupdate=data.model_dump(mode='json',exclude=['customer_id'],exclude_none=True,exclude_unset=True)
 
         if not data_toupdate or len(data_toupdate)<1:
-            return False
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Customer",description="No data provided for update")
         
         customer_toupdate=update(Customers).where(Customers.id==data.customer_id).values(
             **data_toupdate
@@ -75,13 +76,13 @@ class CustomersRepo(BaseRepoModel):
 
         is_updated=(await self.session.execute(customer_toupdate)).scalar_one_or_none()
         
-        return is_updated
+        return is_updated if is_updated else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Customer",description="Unable to update the customer, may be invalid customer or customer may not exist")
         
     @start_db_transaction
     async def delete(self,customer_id:str,soft_delete:bool=True):
         have_order=(await self.session.execute(select(Orders.id).where(Orders.customer_id==customer_id,Orders.is_deleted==False).limit(1))).scalar_one_or_none()
         if have_order:
-            return False
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Deleting Customer",description="Cannot delete customer with existing orders. Please delete associated orders first.")
 
         if soft_delete:
             customer_todelete=update(Customers).where(Customers.id==customer_id,Customers.is_deleted==False).values(
@@ -90,26 +91,25 @@ class CustomersRepo(BaseRepoModel):
                 deleted_by=self.cur_user_id
             ).returning(Customers.id)
             is_deleted=(await self.session.execute(customer_todelete)).scalar_one_or_none()
-            return is_deleted
 
         else:
             if self.user_role if isinstance(self.user_role,UserRoles) else self.user_role!=UserRoles.SUPER_ADMIN.value:
-                return False
+                return ErrorResponseTypDict(status_code=403,success=False,msg="Error : Deleting Customer",description="Only super admin can perform hard delete operation")
             customer_todelete=delete(Customers).where(Customers.id==customer_id).returning(Customers.id)
             is_deleted=(await self.session.execute(customer_todelete)).scalar_one_or_none()
             
-            return is_deleted
+        return is_deleted if is_deleted else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Deleting Customer",description="Unable to delete the customer, may be invalid customer id or customer already deleted")
         
     @start_db_transaction
     async def recover(self,customer_id:str):
         if self.user_role if isinstance(self.user_role,UserRoles) else self.user_role!=UserRoles.SUPER_ADMIN.value:
-            return False
+            return ErrorResponseTypDict(status_code=403,success=False,msg="Error : Recovering Customer",description="Only super admin can perform recover operation")
         
         customer_torecover=update(Customers).where(Customers.id==customer_id,Customers.is_deleted==True).values(
             is_deleted=False
         ).returning(Customers.id)
         is_recovered=(await self.session.execute(customer_torecover)).scalar_one_or_none()
-        return is_recovered
+        return is_recovered if is_recovered else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Recovering Customer",description="Unable to recover the customer, may customer is not deleted or already recovered")
         
 
     async def get(self,offset:int=1,limit:int=10,query:str='',include_deleted:bool=False):

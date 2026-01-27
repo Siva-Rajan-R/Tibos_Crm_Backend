@@ -39,6 +39,7 @@ async def api_lifespan(app:FastAPI):
         yield
     except Exception as e:
         ic(f"❌ Error At Executing API Lifespan {e}")
+        raise
     finally:
         ic("🌵 Shuttingdown API Lifespan")
 

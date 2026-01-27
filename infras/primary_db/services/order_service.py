@@ -18,6 +18,7 @@ from schemas.request_schemas.order import AddOrderSchema,UpdateOrderSchema
 from core.decorators.error_handler_dec import catch_errors
 from math import ceil
 from typing import Optional
+from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
 
 
 
@@ -35,19 +36,19 @@ class OrdersService(BaseServiceModel):
         # then chck product is exists or not
         order_obj=OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id)
         if (await order_obj.is_order_exists(customer_id=data.customer_id,product_id=data.product_id)):
-            return False
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Order",description="Order with the given customer id and product id already exists")
         
         cust_exists=await CustomersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(customer_id=data.customer_id)
         if not cust_exists or len(cust_exists)<1:
-            return False
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Order",description="Customer with the given id does not exist")
         
         prod_exists=await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(product_id=data.product_id)
         if not prod_exists or len(prod_exists)<1:
-            return False
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Order",description="Product with the given id does not exist")
         
         distri_exists=await DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(distributor_id=data.distributor_id)
         if not distri_exists or len(distri_exists)<1:
-            return False
+            return ErrorResponseTypDict
         
         order_id:str=generate_uuid()
         return await order_obj.add(data=AddOrderDbSchema(**data.model_dump(mode='json'),id=order_id))
@@ -57,7 +58,7 @@ class OrdersService(BaseServiceModel):
     async def update(self,data:UpdateOrderSchema):
         data_toupdate=data.model_dump(mode='json',exclude_none=True,exclude_unset=True)
         if not data_toupdate or len(data_toupdate)<1:
-            return False
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Order",description="No valid fields to update provided")
         
         return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateOrderDbSchema(**data_toupdate))
         

@@ -14,6 +14,8 @@ from typing import Optional
 from security.data_hashing import verfiy_hashed,hash_data
 from core.decorators.error_handler_dec import catch_errors
 from secrets import token_urlsafe
+from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
+
 
 DEFAULT_SUPERADMIN_INFO=json.loads(os.getenv('DEFAULT_SUPERADMIN_INFO'))
  
@@ -50,7 +52,7 @@ class UserService(BaseServiceModel):
     async def add(self,data:AddUserSchema):
         user_obj=UserRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id)
         if (await user_obj.isuser_exists(user_id_email=data.email)):
-            return False
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding User",description="User with the given email already exists")
 
         user_id:str=generate_uuid()
         pwd=token_urlsafe(16)
@@ -64,7 +66,7 @@ class UserService(BaseServiceModel):
         """This is for full update *Name,Role can be changable"""
         data_toupdate=data.model_dump(mode='json',exclude_none=True,exclude_unset=True)
         if not data_toupdate or len(data_toupdate)<1:
-            return False
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating User",description="No valid fields to update provided")
         
         return await UserRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateUserDbSchema(**data_toupdate))
         

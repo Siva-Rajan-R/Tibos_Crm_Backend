@@ -15,7 +15,7 @@ from schemas.db_schemas.distributor import CreateDistriDbSchema,UpdateDistriDbSc
 from schemas.request_schemas.distributor import CreateDistriSchema,UpdateDistriSchema
 from core.decorators.error_handler_dec import catch_errors
 from math import ceil
-
+from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
 
 
 class DistributorService(BaseServiceModel):
@@ -28,7 +28,7 @@ class DistributorService(BaseServiceModel):
     @catch_errors
     async def add(self,data:CreateDistriSchema):
         if not (await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(product_id=data.product_id)):
-            return False
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Distributor",description="Product with the given id does not exist")
         
         distri_id:str=generate_uuid()
         return await DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(data=CreateDistriDbSchema(**data.model_dump(mode='json'),id=distri_id))
@@ -38,10 +38,10 @@ class DistributorService(BaseServiceModel):
         data_toupdate=data.model_dump(mode='json',exclude_none=True,exclude_unset=True)
 
         if not data_toupdate or len(data_toupdate)<1:
-            return False
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Distributor",description="No valid fields to update provided")
         
         if data.product_id and not (await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(product_id=data.product_id)):
-            return False
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Distributor",description="Product with the given id does not exist")
         
         return await DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateDistriDbSchema(**data_toupdate))
         
@@ -49,7 +49,7 @@ class DistributorService(BaseServiceModel):
     async def delete(self,distributor_id:str,soft_delete:bool=True):
         have_order=(await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(query=distributor_id,limit=1)).get('orders')
         if have_order or len(have_order)>0:
-            return False
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Deleting Distributor",description="Distributor has associated orders and cannot be deleted")
         
         return await DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete(distri_id=distributor_id,soft_delete=soft_delete)
     

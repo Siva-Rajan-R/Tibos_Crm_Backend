@@ -36,7 +36,7 @@ class HandleCustomersRequest:
                     description="Insufficient permission",
                     status_code=401,
                     success=False
-                )
+                ).model_dump(mode='json')
             )
        
     @catch_errors
@@ -49,18 +49,21 @@ class HandleCustomersRequest:
                     success=False,
                     msg="Error : Creating customer ",
                     description="Invalid input data, May be its a mobile number"
-                )
+                ).model_dump(mode='json')
             )
         res = await CustomersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(data=data)
-        if not res:
-            raise HTTPException(
-                status_code=400,
-                detail=ErrorResponseTypDict(
+        if not res or isinstance(res,ErrorResponseTypDict):
+            detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
                     msg="Error : Creating Customer",
-                    description="A Customer or Account already exists or Invalid inputs !"
-                )
+                    description="A Unknown Error, Please Try Again Later!"
+                ) if not isinstance(res,ErrorResponseTypDict) else res
+            
+            raise HTTPException(
+                status_code=detail.status_code,
+                detail=detail.model_dump(mode='json')
             )
+        
         return SuccessResponseTypDict(
             detail=BaseResponseTypDict(
                 status_code=200,
@@ -82,7 +85,7 @@ class HandleCustomersRequest:
                         success=False,
                         msg="Adding bulk products",
                         description="Invalid columns or insufficent datas to add"
-                    )
+                    ).model_dump(mode='json')
                 )
             res=await CustomersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add_bulk(datas=datas_toadd)
             if res:
@@ -94,14 +97,15 @@ class HandleCustomersRequest:
                     )
                 )
             
-        raise HTTPException(
-            status_code=400,
-            detail=ErrorResponseTypDict(
+        detail:ErrorResponseTypDict=ErrorResponseTypDict(
                 status_code=400,
-                success=False,
-                msg="Error : Adding datas",
-                description="Enter a valid import format (excel)"
-            )
+                msg="Error : Creating Customers",
+                description="A Unknown Error, Please Try Again Later!"
+            ) if not isinstance(res,ErrorResponseTypDict) else res
+        
+        raise HTTPException(
+            status_code=detail.status_code,
+            detail=detail.model_dump(mode='json')
         )
 
 
@@ -116,18 +120,20 @@ class HandleCustomersRequest:
                     success=False,
                     msg="Error : Creating customer ",
                     description="Invalid input data, May be its a mobile number"
-                )
+                ).model_dump(mode='json')
             )
+        
         res=await CustomersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=data)
-        if not res:
-            raise HTTPException(
-                status_code=400,
-                detail=ErrorResponseTypDict(
+        if not res or isinstance(res,ErrorResponseTypDict):
+            detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
-                    success=False,
-                    msg="Error : Updaing customer",
-                    description="Invalid user input"
-                )
+                    msg="Error : Update Customer",
+                    description="A Unknown Error, Please Try Again Later!"
+                ) if not isinstance(res,ErrorResponseTypDict) else res
+            
+            raise HTTPException(
+                status_code=detail.status_code,
+                detail=detail.model_dump(mode='json')
             )
         
         return SuccessResponseTypDict(
@@ -141,15 +147,16 @@ class HandleCustomersRequest:
     @catch_errors
     async def delete(self,customer_id:str,soft_delete:bool=True):
         res=await CustomersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete(customer_id=customer_id,soft_delete=soft_delete)
-        if not res:
-            raise HTTPException(
-                status_code=400,
-                detail=ErrorResponseTypDict(
+        if not res or isinstance(res,ErrorResponseTypDict):
+            detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
-                    success=False,
-                    msg="Error : Deleting customer",
-                    description="Invalid user input"
-                )
+                    msg="Error : Deleting Customer",
+                    description="A Unknown Error, Please Try Again Later!"
+                ) if not isinstance(res,ErrorResponseTypDict) else res
+            
+            raise HTTPException(
+                status_code=detail.status_code,
+                detail=detail.model_dump(mode='json')
             )
         
         return SuccessResponseTypDict(
@@ -163,15 +170,16 @@ class HandleCustomersRequest:
     @catch_errors  
     async def recover(self,data:RecoverCustomerSchema):    
         res=await CustomersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).recover(customer_id=data.customer_id)
-        if not res:
-            raise HTTPException(
-                status_code=400,
-                detail=ErrorResponseTypDict(
+        if not res or isinstance(res,ErrorResponseTypDict):
+            detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
-                    success=False,
-                    msg="Error : Recovering customer",
-                    description="Invalid user input"
-                )
+                    msg="Error : Recovering Customer",
+                    description="A Unknown Error, Please Try Again Later!"
+                ) if not isinstance(res,ErrorResponseTypDict) else res
+            
+            raise HTTPException(
+                status_code=detail.status_code,
+                detail=detail.model_dump(mode='json')
             )
         
         return SuccessResponseTypDict(

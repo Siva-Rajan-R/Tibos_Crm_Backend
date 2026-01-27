@@ -1,14 +1,16 @@
 from typing import TypedDict,Optional,Any
+from pydantic import BaseModel
 
 
-class BaseResponseTypDict(TypedDict):
+class BaseResponseTypDict(BaseModel):
     msg:str
     status_code:int
     success:bool
 
-class SuccessResponseTypDict(TypedDict):
+class SuccessResponseTypDict(BaseModel):
     detail:BaseResponseTypDict
     data:Optional[Any]=None
 
-class ErrorResponseTypDict(BaseResponseTypDict,TypedDict):
+
+class ErrorResponseTypDict(BaseResponseTypDict):
     description:str

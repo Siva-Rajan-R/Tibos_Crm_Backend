@@ -15,6 +15,7 @@ from core.decorators.error_handler_dec import catch_errors
 from schemas.db_schemas.contact import AddContactDbSchema,UpdateContactDbSchema
 from schemas.request_schemas.contact import AddContactSchema,UpdateContactSchema
 from ..repos.contact_repo import ContactsRepo
+from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
 
 
 
@@ -37,11 +38,11 @@ class ContactsService(BaseServiceModel):
         
         contact_obj=ContactsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id)
         if (await contact_obj.is_contact_exists(email=data.email,mobile_number=data.mobile_number,customer_id=data.customer_id)):
-            return False
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Contact",description="Contact with the given email or mobile number already exists for the customer")
         
         is_cust_exists=await CustomersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(customer_id=data.customer_id)
         if not is_cust_exists or len(is_cust_exists)<1:
-            return False
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Contact",description="Customer with the given id does not exist")
         
         contact_id=generate_uuid(data=data.name)
         return await contact_obj.add(data=AddContactDbSchema(**data.model_dump(mode='json'),id=contact_id))
@@ -50,7 +51,7 @@ class ContactsService(BaseServiceModel):
     async def update(self,data:UpdateContactSchema):
         data_toupdate=data.model_dump(mode='json',exclude_unset=True,exclude_none=True)
         if not data_toupdate or len(data_toupdate)<1:
-            return False
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Contact",description="No valid fields to update provided")
         
         return await ContactsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateContactDbSchema(**data_toupdate))
         

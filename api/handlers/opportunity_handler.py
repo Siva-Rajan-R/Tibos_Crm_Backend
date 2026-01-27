@@ -31,20 +31,22 @@ class HandleOpportunitiesRequest:
                     description="Insufficient permission",
                     status_code=401,
                     success=False
-                )
+                ).model_dump(mode='json')
             )
     
     @catch_errors
     async def add(self,data:CreateOpportunitySchema):
         res= await OpportunitiesService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(data=data)
-        if not res:
-            raise HTTPException(
-                status_code=400,
-                detail=ErrorResponseTypDict(
+        if not res or isinstance(res,ErrorResponseTypDict):
+            detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
                     msg="Error : Creating Opportunity",
-                    description="A Opportunity or Account already exists or Invalid inputs !"
-                )
+                    description="A Unknown Error, Please Try Again Later!"
+                ) if not isinstance(res,ErrorResponseTypDict) else res
+            
+            raise HTTPException(
+                status_code=detail.status_code,
+                detail=detail.model_dump(mode='json')
             )
         return SuccessResponseTypDict(
             detail=BaseResponseTypDict(
@@ -57,15 +59,16 @@ class HandleOpportunitiesRequest:
     @catch_errors
     async def update(self,data:UpdateOpportunitySchema):
         res=await OpportunitiesService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=data)
-        if not res:
-            raise HTTPException(
-                status_code=400,
-                detail=ErrorResponseTypDict(
+        if not res or isinstance(res,ErrorResponseTypDict):
+            detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
-                    success=False,
-                    msg="Error : Updaing Opportunity",
-                    description="Invalid user input"
-                )
+                    msg="Error : Updating Opportunity",
+                    description="A Unknown Error, Please Try Again Later!"
+                ) if not isinstance(res,ErrorResponseTypDict) else res
+            
+            raise HTTPException(
+                status_code=detail.status_code,
+                detail=detail.model_dump(mode='json')
             )
         
         return SuccessResponseTypDict(
@@ -79,15 +82,16 @@ class HandleOpportunitiesRequest:
     @catch_errors
     async def delete(self, opportunity_id: str, soft_delete: bool = True):
         res = await OpportunitiesService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete(opportunity_id=opportunity_id,soft_delete=soft_delete)
-        if not res:
-            raise HTTPException(
-                status_code=400,
-                detail=ErrorResponseTypDict(
+        if not res or isinstance(res,ErrorResponseTypDict):
+            detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
-                    success=False,
-                    msg="Error : Deleting opportunity",
-                    description="Invalid user input"
-                )
+                    msg="Error : Deleting Opportunity",
+                    description="A Unknown Error, Please Try Again Later!"
+                ) if not isinstance(res,ErrorResponseTypDict) else res
+            
+            raise HTTPException(
+                status_code=detail.status_code,
+                detail=detail.model_dump(mode='json')
             )
         
         return SuccessResponseTypDict(
@@ -101,15 +105,16 @@ class HandleOpportunitiesRequest:
     @catch_errors
     async def recover(self, data:RecoverOpportunitySchema):
         res = await OpportunitiesService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).recover(opportunity_id=data.opportunity_id)
-        if not res:
-            raise HTTPException(
-                status_code=400,
-                detail=ErrorResponseTypDict(
+        if not res or isinstance(res,ErrorResponseTypDict):
+            detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
-                    success=False,
-                    msg="Error : Recovering opportunity",
-                    description="Invalid user input"
-                )
+                    msg="Error : Recovering Opportunity",
+                    description="A Unknown Error, Please Try Again Later!"
+                ) if not isinstance(res,ErrorResponseTypDict) else res
+            
+            raise HTTPException(
+                status_code=detail.status_code,
+                detail=detail.model_dump(mode='json')
             )
         
         return SuccessResponseTypDict(

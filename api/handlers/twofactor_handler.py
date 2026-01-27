@@ -34,7 +34,7 @@ class Handle2FactorRequest:
                     success=False,
                     msg="Error : Geting 2Factor qrcode",
                     description="Two facto authentication already enabled"
-                )
+                ).model_dump(mode='json')
             )
         
         issuer_name="Tibos-Crm"
@@ -66,7 +66,7 @@ class Handle2FactorRequest:
                     success=False,
                     msg="Error : Validating twofactor",
                     description="Invalid user or Time expired , please try again later"
-                )
+                ).model_dump(mode='json')
             )
         
         secret=cached_data['secret']
@@ -77,7 +77,7 @@ class Handle2FactorRequest:
                     status_code=401,
                     msg="Error : Verifying Otp",
                     description="Invalid Twofactor otp"
-                )
+                ).model_dump(mode='json')
             )
 
         # res=await UserService(session=self.session,user_role=UserRoles.SUPER_ADMIN).update_twofactor(user_toupdate_id=user_id,tf_secret=secret)

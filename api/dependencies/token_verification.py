@@ -35,7 +35,7 @@ async def verify_user(request:Request,credentials:HTTPAuthorizationCredentials=D
                 msg="Error : ",
                 description="Insufficient permission",
                 success=False
-            )
+            ).model_dump(mode='json')
         )
 
     ic(request.url.path)
@@ -70,7 +70,12 @@ async def verify_user(request:Request,credentials:HTTPAuthorizationCredentials=D
     if not user_data:
         raise HTTPException(
             status_code=401,
-            detail="user not found"
+            detail=ErrorResponseTypDict(
+                status_code=401,
+                msg="Error : ",
+                description="Invalid User",
+                success=False
+            ).model_dump(mode='json')
         )
     
     ic(decoded_token['role'],user_data['role'])
@@ -78,7 +83,12 @@ async def verify_user(request:Request,credentials:HTTPAuthorizationCredentials=D
     if decoded_token['role']!=user_data['role']:
         raise HTTPException(
             status_code=401,
-            detail="Invalid User"
+            detail=ErrorResponseTypDict(
+                msg="Error : ",
+                description="User role changed, please login again",
+                status_code=401,
+                success=False
+            ).model_dump(mode='json')
         )
 
     if not is_ipexists:

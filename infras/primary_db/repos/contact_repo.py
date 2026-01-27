@@ -14,6 +14,7 @@ from core.decorators.db_session_handler_dec import start_db_transaction
 from core.decorators.error_handler_dec import catch_errors
 from ..models.user import Users
 from schemas.db_schemas.contact import AddContactDbSchema,UpdateContactDbSchema
+from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
 
 
 
@@ -60,7 +61,7 @@ class ContactsRepo(BaseRepoModel):
     async def update(self,data:UpdateContactDbSchema):
         data_toupdate=data.model_dump(mode='json',exclude=['contact_id','customer_id'],exclude_unset=True,exclude_none=True)
         if not data_toupdate or len(data_toupdate)<1:
-            return False
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Contact",description="No data provided for update")
         
         contact_toupdate=update(Contacts).where(Contacts.id==data.contact_id,Contacts.customer_id==data.customer_id).values(
             **data_toupdate
@@ -68,7 +69,7 @@ class ContactsRepo(BaseRepoModel):
 
         is_updated=(await self.session.execute(contact_toupdate)).scalar_one_or_none()
 
-        return is_updated
+        return is_updated if is_updated else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Contact",description="Unable to update the contact, may be invalid contact id or customer id")
 
 
     @start_db_transaction
@@ -80,29 +81,28 @@ class ContactsRepo(BaseRepoModel):
                 deleted_by=self.cur_user_id
             ).returning(Contacts.id)
             is_deleted=(await self.session.execute(contact_todelete)).scalar_one_or_none()
-            return is_deleted
         
         else:
             if self.user_role if isinstance(self.user_role,UserRoles) else self.user_role!=UserRoles.SUPER_ADMIN.value:
-                return False
+                return ErrorResponseTypDict(status_code=403,success=False,msg="Error : Deleting Contact",description="Only super admin can perform hard delete operation")
             have_order=(await self.session.execute(select(Orders.id).where(Orders.customer_id==contact_id).limit(1))).scalar_one_or_none()
             if have_order:
-                return False
+                return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Deleting Contact",description="Cannot delete contact associated with existing orders. Please delete associated orders first.")
             contact_todelete=delete(Contacts).where(Contacts.id==contact_id,Contacts.customer_id==customer_id).returning(Contacts.id)
             is_deleted=(await self.session.execute(contact_todelete)).scalar_one_or_none()
 
-            return is_deleted
+        return is_deleted if is_deleted else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Deleting Contact",description="Unable to delete the contact, may be invalid contact id or customer id")
         
     @start_db_transaction
     async def recover(self,customer_id:str,contact_id:str):
         if self.user_role if isinstance(self.user_role,UserRoles) else self.user_role!=UserRoles.SUPER_ADMIN.value:
-            return False
+            return ErrorResponseTypDict(status_code=403,success=False,msg="Error : Recovering Contact",description="Only super admin can perform recover operation")
         
         contact_torecover=update(Contacts).where(Contacts.id==contact_id,Contacts.customer_id==customer_id,Contacts.is_deleted==True).values(
             is_deleted=False
         ).returning(Contacts.id)
         is_recovered=(await self.session.execute(contact_torecover)).scalar_one_or_none()
-        return is_recovered
+        return is_recovered if is_recovered else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Recovering Contact",description="Unable to recover the contact, may contact is not deleted or already recovered")
         
 
     async def get(self,offset:int,limit:int,query:str='',include_deleted:bool=False):

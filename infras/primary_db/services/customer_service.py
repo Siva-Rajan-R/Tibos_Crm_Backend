@@ -13,6 +13,7 @@ from schemas.db_schemas.customer import AddCustomerDbSchema,UpdateCustomerDbSche
 from schemas.request_schemas.customer import AddCustomerSchema,UpdateCustomerSchema
 from core.decorators.error_handler_dec import catch_errors
 from math import ceil
+from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
 
 
 
@@ -28,7 +29,7 @@ class CustomersService(BaseServiceModel):
         # Need to check if the given email or mobile number already exists or not on the customer db
         customer_obj=CustomersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id)
         if (await customer_obj.is_customer_exists(email=data.email,mobile_number=data.mobile_number)):
-            return False
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Customer",description="Customer with the given email or mobile number already exists")
         
         customer_id:str=generate_uuid()
         return await customer_obj.add(data=AddCustomerDbSchema(**data.model_dump(mode='json'),id=customer_id))
@@ -53,7 +54,7 @@ class CustomersService(BaseServiceModel):
         data_toupdate=data.model_dump(mode='json',exclude_none=True,exclude_unset=True)
 
         if not data_toupdate or len(data_toupdate)<1:
-            return False
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Customer",description="No valid fields to update provided")
         
         return await CustomersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateCustomerDbSchema(**data_toupdate))
         
