@@ -41,7 +41,8 @@ class HandleOpportunitiesRequest:
             detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
                     msg="Error : Creating Opportunity",
-                    description="A Unknown Error, Please Try Again Later!"
+                    description="A Unknown Error, Please Try Again Later!",
+                    success=False
                 ) if not isinstance(res,ErrorResponseTypDict) else res
             
             raise HTTPException(
@@ -63,7 +64,8 @@ class HandleOpportunitiesRequest:
             detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
                     msg="Error : Updating Opportunity",
-                    description="A Unknown Error, Please Try Again Later!"
+                    description="A Unknown Error, Please Try Again Later!",
+                    success=False
                 ) if not isinstance(res,ErrorResponseTypDict) else res
             
             raise HTTPException(
@@ -86,7 +88,8 @@ class HandleOpportunitiesRequest:
             detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
                     msg="Error : Deleting Opportunity",
-                    description="A Unknown Error, Please Try Again Later!"
+                    description="A Unknown Error, Please Try Again Later!",
+                    success=False
                 ) if not isinstance(res,ErrorResponseTypDict) else res
             
             raise HTTPException(
@@ -109,7 +112,8 @@ class HandleOpportunitiesRequest:
             detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
                     msg="Error : Recovering Opportunity",
-                    description="A Unknown Error, Please Try Again Later!"
+                    description="A Unknown Error, Please Try Again Later!",
+                    success=False
                 ) if not isinstance(res,ErrorResponseTypDict) else res
             
             raise HTTPException(

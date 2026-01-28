@@ -55,7 +55,8 @@ class HandleUserRequest:
             detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
                     msg="Error : Creating User",
-                    description="A Unknown Error, Please Try Again Later!"
+                    description="A Unknown Error, Please Try Again Later!",
+                    success=False
                 ) if not isinstance(res,ErrorResponseTypDict) else res
             
             raise HTTPException(
@@ -92,7 +93,8 @@ class HandleUserRequest:
             detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
                     msg="Error : Updating User",
-                    description="A Unknown Error, Please Try Again Later!"
+                    description="A Unknown Error, Please Try Again Later!",
+                    success=False
                 ) if not isinstance(res,ErrorResponseTypDict) else res
             
             raise HTTPException(
@@ -117,7 +119,8 @@ class HandleUserRequest:
             detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
                     msg="Error : Updating User Role",
-                    description="A Unknown Error, Please Try Again Later!"
+                    description="A Unknown Error, Please Try Again Later!",
+                    success=False
                 ) if not isinstance(res,ErrorResponseTypDict) else res
             
             raise HTTPException(
@@ -153,7 +156,8 @@ class HandleUserRequest:
             detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
                     msg="Error : Reseting Password",
-                    description="A Unknown Error, Please Try Again Later!"
+                    description="A Unknown Error, Please Try Again Later!",
+                    success=False
                 ) if not isinstance(res,ErrorResponseTypDict) else res
             
             raise HTTPException(
@@ -176,7 +180,8 @@ class HandleUserRequest:
             detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
                     msg="Error : Deleting User",
-                    description="A Unknown Error, Please Try Again Later!"
+                    description="A Unknown Error, Please Try Again Later!",
+                    success=False
                 ) if not isinstance(res,ErrorResponseTypDict) else res
             
             raise HTTPException(
@@ -200,7 +205,8 @@ class HandleUserRequest:
             detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
                     msg="Error : Recovering User",
-                    description="A Unknown Error, Please Try Again Later!"
+                    description="A Unknown Error, Please Try Again Later!",
+                    success=False
                 ) if not isinstance(res,ErrorResponseTypDict) else res
             
             raise HTTPException(

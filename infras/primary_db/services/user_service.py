@@ -57,7 +57,7 @@ class UserService(BaseServiceModel):
         user_id:str=generate_uuid()
         pwd=token_urlsafe(16)
         hashed_pwd=hash_data(data=pwd)
-        await UserRepo(session=self.session,user_role=self.user_role).add(data=AddUserDbSchema(**data.model_dump(mode='json'),id=user_id,password=hashed_pwd))
+        await UserRepo(session=self.session,user_role=self.user_role,cur_user_id='').add(data=AddUserDbSchema(**data.model_dump(mode='json'),id=user_id,password=hashed_pwd))
         return {'password':pwd}
         
     

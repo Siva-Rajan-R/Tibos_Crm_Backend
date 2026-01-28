@@ -56,7 +56,8 @@ class HandleCustomersRequest:
             detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
                     msg="Error : Creating Customer",
-                    description="A Unknown Error, Please Try Again Later!"
+                    description="A Unknown Error, Please Try Again Later!",
+                    success=False
                 ) if not isinstance(res,ErrorResponseTypDict) else res
             
             raise HTTPException(
@@ -100,7 +101,8 @@ class HandleCustomersRequest:
         detail:ErrorResponseTypDict=ErrorResponseTypDict(
                 status_code=400,
                 msg="Error : Creating Customers",
-                description="A Unknown Error, Please Try Again Later!"
+                description="A Unknown Error, Please Try Again Later!",
+                success=False
             ) if not isinstance(res,ErrorResponseTypDict) else res
         
         raise HTTPException(
@@ -128,7 +130,8 @@ class HandleCustomersRequest:
             detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
                     msg="Error : Update Customer",
-                    description="A Unknown Error, Please Try Again Later!"
+                    description="A Unknown Error, Please Try Again Later!",
+                    success=False
                 ) if not isinstance(res,ErrorResponseTypDict) else res
             
             raise HTTPException(
@@ -151,7 +154,8 @@ class HandleCustomersRequest:
             detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
                     msg="Error : Deleting Customer",
-                    description="A Unknown Error, Please Try Again Later!"
+                    description="A Unknown Error, Please Try Again Later!",
+                    success=False
                 ) if not isinstance(res,ErrorResponseTypDict) else res
             
             raise HTTPException(
@@ -174,7 +178,8 @@ class HandleCustomersRequest:
             detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
                     msg="Error : Recovering Customer",
-                    description="A Unknown Error, Please Try Again Later!"
+                    description="A Unknown Error, Please Try Again Later!",
+                    success=False
                 ) if not isinstance(res,ErrorResponseTypDict) else res
             
             raise HTTPException(

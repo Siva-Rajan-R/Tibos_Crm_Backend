@@ -54,7 +54,8 @@ class HandleContactsRequest:
             detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
                     msg="Error : Creating Contact",
-                    description="A Unknown Error, Please Try Again Later!"
+                    description="A Unknown Error, Please Try Again Later!",
+                    success=False
                 ) if not isinstance(res,ErrorResponseTypDict) else res
             
             raise HTTPException(
@@ -79,7 +80,7 @@ class HandleContactsRequest:
                     status_code=400,
                     success=False,
                     msg="Error : Creating contact ",
-                    description="Invalid input data, May be its a mobile number"
+                    description="Invalid input data, May be its a mobile number",
                 ).model_dump(mode='json')
             )
         res=await ContactsService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=data)
@@ -87,7 +88,8 @@ class HandleContactsRequest:
             detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
                     msg="Error : Updating Contact",
-                    description="A Unknown Error, Please Try Again Later!"
+                    description="A Unknown Error, Please Try Again Later!",
+                    success=False
                 ) if not isinstance(res,ErrorResponseTypDict) else res
             
             raise HTTPException(
@@ -110,7 +112,8 @@ class HandleContactsRequest:
             detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
                     msg="Error : Deleting Contact",
-                    description="A Unknown Error, Please Try Again Later!"
+                    description="A Unknown Error, Please Try Again Later!",
+                    success=False
                 ) if not isinstance(res,ErrorResponseTypDict) else res
             
             raise HTTPException(
@@ -133,7 +136,8 @@ class HandleContactsRequest:
             detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
                     msg="Error : Recovering Contact",
-                    description="A Unknown Error, Please Try Again Later!"
+                    description="A Unknown Error, Please Try Again Later!",
+                    success=False
                 ) if not isinstance(res,ErrorResponseTypDict) else res
             
             raise HTTPException(

@@ -51,7 +51,8 @@ class HandleOrdersRequest:
             detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
                     msg="Error : Creating Order",
-                    description="A Unknown Error, Please Try Again Later!"
+                    description="A Unknown Error, Please Try Again Later!",
+                    success=False
                 ) if not isinstance(res,ErrorResponseTypDict) else res
             
             raise HTTPException(
@@ -83,7 +84,8 @@ class HandleOrdersRequest:
             detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
                     msg="Error : Updating Order",
-                    description="A Unknown Error, Please Try Again Later!"
+                    description="A Unknown Error, Please Try Again Later!",
+                    success=False
                 ) if not isinstance(res,ErrorResponseTypDict) else res
             
             raise HTTPException(
@@ -107,7 +109,8 @@ class HandleOrdersRequest:
             detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
                     msg="Error : Deleting Order",
-                    description="A Unknown Error, Please Try Again Later!"
+                    description="A Unknown Error, Please Try Again Later!",
+                    success=False
                 ) if not isinstance(res,ErrorResponseTypDict) else res
             
             raise HTTPException(
@@ -130,7 +133,8 @@ class HandleOrdersRequest:
             detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
                     msg="Error : Recovering Order",
-                    description="A Unknown Error, Please Try Again Later!"
+                    description="A Unknown Error, Please Try Again Later!",
+                    success=False
                 ) if not isinstance(res,ErrorResponseTypDict) else res
             
             raise HTTPException(

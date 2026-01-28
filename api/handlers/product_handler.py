@@ -42,7 +42,8 @@ class HandleProductsRequest:
             detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
                     msg="Error : Creating Product",
-                    description="A Unknown Error, Please Try Again Later!"
+                    description="A Unknown Error, Please Try Again Later!",
+                    success=False
                 ) if not isinstance(res,ErrorResponseTypDict) else res
             
             raise HTTPException(
@@ -85,7 +86,8 @@ class HandleProductsRequest:
         detail:ErrorResponseTypDict=ErrorResponseTypDict(
                 status_code=400,
                 msg="Error : Creating Contact",
-                description="A Unknown Error, Please Try Again Later!"
+                description="A Unknown Error, Please Try Again Later!",
+                success=False
             ) if not isinstance(res,ErrorResponseTypDict) else res
         
         raise HTTPException(
@@ -101,7 +103,8 @@ class HandleProductsRequest:
             detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
                     msg="Error : Updating Product",
-                    description="A Unknown Error, Please Try Again Later!"
+                    description="A Unknown Error, Please Try Again Later!",
+                    success=False
                 ) if not isinstance(res,ErrorResponseTypDict) else res
             
             raise HTTPException(
@@ -125,7 +128,8 @@ class HandleProductsRequest:
             detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
                     msg="Error : Deleting Product",
-                    description="A Unknown Error, Please Try Again Later!"
+                    description="A Unknown Error, Please Try Again Later!",
+                    success=False
                 ) if not isinstance(res,ErrorResponseTypDict) else res
             
             raise HTTPException(
@@ -148,7 +152,8 @@ class HandleProductsRequest:
             detail:ErrorResponseTypDict=ErrorResponseTypDict(
                     status_code=400,
                     msg="Error : Recovering Product",
-                    description="A Unknown Error, Please Try Again Later!"
+                    description="A Unknown Error, Please Try Again Later!",
+                    success=False
                 ) if not isinstance(res,ErrorResponseTypDict) else res
             
             raise HTTPException(

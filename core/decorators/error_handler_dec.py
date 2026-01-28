@@ -25,7 +25,7 @@ def catch_errors(func):
                             description="Invalid ids",
                             msg="Error : Some of the ID are not matching, please ensure all are correct",
                             success=False
-                        )
+                        ).model_dump(mode='json')
                     )
                 
             except Exception as e:
@@ -36,8 +36,8 @@ def catch_errors(func):
                         status_code=500,
                         msg="Error : Internal server error",
                         description=f"Try agin the request after sometimes , if it's persist. contact our team support@debuggers.com {e}",
-                        succsess=False
-                    )
+                        success=False
+                    ).model_dump(mode='json')
                 )
         return wrapper
 
@@ -57,7 +57,7 @@ def catch_errors(func):
                         msg="Error : Internal server error",
                         description="Try agin the request after sometimes , if it's persist. contact our team support@debuggers.com",
                         succsess=False
-                    )
+                    ).model_dump(mode='json')
                 )
             
         return wrapper
