@@ -16,6 +16,7 @@ from core.decorators.db_session_handler_dec import start_db_transaction
 from math import ceil
 from ..models.user import Users
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
+from core.data_formats.enums.filters_enum import OrdersFilters
 
 
 
@@ -117,48 +118,81 @@ class OrdersRepo(BaseRepoModel):
         return is_recovered if is_recovered else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Recovering Order",description="Unable to recover the order, may order is not deleted or already recovered")
 
 
-    async def get(self,offset:int=1,limit:int=10,query:str='',include_deleted:bool=False):
-        search_term=f"%{query.lower()}%"
-        cursor=(offset-1)*limit
-        date_expr=func.date(func.timezone("Asia/Kolkata",Orders.created_at))
-        deleted_at=func.date(func.timezone("Asia/Kolkata",Orders.deleted_at))
-        cols=[*self.orders_cols]
-        if include_deleted:
-            cols.extend([Users.name.label('deleted_by'),deleted_at.label('deleted_at')])
+    async def get(
+        self,
+        offset: int = 1,
+        limit: int = 10,
+        query: str = '',
+        include_deleted: bool = False,
+        filter: OrdersFilters | None = None
+    ):
+        conditions = []
+        total_orders_condition=[]
 
-        queried_orders=(await self.session.execute(
-            select(
-                *cols,
-                date_expr.label("order_created_at") 
+        search_term = f"%{query.lower()}%"
+        cursor = (offset - 1) * limit
+
+        # ---------------- BASE CONDITIONS ----------------
+        conditions.append(
+            or_(
+                Orders.id.ilike(search_term),
+                Orders.distributor_id.ilike(search_term),
+                Products.name.ilike(search_term),
+                Products.id.ilike(search_term),
+                Products.product_type.ilike(search_term),
+                Customers.name.ilike(search_term),
+                Customers.email.ilike(search_term),
+                Customers.mobile_number.ilike(search_term),
+                func.cast(Orders.created_at, String).ilike(search_term),
+                Orders.invoice_status.ilike(search_term),
+                Orders.payment_status.ilike(search_term),
+                Orders.invoice_number.ilike(search_term),
+                Orders.invoice_date.ilike(search_term),
+                Orders.purchase_type.ilike(search_term),
+                Orders.renewal_type.ilike(search_term),
+                Distributors.name.ilike(search_term)
             )
-            .join(Products,Products.id==Orders.product_id,isouter=True)
-            .join(Customers,Customers.id==Orders.customer_id,isouter=True)
-            .join(Distributors,Distributors.id==Orders.distributor_id,isouter=True)
-            .join(Users,Users.id==Orders.deleted_by,isouter=True) 
-            .limit(limit)
-            .where(
-                or_(
-                    Orders.id.ilike(search_term),
-                    Orders.distributor_id.ilike(search_term),
-                    Products.name.ilike(search_term),
-                    Products.id.ilike(search_term),
-                    Products.product_type.ilike(search_term),
-                    Customers.name.ilike(search_term),
-                    Customers.email.ilike(search_term),
-                    Customers.mobile_number.ilike(search_term),
-                    func.cast(Orders.created_at,String).ilike(search_term),
-                    Orders.invoice_status.ilike(search_term),
-                    Orders.payment_status.ilike(search_term),
-                    Orders.invoice_number.ilike(search_term),
-                    Orders.invoice_date.ilike(search_term),
-                    Orders.purchase_type.ilike(search_term),
-                    Orders.renewal_type.ilike(search_term),
-                    Distributors.name.ilike(search_term)
-                ),
-                Orders.sequence_id>cursor,
-                Orders.is_deleted==include_deleted
+        )
+
+        # conditions.append(Orders.sequence_id > cursor)
+        conditions.append(Orders.is_deleted.is_(include_deleted))
+
+        # ---------------- FILTER LOGIC (IMPORTANT) ----------------
+        if filter == OrdersFilters.PENDING_DUES:
+            conditions.append(Orders.payment_status == PaymentStatus.NOT_PAID.value)
+            total_orders_condition.append(Orders.payment_status == PaymentStatus.NOT_PAID.value)
+
+        elif filter == OrdersFilters.PENDING_INVOICE:
+            conditions.append(Orders.invoice_status == InvoiceStatus.INCOMPLETED.value)
+            total_orders_condition.append(Orders.invoice_status == InvoiceStatus.INCOMPLETED.value)
+
+        # ---------------- DATE FIELDS ----------------
+        date_expr = func.date(func.timezone("Asia/Kolkata", Orders.created_at))
+        deleted_at = func.date(func.timezone("Asia/Kolkata", Orders.deleted_at))
+
+        cols = [*self.orders_cols]
+        if include_deleted:
+            cols.extend([
+                Users.name.label("deleted_by"),
+                deleted_at.label("deleted_at")
+            ])
+
+        queried_orders = (
+            await self.session.execute(
+                select(
+                    *cols,
+                    date_expr.label("order_created_at")
+                )
+                .join(Products, Products.id == Orders.product_id, isouter=True)
+                .join(Customers, Customers.id == Orders.customer_id, isouter=True)
+                .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
+                .join(Users, Users.id == Orders.deleted_by, isouter=True)
+                .where(*conditions)
+                .offset(cursor)
+                .limit(limit)
             )
-        )).mappings().all()
+        ).mappings().all()
+
 
         total_orders:int=0
         total_revenue=0
@@ -179,11 +213,13 @@ class OrdersRepo(BaseRepoModel):
             )
 
             total_revenue=(await self.session.execute(
-                func.sum(margin_amount)
+                select(func.sum(margin_amount))
+                .where(Orders.is_deleted==False)
             )).scalar()
             
             total_orders=(await self.session.execute(
-                func.count(Orders.id)
+                select(func.count(Orders.id))
+                .where(Orders.is_deleted==False,*total_orders_condition)
             )).scalar_one_or_none()
 
 
@@ -194,12 +230,14 @@ class OrdersRepo(BaseRepoModel):
             pending_invoice=(
                 await self.session.execute(
                     select(
-                        func.count().filter(Orders.invoice_status == InvoiceStatus.INCOMPLETED.value).label("pending_invoices"))
-                    )
+                        func.count().filter(Orders.invoice_status == InvoiceStatus.INCOMPLETED.value).label("pending_invoices")
+                    ).where(Orders.is_deleted==False)
+                )
             ).scalar_one_or_none()
             pending_dues=(
                 await self.session.execute(
                     select(func.count().filter(Orders.payment_status == PaymentStatus.NOT_PAID.value).label("pending_dues"))
+                    .where(Orders.is_deleted==False)
                 )
             ).scalar_one_or_none()
 

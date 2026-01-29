@@ -133,11 +133,11 @@ class ProductsRepo(BaseRepoModel):
         low_qty:int=0
         if offset == 1:
             total_products=(await self.session.execute(
-                select(func.count(Products.id))
+                select(func.count(Products.id)).where(Products.is_deleted==False)
             )).scalar_one_or_none()
 
             low_qty=(await self.session.execute(
-                select(func.count()).select_from(Products).where(Products.available_qty<=self.low_qty_thershold)
+                select(func.count()).select_from(Products).where(Products.available_qty<=self.low_qty_thershold,Products.is_deleted==False)
             )).scalar()
 
         return {

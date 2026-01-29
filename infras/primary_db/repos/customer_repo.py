@@ -148,7 +148,7 @@ class CustomersRepo(BaseRepoModel):
         total_customers:int=0
         if offset==1:
             total_customers=(await self.session.execute(
-                select(func.count(Customers.id))
+                select(func.count(Customers.id)).where(Customers.is_deleted==False)
             )).scalar_one_or_none()
 
         return {

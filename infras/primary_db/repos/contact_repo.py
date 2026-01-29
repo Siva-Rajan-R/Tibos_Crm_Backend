@@ -143,7 +143,7 @@ class ContactsRepo(BaseRepoModel):
         total_contacts:int=0
         if offset==1:
             total_contacts=(await self.session.execute(
-                select(func.count(Contacts.id))
+                select(func.count(Contacts.id)).where(Contacts.is_deleted==False)
             )).scalar_one_or_none()
 
         return {

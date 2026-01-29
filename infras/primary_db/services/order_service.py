@@ -19,6 +19,7 @@ from core.decorators.error_handler_dec import catch_errors
 from math import ceil
 from typing import Optional
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
+from core.data_formats.enums.filters_enum import OrdersFilters
 
 
 
@@ -73,8 +74,8 @@ class OrdersService(BaseServiceModel):
         return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).recover(order_id=order_id,customer_id=customer_id)
 
     @catch_errors
-    async def get(self,offset:int=1,limit:int=10,query:str='',include_deleted:Optional[bool]=False):
-        return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(offset=offset,limit=limit,query=query,include_deleted=include_deleted)
+    async def get(self,offset:int=1,limit:int=10,query:str='',include_deleted:Optional[bool]=False,filter:OrdersFilters=None):
+        return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(offset=offset,limit=limit,query=query,include_deleted=include_deleted,filter=filter)
     
     @catch_errors
     async def search(self,query:str):

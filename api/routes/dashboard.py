@@ -40,6 +40,8 @@ async def get_dashboard_totals(from_date: Optional[datetime]=Query(None),to_date
         func.count().filter(Orders.invoice_status == InvoiceStatus.INCOMPLETED.value).label("pending_invoices"),
         func.round(func.sum(margin_amount)).label("total_revenue"),
         func.round(func.sum(Orders.final_price)).label("order_value")
+    ).where(
+        Orders.is_deleted==False
     ).group_by(
         day_expr
     ).order_by(

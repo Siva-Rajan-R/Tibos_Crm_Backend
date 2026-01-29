@@ -113,7 +113,7 @@ class DistributorsRepo(BaseRepoModel):
         total_distributors:int=0
         if offset==1:
             total_distributors=(await self.session.execute(
-                select(func.count(Distributors.id))
+                select(func.count(Distributors.id)).where(Distributors.is_deleted==False)
             )).scalar_one_or_none()
 
         return {
