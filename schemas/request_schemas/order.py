@@ -12,6 +12,7 @@ class AddOrderSchema(BaseModel):
     total_price:float
     discount:str
     final_price:float
+    margin:str
     delivery_info:DeliveryInfo
     payment_status:PaymentStatus
     invoice_status:InvoiceStatus
@@ -25,6 +26,7 @@ class UpdateOrderSchema(BaseModel):
     order_id:str
     customer_id:str
     product_id:str
+    margin:Optional[str]=None
     distributor_id:Optional[str]=None
     quantity:Optional[int]=None
     total_price:Optional[float]=None

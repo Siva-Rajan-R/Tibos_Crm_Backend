@@ -13,6 +13,7 @@ class AddOrderDbSchema(BaseModel):
     total_price:float
     discount:str
     final_price:float
+    margin:str
     delivery_info:DeliveryInfo
     payment_status:PaymentStatus
     invoice_status:InvoiceStatus
@@ -31,6 +32,7 @@ class UpdateOrderDbSchema(BaseModel):
     total_price:Optional[float]=None
     discount:Optional[str]=None
     final_price:Optional[float]=None
+    margin:Optional[str]=None
     delivery_info:Optional[DeliveryInfo]=None
     payment_status:Optional[PaymentStatus]=None
     invoice_status:Optional[InvoiceStatus]=None

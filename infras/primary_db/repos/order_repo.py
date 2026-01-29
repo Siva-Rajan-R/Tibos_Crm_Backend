@@ -1,10 +1,11 @@
+from typing import cast
 from . import HTTPException,BaseRepoModel
 from ..models.order import Orders
 from ..models.product import Products
 from ..models.customer import Customers
 from ..models.distributor import Distributors
 from core.utils.uuid_generator import generate_uuid
-from sqlalchemy import select,delete,update,or_,func,String
+from sqlalchemy import Numeric, select,delete,update,or_,func,String,cast,case
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
 from core.data_formats.enums.common_enums import UserRoles
@@ -45,7 +46,8 @@ class OrdersRepo(BaseRepoModel):
             Orders.invoice_number,
             Orders.invoice_date,
             Orders.purchase_type,
-            Orders.renewal_type
+            Orders.renewal_type,
+            Orders.margin
         )
 
     async def is_order_exists(self,customer_id:str,product_id:str):
@@ -150,7 +152,8 @@ class OrdersRepo(BaseRepoModel):
                     Orders.invoice_number.ilike(search_term),
                     Orders.invoice_date.ilike(search_term),
                     Orders.purchase_type.ilike(search_term),
-                    Orders.renewal_type.ilike(search_term)
+                    Orders.renewal_type.ilike(search_term),
+                    Distributors.name.ilike(search_term)
                 ),
                 Orders.sequence_id>cursor,
                 Orders.is_deleted==include_deleted
@@ -159,22 +162,35 @@ class OrdersRepo(BaseRepoModel):
 
         total_orders:int=0
         total_revenue=0
-        highest_revenue=0
+        order_value=0
         pending_dues=0
         pending_invoice=0
         ic(offset)
         if offset==1:
+            margin_amount = case(
+                (
+                    Orders.margin.like('%\%%'),
+                    # percentage margin
+                    Orders.final_price * cast(
+                        func.replace(Orders.margin, '%', ''), Numeric
+                    ) / 100
+                ),
+                else_=cast(func.coalesce(Orders.margin,'0'), Numeric)
+            )
+
+            total_revenue=(await self.session.execute(
+                func.sum(margin_amount)
+            )).scalar()
+            
             total_orders=(await self.session.execute(
                 func.count(Orders.id)
             )).scalar_one_or_none()
 
-            total_revenue=(await self.session.execute(
-                func.sum(Orders.final_price)
-            )).scalar_one_or_none()
 
-            highest_revenue=(await self.session.execute(
-                select(func.max(Orders.final_price))
+            order_value=(await self.session.execute(
+                func.sum(Orders.final_price)
             )).scalar()
+
             pending_invoice=(
                 await self.session.execute(
                     select(
@@ -191,8 +207,8 @@ class OrdersRepo(BaseRepoModel):
             'orders':queried_orders,
             'total_orders':total_orders,
             'total_pages':ceil(total_orders/limit),
-            'total_revenue':total_revenue,
-            'highest_revenue':highest_revenue,
+            'total_revenue':round(total_revenue),
+            'order_value':round(order_value),
             'pending_invoice':pending_invoice,
             'pending_dues':pending_dues
         }
@@ -224,7 +240,8 @@ class OrdersRepo(BaseRepoModel):
                     Orders.invoice_number.ilike(search_term),
                     Orders.invoice_date.ilike(search_term),
                     Orders.purchase_type.ilike(search_term),
-                    Orders.renewal_type.ilike(search_term)
+                    Orders.renewal_type.ilike(search_term),
+                    Distributors.name.ilike(search_term)
                 ),
                 Orders.is_deleted==False
             )

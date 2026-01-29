@@ -10,7 +10,7 @@ from schemas.request_schemas.order import AddOrderSchema,UpdateOrderSchema,Recov
 from core.decorators.error_handler_dec import catch_errors
 from math import ceil
 from . import HTTPException,ErrorResponseTypDict,SuccessResponseTypDict,BaseResponseTypDict
-
+from core.utils.discount_validator import validate_discount
 
 
 class HandleOrdersRequest:
@@ -43,6 +43,28 @@ class HandleOrdersRequest:
                     success=False,
                     msg="Error : Creading Order",
                     description="Enter a vaid Inovice number or Date"
+                ).model_dump(mode='json')
+            )
+
+        if data.discount and validate_discount(value=data.discount) is None:
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponseTypDict(
+                    status_code=400,
+                    success=False,
+                    msg="Error : Creating Order",
+                    description="Invalid discount format"
+                ).model_dump(mode='json')
+            )
+        
+        if data.margin and validate_discount(data.margin) is None:
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponseTypDict(
+                    status_code=400,
+                    success=False,
+                    msg="Error : Creating Order",
+                    description="Invalid margin format"
                 ).model_dump(mode='json')
             )
         
@@ -79,6 +101,29 @@ class HandleOrdersRequest:
                     description="Enter a vaid Inovice number or Date"
                 ).model_dump(mode='json')
             )
+        
+        if data.discount and validate_discount(value=data.discount) is None:
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponseTypDict(
+                    status_code=400,
+                    success=False,
+                    msg="Error : Creating Order",
+                    description="Invalid discount format"
+                ).model_dump(mode='json')
+            )
+        
+        if data.margin and validate_discount(data.margin) is None:
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponseTypDict(
+                    status_code=400,
+                    success=False,
+                    msg="Error : Creating Order",
+                    description="Invalid margin format"
+                ).model_dump(mode='json')
+            )
+        
         res = await OrdersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=data)
         if not res or isinstance(res,ErrorResponseTypDict):
             detail:ErrorResponseTypDict=ErrorResponseTypDict(
