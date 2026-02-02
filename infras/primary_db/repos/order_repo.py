@@ -48,7 +48,7 @@ class OrdersRepo(BaseRepoModel):
             Orders.invoice_date,
             Orders.purchase_type,
             Orders.renewal_type,
-            Orders.margin
+            Orders.unit_price
         )
 
     async def is_order_exists(self,customer_id:str,product_id:str):
@@ -201,19 +201,15 @@ class OrdersRepo(BaseRepoModel):
         pending_invoice=0
         ic(offset)
         if offset==1:
-            margin_amount = case(
-                (
-                    Orders.margin.like('%\%%'),
-                    # percentage margin
-                    Orders.final_price * cast(
-                        func.replace(Orders.margin, '%', ''), Numeric
-                    ) / 100
-                ),
-                else_=cast(func.coalesce(Orders.margin,'0'), Numeric)
+            profit_expr = (
+                cast(func.coalesce(Orders.unit_price, 0), Numeric) *
+                cast(func.coalesce(Orders.quantity, 0), Numeric)
+                -
+                cast(func.coalesce(Orders.total_price, 0), Numeric)
             )
 
             total_revenue=(await self.session.execute(
-                select(func.sum(margin_amount))
+                select(func.coalesce(func.sum(profit_expr), 0))
                 .where(Orders.is_deleted==False)
             )).scalar()
             

@@ -23,22 +23,18 @@ router=APIRouter(
 async def get_dashboard_totals(from_date: Optional[datetime]=Query(None),to_date:Optional[datetime]=Query(None),timezone: Optional[str] = Query("Asia/Kolkata"), session: AsyncSession = Depends(get_pg_db_session)):
 
     day_expr = func.date(func.timezone('Asia/Kolkata', Orders.created_at))
-    margin_amount = case(
-        (
-            Orders.margin.like('%\%%'),
-            # percentage margin
-            Orders.final_price * cast(
-                func.replace(Orders.margin, '%', ''), Numeric
-            ) / 100
-        ),
-        else_=cast(func.coalesce(Orders.margin,'0'), Numeric)
+    profit_expr = (
+        cast(func.coalesce(Orders.unit_price, 0), Numeric) *
+        cast(func.coalesce(Orders.quantity, 0), Numeric)
+        -
+        cast(func.coalesce(Orders.total_price, 0), Numeric)
     )
     stmt = select(
         day_expr.label("day"),
         func.count(Orders.id).label("total_orders"),
         func.count().filter(Orders.payment_status == PaymentStatus.NOT_PAID.value).label("pending_dues"),
         func.count().filter(Orders.invoice_status == InvoiceStatus.INCOMPLETED.value).label("pending_invoices"),
-        func.round(func.sum(margin_amount)).label("total_revenue"),
+        func.round(func.coalesce(func.sum(profit_expr), 0)).label("total_revenue"),
         func.round(func.sum(Orders.final_price)).label("order_value")
     ).where(
         Orders.is_deleted==False

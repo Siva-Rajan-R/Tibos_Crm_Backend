@@ -58,17 +58,6 @@ class HandleOrdersRequest:
                 ).model_dump(mode='json')
             )
         
-        if data.margin and validate_discount(data.margin) is None:
-            raise HTTPException(
-                status_code=400,
-                detail=ErrorResponseTypDict(
-                    status_code=400,
-                    success=False,
-                    msg="Error : Creating Order",
-                    description="Invalid margin format"
-                ).model_dump(mode='json')
-            )
-        
         res=await OrdersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(data=data)
         if not res or isinstance(res,ErrorResponseTypDict):
             detail:ErrorResponseTypDict=ErrorResponseTypDict(
@@ -111,17 +100,6 @@ class HandleOrdersRequest:
                     success=False,
                     msg="Error : Creating Order",
                     description="Invalid discount format"
-                ).model_dump(mode='json')
-            )
-        
-        if data.margin and validate_discount(data.margin) is None:
-            raise HTTPException(
-                status_code=400,
-                detail=ErrorResponseTypDict(
-                    status_code=400,
-                    success=False,
-                    msg="Error : Creating Order",
-                    description="Invalid margin format"
                 ).model_dump(mode='json')
             )
         

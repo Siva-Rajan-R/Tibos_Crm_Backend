@@ -16,7 +16,6 @@ class Orders(PG_BASE):
     total_price=Column(Float,nullable=False)
     discount=Column(String,nullable=False)
     final_price=Column(Float,nullable=False)
-    margin=Column(String,nullable=True)
     delivery_info=Column(JSONB,nullable=False)
     payment_status=Column(String,nullable=False)
     invoice_status=Column(String,nullable=False)
@@ -24,6 +23,7 @@ class Orders(PG_BASE):
     invoice_date=Column(String,nullable=True)
     purchase_type=Column(String,nullable=True)
     renewal_type=Column(String,nullable=True)
+    unit_price=Column(Float,nullable=True)
 
 
     customer=relationship("Customers",back_populates="order")
