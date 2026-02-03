@@ -48,7 +48,8 @@ class OrdersRepo(BaseRepoModel):
             Orders.invoice_date,
             Orders.purchase_type,
             Orders.renewal_type,
-            Orders.unit_price
+            Orders.unit_price,
+            Orders.bill_to
         )
 
     async def is_order_exists(self,customer_id:str,product_id:str):
@@ -150,7 +151,8 @@ class OrdersRepo(BaseRepoModel):
                 Orders.invoice_date.ilike(search_term),
                 Orders.purchase_type.ilike(search_term),
                 Orders.renewal_type.ilike(search_term),
-                Distributors.name.ilike(search_term)
+                Distributors.name.ilike(search_term),
+                Orders.bill_to.ilike(search_term)
             )
         )
 
@@ -205,7 +207,7 @@ class OrdersRepo(BaseRepoModel):
                 cast(func.coalesce(Orders.unit_price, 0), Numeric) *
                 cast(func.coalesce(Orders.quantity, 0), Numeric)
                 -
-                cast(func.coalesce(Orders.total_price, 0), Numeric)
+                cast(func.coalesce(Orders.final_price, 0), Numeric)
             )
 
             total_revenue=(await self.session.execute(
@@ -237,12 +239,15 @@ class OrdersRepo(BaseRepoModel):
                 )
             ).scalar_one_or_none()
 
+        ic(total_orders,limit,total_revenue,order_value)
+        ic("Hi",func.round(order_value,0))
+
         return {
             'orders':queried_orders,
             'total_orders':total_orders,
             'total_pages':ceil(total_orders/limit),
-            'total_revenue':round(total_revenue),
-            'order_value':round(order_value),
+            'total_revenue':round(total_revenue) if total_revenue else 0,
+            'order_value':round(order_value,0) if order_value else 0,
             'pending_invoice':pending_invoice,
             'pending_dues':pending_dues
         }
@@ -275,7 +280,8 @@ class OrdersRepo(BaseRepoModel):
                     Orders.invoice_date.ilike(search_term),
                     Orders.purchase_type.ilike(search_term),
                     Orders.renewal_type.ilike(search_term),
-                    Distributors.name.ilike(search_term)
+                    Distributors.name.ilike(search_term),
+                    Orders.bill_to.ilike(search_term)
                 ),
                 Orders.is_deleted==False
             )
@@ -320,19 +326,25 @@ class OrdersRepo(BaseRepoModel):
         total_revenue:int=0
         highest_revenue:int=0
         if offset==1:
+            profit_expr = (
+                ((cast(func.coalesce(Orders.unit_price, 0), Numeric) *
+                cast(func.coalesce(Orders.quantity, 0), Numeric)))
+                -
+                cast(func.coalesce(Orders.final_price, 0), Numeric)
+            )
             total_orders=(await self.session.execute(
                 select(func.count(Orders.id))
-                .where(Orders.customer_id==customer_id)
+                .where(Orders.customer_id==customer_id,Orders.is_deleted==False)
             )).scalar_one_or_none()
 
             total_revenue=(await self.session.execute(
-                select(func.sum(Orders.final_price))
-                .where(Orders.customer_id==customer_id)
+                select(func.coalesce(func.sum(profit_expr), 0))
+                .where(Orders.customer_id==customer_id,Orders.is_deleted==False)
             )).scalar_one_or_none()
 
             highest_revenue=(await self.session.execute(
                 select(func.max(Orders.final_price))
-                .where(Orders.customer_id==customer_id)
+                .where(Orders.customer_id==customer_id,Orders.is_deleted==False)
             )).scalar()
 
         return {

@@ -24,6 +24,7 @@ class Orders(PG_BASE):
     purchase_type=Column(String,nullable=True)
     renewal_type=Column(String,nullable=True)
     unit_price=Column(Float,nullable=True)
+    bill_to=Column(String,nullable=True)
 
 
     customer=relationship("Customers",back_populates="order")

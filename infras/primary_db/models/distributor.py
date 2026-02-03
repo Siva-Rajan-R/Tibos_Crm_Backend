@@ -9,7 +9,6 @@ class Distributors(PG_BASE):
     id=Column(String,primary_key=True)
     sequence_id=Column(BigInteger,Identity(always=True),nullable=False)
     name=Column(String,nullable=False)
-    product_id=Column(String,ForeignKey('products.id'),nullable=False)
     discount=Column(String,nullable=False)
     created_at=Column(TIMESTAMP(timezone=True),server_default=func.now())
     is_deleted=Column(Boolean,server_default=text("false"),nullable=False)

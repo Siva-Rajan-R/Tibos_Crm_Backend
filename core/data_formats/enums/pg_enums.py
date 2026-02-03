@@ -11,6 +11,12 @@ class ProductTypes(Enum):
 class PaymentStatus(Enum):
     PAID ='paid'.upper()
     NOT_PAID = "not paid".upper()
+    TDS_PENDING="TDS PENDING"
+    FULL_PAYMENT_RECEIVED="FULL PAYMENT RECEIVED"
+    HALF_PAYMENT_RECEIVED="HALF PAYMENT RECEIVED"
+    SHORT_PAYMENT_RECEIVED="SHORT PAYMENT RECEIVED"
+    GST_PENDING="GST PENDING"
+
 
 
 class InvoiceStatus(Enum):
@@ -106,5 +112,7 @@ class RenewalTypes(Enum):
 
 class PurchaseTypes(Enum):
     NEW_LOGO_RENEWAL="NEW-LOGO-RENEWAL"
+    NET_NEW_CUSTOMER="NET-NEW-CUSTOMER"
     EXISTING_RENEWAL="EXISTING-RENEWAL"
+    EXISTING_ADD_ON="EXISTING-ADD-ON"
 

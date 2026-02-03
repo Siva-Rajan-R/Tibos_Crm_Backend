@@ -23,9 +23,7 @@ class DistributorsRepo(BaseRepoModel):
         self.distri_cols=(
             Distributors.id,
             Distributors.name,
-            Distributors.discount,
-            Products.id.label('product_id'),
-            Products.name.label('product_name')
+            Distributors.discount
         )
 
         
@@ -93,15 +91,11 @@ class DistributorsRepo(BaseRepoModel):
                 *cols,
                 date_expr.label("created_at")
             ).limit(limit)
-            .join(Products,Products.id==Distributors.product_id,isouter=True)
-            .join(Users,Users.id==Products.deleted_by,isouter=True)
+            .join(Users,Users.id==Distributors.deleted_by,isouter=True)
             .where(
                 or_(
                     Distributors.id.ilike(search_term),
                     Distributors.name.ilike(search_term),
-                    Distributors.product_id.ilike(search_term),
-                    Products.name.ilike(search_term),
-                    Products.description.like(search_term),
                     func.cast(Distributors.created_at,String).ilike(search_term),
 
                 ),
@@ -130,15 +124,10 @@ class DistributorsRepo(BaseRepoModel):
                 Distributors.id,
                 Distributors.name,
                 Distributors.discount
-            ).join(
-                Products,Products.id==Distributors.product_id
             ).where(
                 or_(
                     Distributors.id.ilike(search_term),
                     Distributors.name.ilike(search_term),
-                    Distributors.product_id.ilike(search_term),
-                    Products.name.ilike(search_term),
-                    Products.description.like(search_term),
                     func.cast(Distributors.created_at,String).ilike(search_term)
                 ),
                 Distributors.is_deleted==False
@@ -156,7 +145,6 @@ class DistributorsRepo(BaseRepoModel):
                 *self.distri_cols,
                 date_expr.label("created_at")
             )
-            .join(Products,Products.id==Distributors.product_id)
             .where(Distributors.id==distributor_id,Distributors.is_deleted==False)
         )).mappings().one_or_none()
         

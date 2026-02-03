@@ -20,6 +20,7 @@ class AddOrderSchema(BaseModel):
     invoice_date:Optional[date]=None
     purchase_type:PurchaseTypes
     renewal_type:RenewalTypes
+    bill_to:Optional[str]=None
 
 
 class UpdateOrderSchema(BaseModel):
@@ -39,6 +40,7 @@ class UpdateOrderSchema(BaseModel):
     invoice_date:Optional[date]=None
     purchase_type:Optional[PurchaseTypes]=None
     renewal_type:Optional[RenewalTypes]=None
+    bill_to:Optional[str]=None
 
 class RecoverOrderSchema(BaseModel):
     order_id:str

@@ -24,10 +24,10 @@ async def get_dashboard_totals(from_date: Optional[datetime]=Query(None),to_date
 
     day_expr = func.date(func.timezone('Asia/Kolkata', Orders.created_at))
     profit_expr = (
-        cast(func.coalesce(Orders.unit_price, 0), Numeric) *
-        cast(func.coalesce(Orders.quantity, 0), Numeric)
+        ((cast(func.coalesce(Orders.unit_price, 0), Numeric) *
+        cast(func.coalesce(Orders.quantity, 0), Numeric)))
         -
-        cast(func.coalesce(Orders.total_price, 0), Numeric)
+        cast(func.coalesce(Orders.final_price, 0), Numeric)
     )
     stmt = select(
         day_expr.label("day"),
