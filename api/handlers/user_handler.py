@@ -32,19 +32,19 @@ class HandleUserRequest:
         self.request=request
         self.cur_user_id=cur_user_id
 
-        if isinstance(self.user_role,UserRoles):
-            self.user_role=self.user_role.value
+        # if isinstance(self.user_role,UserRoles):
+        #     self.user_role=self.user_role.value
 
-        if self.user_role!=UserRoles.SUPER_ADMIN.value:
-            raise HTTPException(
-                status_code=401,
-                detail=ErrorResponseTypDict(
-                    msg="Error : ",
-                    description="Insufficient permission",
-                    status_code=401,
-                    success=False
-                ).model_dump(mode='json')
-            )
+        # if self.user_role!=UserRoles.SUPER_ADMIN.value:
+        #     raise HTTPException(
+        #         status_code=401,
+        #         detail=ErrorResponseTypDict(
+        #             msg="Error : ",
+        #             description="Insufficient permission",
+        #             status_code=401,
+        #             success=False
+        #         ).model_dump(mode='json')
+        #     )
 
 
     @catch_errors

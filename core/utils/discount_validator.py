@@ -11,7 +11,7 @@ def validate_discount(value:str)->Optional[Union[float,str]]:
         if value[-1]=="%":
             try:
                 float(value[0:-1])
-                is_discount=value
+                is_discount=float(value)
             except:
                 is_discount=None
         else:

@@ -21,6 +21,7 @@ class AddOrderSchema(BaseModel):
     purchase_type:PurchaseTypes
     renewal_type:RenewalTypes
     bill_to:Optional[str]=None
+    vendor_commision:Optional[str]=None
 
 
 class UpdateOrderSchema(BaseModel):
@@ -41,6 +42,7 @@ class UpdateOrderSchema(BaseModel):
     purchase_type:Optional[PurchaseTypes]=None
     renewal_type:Optional[RenewalTypes]=None
     bill_to:Optional[str]=None
+    vendor_commision:Optional[str]=None
 
 class RecoverOrderSchema(BaseModel):
     order_id:str

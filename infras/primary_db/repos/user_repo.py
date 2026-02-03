@@ -1,6 +1,7 @@
 from ..models.user import UserRoles,Users
 from . import BaseRepoModel
 from sqlalchemy import select,update,delete,and_,or_,func
+from sqlalchemy.orm import aliased
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import EmailStr
 from core.utils.uuid_generator import generate_uuid
@@ -134,16 +135,32 @@ class UserRepo(BaseRepoModel):
     
 
     async def get(self,include_deleted:bool=False):
+        DeletedByUser = aliased(Users)
+        deleted_at = func.date(
+            func.timezone("Asia/Kolkata", Users.deleted_at)
+        ).label("deleted_at")
 
-        users=(await self.session.execute(
+        deleted_by_name = DeletedByUser.name
+
+        stmt = (
             select(
                 *self.users_cols,
-                func.date(func.timezone("Asia/Kolkata",Users.created_at)).label("user_created_at")
+                Users.name.label("user_name"),
+                func.date(
+                    func.timezone("Asia/Kolkata", Users.created_at)
+                ).label("user_created_at"),
+                deleted_at,
+                deleted_by_name.label("deleted_by")
             )
-            .where(
-                Users.is_deleted==include_deleted
+            .outerjoin(
+                DeletedByUser,
+                DeletedByUser.id == Users.deleted_by
             )
-        )).mappings().all()
+            .where(Users.is_deleted == include_deleted)
+        )
+
+        result = await self.session.execute(stmt)
+        users = result.mappings().all()
 
         return {'users':users}
     

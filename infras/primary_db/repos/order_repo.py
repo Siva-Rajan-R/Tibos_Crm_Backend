@@ -17,6 +17,7 @@ from math import ceil
 from ..models.user import Users
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
 from core.data_formats.enums.filters_enum import OrdersFilters
+from core.utils.discount_validator import validate_discount
 
 
 
@@ -49,7 +50,8 @@ class OrdersRepo(BaseRepoModel):
             Orders.purchase_type,
             Orders.renewal_type,
             Orders.unit_price,
-            Orders.bill_to
+            Orders.bill_to,
+            Orders.vendor_commision
         )
 
     async def is_order_exists(self,customer_id:str,product_id:str):
@@ -203,23 +205,43 @@ class OrdersRepo(BaseRepoModel):
         pending_invoice=0
         ic(offset)
         if offset==1:
+            vendor_comm_amount = case(
+                # WHEN vendor_commision LIKE '%'
+                (
+                    Orders.vendor_commision.like('%\%%'),
+                    # percentage: (unit_price * quantity) * percent / 100
+                    (
+                        cast(func.coalesce(Orders.unit_price, 0), Numeric) *
+                        cast(func.coalesce(Orders.quantity, 0), Numeric)
+                    )
+                    *
+                    (
+                        cast(func.replace(Orders.vendor_commision, '%', ''), Numeric) / 100
+                    )
+                ),
+                # ELSE flat amount
+                else_=cast(func.coalesce(Orders.vendor_commision, '0'), Numeric)
+            )
+
             profit_expr = (
-                cast(func.coalesce(Orders.unit_price, 0), Numeric) *
-                cast(func.coalesce(Orders.quantity, 0), Numeric)
+                (cast(func.coalesce(Orders.unit_price, 0), Numeric) *
+                cast(func.coalesce(Orders.quantity, 0), Numeric))
+                -
+                vendor_comm_amount
                 -
                 cast(func.coalesce(Orders.final_price, 0), Numeric)
             )
-
+            ic("iii")
             total_revenue=(await self.session.execute(
                 select(func.coalesce(func.sum(profit_expr), 0))
                 .where(Orders.is_deleted==False)
             )).scalar()
+            ic(total_revenue)
             
             total_orders=(await self.session.execute(
                 select(func.count(Orders.id))
                 .where(Orders.is_deleted==False,*total_orders_condition)
             )).scalar_one_or_none()
-
 
             order_value=(await self.session.execute(
                 func.sum(Orders.final_price)

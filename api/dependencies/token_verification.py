@@ -108,7 +108,7 @@ async def check_permission(request:Request,role:str):
     # If the roles_allowed is empty set means all the methods and routes are allowed for that role
     # if the roles_allowed is None means none of  methods and routes are allowed
     # if the roles_allowed is does not exists for the given route prefix means all the routes and methods are not allowed
-    # if the roles_allowed is exists and the prefix is exists means we need to findout the incoming method is aloowed are not
+    # if the roles_allowed is exists and the prefix is exists means we need to findout the incoming method is alowed are not
 
     if ROLES_ALLOWED[role]=={}:
         return True
@@ -124,8 +124,12 @@ async def check_permission(request:Request,role:str):
     if is_none=={}:
         return True
     
-    if ROLES_ALLOWED[role][prefix]-{method}:
-        return False
+    ic(ROLES_ALLOWED[role][prefix]-{method})
+    cur_role_len=len(ROLES_ALLOWED[role][prefix])
+    temp_role_len=len(ROLES_ALLOWED[role][prefix]-{method})
+    ROLES_ALLOWED
+    if cur_role_len!=temp_role_len:
+        return True
     
 
     
