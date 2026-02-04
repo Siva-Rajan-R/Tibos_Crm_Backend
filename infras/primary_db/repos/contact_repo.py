@@ -76,7 +76,7 @@ class ContactsRepo(BaseRepoModel):
     @start_db_transaction
     async def delete(self,customer_id:str,contact_id:str,soft_delete:bool=True):
         if soft_delete:
-            contact_todelete=update(Contacts).where(Contacts.id==contact_id,Contacts.customer_id==customer_id,Contacts.is_deleted==False).values(
+            contact_todelete=update(Contacts).where(Contacts.id==contact_id,Contacts.customer_id==customer_id).values(
                 is_deleted=True,
                 deleted_at=func.now(),
                 deleted_by=self.cur_user_id

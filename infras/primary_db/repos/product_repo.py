@@ -66,7 +66,7 @@ class ProductsRepo(BaseRepoModel):
 
     @start_db_transaction
     async def delete(self,product_id:str,soft_delete:bool=True):
-        have_order=(await self.session.execute(select(Orders.id).where(Orders.product_id==product_id,Orders.is_deleted==False).limit(1))).scalar_one_or_none()
+        have_order=(await self.session.execute(select(Orders.id).where(Orders.product_id==product_id).limit(1))).scalar_one_or_none()
         if have_order:
             return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Deleting Product",description="Unable to delete the product, as there are existing orders associated with this product")
 

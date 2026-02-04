@@ -81,7 +81,7 @@ class CustomersRepo(BaseRepoModel):
         
     @start_db_transaction
     async def delete(self,customer_id:str,soft_delete:bool=True):
-        have_order=(await self.session.execute(select(Orders.id).where(Orders.customer_id==customer_id,Orders.is_deleted==False).limit(1))).scalar_one_or_none()
+        have_order=(await self.session.execute(select(Orders.id).where(Orders.customer_id==customer_id).limit(1))).scalar_one_or_none()
         if have_order:
             return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Deleting Customer",description="Cannot delete customer with existing orders. Please delete associated orders first.")
 

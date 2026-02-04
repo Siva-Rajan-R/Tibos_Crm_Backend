@@ -8,16 +8,16 @@ class HandleRecycleBinRequests:
 
     async def get(self):
         user_role=UserRoles.SUPER_ADMIN
-        offset=1
+        cursor=1
         limit=10
         customers=await customer_service.CustomersService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True)
-        contacts=await contact_service.ContactsService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True,offset=offset,limit=limit)
+        contacts=await contact_service.ContactsService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True,cursor=cursor,limit=limit)
         users=await user_service.UserService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True)
-        products=await product_service.ProductsService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True)
-        leads=await lead_service.LeadsService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True)
-        opportunities=await opportunity_service.OpportunitiesService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True)
-        distributors=await distri_service.DistributorService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True)
-        orders=await order_service.OrdersService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True)
+        products=await product_service.ProductsService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True,cursor=cursor)
+        leads=await lead_service.LeadsService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True,cursor=cursor)
+        opportunities=await opportunity_service.OpportunitiesService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True,cursor=cursor)
+        distributors=await distri_service.DistributorService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True,cursor=cursor)
+        orders=await order_service.OrdersService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True,cursor=cursor)
 
         return [
             {
