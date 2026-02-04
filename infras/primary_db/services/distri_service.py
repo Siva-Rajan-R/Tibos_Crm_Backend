@@ -27,8 +27,6 @@ class DistributorService(BaseServiceModel):
        
     @catch_errors
     async def add(self,data:CreateDistriSchema):
-        if not (await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(product_id=data.product_id)):
-            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Distributor",description="Product with the given id does not exist")
         
         distri_id:str=generate_uuid()
         return await DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(data=CreateDistriDbSchema(**data.model_dump(mode='json'),id=distri_id))
@@ -39,9 +37,6 @@ class DistributorService(BaseServiceModel):
 
         if not data_toupdate or len(data_toupdate)<1:
             return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Distributor",description="No valid fields to update provided")
-        
-        if data.product_id and not (await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(product_id=data.product_id)):
-            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Distributor",description="Product with the given id does not exist")
         
         return await DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateDistriDbSchema(**data_toupdate))
         
