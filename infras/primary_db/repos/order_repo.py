@@ -194,6 +194,7 @@ class OrdersRepo(BaseRepoModel):
                 .join(Users, Users.id == Orders.deleted_by, isouter=True)
                 .where(*conditions,Orders.sequence_id>cursor)
                 .limit(limit)
+                .order_by(Orders.sequence_id.asc())
             )
         ).mappings().all()
 

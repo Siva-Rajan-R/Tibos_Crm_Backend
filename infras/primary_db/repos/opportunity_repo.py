@@ -153,6 +153,7 @@ class OpportunitiesRepo(BaseRepoModel):
                 Opportunities.is_deleted==include_deleted
             )
             .limit(limit)
+            .order_by(Opportunities.sequence_id.asc())
         )
 
         opportunities = result.mappings().all()

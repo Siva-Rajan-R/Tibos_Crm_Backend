@@ -146,6 +146,7 @@ class LeadsRepo(BaseRepoModel):
                     Leads.is_deleted==include_deleted
                 )
                 .limit(limit)
+                .order_by(Leads.sequence_id.asc())
             )
         ).mappings().all()
 

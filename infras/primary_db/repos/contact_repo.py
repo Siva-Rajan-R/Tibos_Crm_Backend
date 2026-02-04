@@ -137,7 +137,7 @@ class ContactsRepo(BaseRepoModel):
                 ),
                 Contacts.sequence_id>cursor,
                 Contacts.is_deleted==include_deleted
-            )
+            ).order_by(Contacts.sequence_id.asc())
         )).mappings().all()
 
         total_contacts:int=0

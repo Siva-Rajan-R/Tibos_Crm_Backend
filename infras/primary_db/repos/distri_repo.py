@@ -101,7 +101,7 @@ class DistributorsRepo(BaseRepoModel):
                 ),
                 Distributors.sequence_id>cursor,
                 Distributors.is_deleted==include_deleted
-            )
+            ).order_by(Distributors.sequence_id.asc())
         )).mappings().all()
 
         total_distributors:int=0

@@ -126,7 +126,7 @@ class ProductsRepo(BaseRepoModel):
 
             )
             .limit(limit)
-            .order_by(Products.name)
+            .order_by(Products.sequence_id.asc())
         )).mappings().all()
 
         total_products:int=0

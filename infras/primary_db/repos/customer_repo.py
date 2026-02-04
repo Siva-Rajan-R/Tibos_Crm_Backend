@@ -142,7 +142,7 @@ class CustomersRepo(BaseRepoModel):
                 ),
                 Customers.sequence_id>cursor,
                 Customers.is_deleted==include_deleted
-            ).limit(limit)
+            ).limit(limit).order_by(Customers.sequence_id.asc())
         )).mappings().all()
 
         total_customers:int=0
