@@ -22,6 +22,7 @@ class CustomersRepo(BaseRepoModel):
         self.user_role=user_role
         self.cur_user_id=cur_user_id
         self.customer_cols=(
+            Customers.sequence_id,
             Customers.id,
             Customers.name,
             Customers.mobile_number,
@@ -112,9 +113,8 @@ class CustomersRepo(BaseRepoModel):
         return is_recovered if is_recovered else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Recovering Customer",description="Unable to recover the customer, may customer is not deleted or already recovered")
         
 
-    async def get(self,offset:int=1,limit:int=10,query:str='',include_deleted:bool=False):
+    async def get(self,cursor:int=1,limit:int=10,query:str='',include_deleted:bool=False):
         search_term=f"%{query.lower()}%"
-        cursor=(offset-1)*limit
         date_expr=func.date(func.timezone("Asia/Kolkata",Customers.created_at))
         deleted_at=func.date(func.timezone("Asia/Kolkata",Customers.deleted_at))
         cols=[*self.customer_cols]
@@ -146,7 +146,7 @@ class CustomersRepo(BaseRepoModel):
         )).mappings().all()
 
         total_customers:int=0
-        if offset==1:
+        if cursor==1:
             total_customers=(await self.session.execute(
                 select(func.count(Customers.id)).where(Customers.is_deleted==False)
             )).scalar_one_or_none()
@@ -154,7 +154,8 @@ class CustomersRepo(BaseRepoModel):
         return {
             'customers':queried_customers,
             'total_customers':total_customers,
-            'total_pages':ceil(total_customers/limit)
+            'total_pages':ceil(total_customers/limit),
+            'next_cursor':queried_customers[-1]['sequence_id'] if len(queried_customers)>1 else None
         }
         
     

@@ -28,6 +28,7 @@ class OrdersRepo(BaseRepoModel):
         self.cur_user_id=cur_user_id
         self.orders_cols=(
             Orders.id,
+            Orders.sequence_id,
             Orders.customer_id,
             Orders.product_id,
             Orders.distributor_id,
@@ -123,7 +124,7 @@ class OrdersRepo(BaseRepoModel):
 
     async def get(
         self,
-        offset: int = 1,
+        cursor: int = 1,
         limit: int = 10,
         query: str = '',
         include_deleted: bool = False,
@@ -133,7 +134,7 @@ class OrdersRepo(BaseRepoModel):
         total_orders_condition=[]
 
         search_term = f"%{query.lower()}%"
-        cursor = (offset - 1) * limit
+        # cursor = (offset - 1) * limit
 
         # ---------------- BASE CONDITIONS ----------------
         conditions.append(
@@ -191,8 +192,7 @@ class OrdersRepo(BaseRepoModel):
                 .join(Customers, Customers.id == Orders.customer_id, isouter=True)
                 .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
                 .join(Users, Users.id == Orders.deleted_by, isouter=True)
-                .where(*conditions)
-                .offset(cursor)
+                .where(*conditions,Orders.sequence_id>cursor)
                 .limit(limit)
             )
         ).mappings().all()
@@ -203,8 +203,8 @@ class OrdersRepo(BaseRepoModel):
         order_value=0
         pending_dues=0
         pending_invoice=0
-        ic(offset)
-        if offset==1:
+        ic(cursor)
+        if cursor==1:
             vendor_comm_amount = case(
                 # WHEN vendor_commision LIKE '%'
                 (
@@ -263,6 +263,7 @@ class OrdersRepo(BaseRepoModel):
 
         ic(total_orders,limit,total_revenue,order_value)
         ic("Hi",func.round(order_value,0))
+        ic(queried_orders)
 
         return {
             'orders':queried_orders,
@@ -271,7 +272,8 @@ class OrdersRepo(BaseRepoModel):
             'total_revenue':round(total_revenue) if total_revenue else 0,
             'order_value':round(order_value,0) if order_value else 0,
             'pending_invoice':pending_invoice,
-            'pending_dues':pending_dues
+            'pending_dues':pending_dues,
+            'next_cursor':queried_orders[-1]['sequence_id'] if len(queried_orders)>0 else None
         }
     
     async def search(self,query:str):
@@ -329,8 +331,7 @@ class OrdersRepo(BaseRepoModel):
         return {'order':queried_orders}
         
     
-    async def get_by_customer_id(self,customer_id:str,offset:int,limit:int):
-        cursor=(offset-1)*limit
+    async def get_by_customer_id(self,customer_id:str,cursor:int,limit:int):
         date_expr=func.date(func.timezone("Asia/Kolkata",Orders.created_at))
         queried_orders=(await self.session.execute(
             select(
@@ -347,7 +348,7 @@ class OrdersRepo(BaseRepoModel):
         total_orders:int=0
         total_revenue:int=0
         highest_revenue:int=0
-        if offset==1:
+        if cursor==1 or cursor==0:
             profit_expr = (
                 ((cast(func.coalesce(Orders.unit_price, 0), Numeric) *
                 cast(func.coalesce(Orders.quantity, 0), Numeric)))
@@ -374,7 +375,8 @@ class OrdersRepo(BaseRepoModel):
             'total_orders':total_orders,
             'total_pages':ceil(total_orders/limit),
             'total_revenue':total_revenue,
-            'highest_revenue':highest_revenue
+            'highest_revenue':highest_revenue,
+            'next_cursor':queried_orders[-1]['sequence_id'] if len(queried_orders)>0 else []
         }
 
 

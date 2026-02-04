@@ -154,8 +154,18 @@ class HandleContactsRequest:
         )
     
     @catch_errors  
-    async def get(self,offset:int,limit:int,query:str=''):
-        return await ContactsService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(offset=offset,limit=limit,query=query)
+    async def get(self,cursor:int,limit:int,query:str=''):
+        if cursor is None:
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponseTypDict(
+                    status_code=400,
+                    description="No more datas found for contacts",
+                    msg="Error : fetching contacts",
+                    success=False
+                )
+            )
+        return await ContactsService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(cursor=cursor,limit=limit,query=query)
 
     @catch_errors
     async def search(self,query:str):

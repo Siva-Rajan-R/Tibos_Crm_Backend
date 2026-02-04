@@ -21,6 +21,7 @@ class DistributorsRepo(BaseRepoModel):
         self.user_role=user_role
         self.cur_user_id=cur_user_id
         self.distri_cols=(
+            Distributors.sequence_id,
             Distributors.id,
             Distributors.name,
             Distributors.discount
@@ -77,9 +78,8 @@ class DistributorsRepo(BaseRepoModel):
         is_recovered=(await self.session.execute(distributor_torecover)).scalar_one_or_none()
         return is_recovered if is_recovered else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Recovering Distributor",description="Unable to recover the distributor, may distributor is not deleted or already recovered")
 
-    async def get(self,offset:int=1,limit:int=10,query:str='',include_deleted:bool=False):
+    async def get(self,cursor:int=1,limit:int=10,query:str='',include_deleted:bool=False):
         search_term=f"%{query.lower()}%"
-        cursor=(offset-1)*limit
         date_expr=func.date(func.timezone("Asia/Kolkata",Distributors.created_at))
         deleted_at=func.date(func.timezone("Asia/Kolkata",Distributors.deleted_at))
         cols=[*self.distri_cols]
@@ -105,7 +105,7 @@ class DistributorsRepo(BaseRepoModel):
         )).mappings().all()
 
         total_distributors:int=0
-        if offset==1:
+        if cursor==1:
             total_distributors=(await self.session.execute(
                 select(func.count(Distributors.id)).where(Distributors.is_deleted==False)
             )).scalar_one_or_none()
@@ -113,7 +113,8 @@ class DistributorsRepo(BaseRepoModel):
         return {
             'distributors':queried_distri,
             'total_distributors':total_distributors,
-            'total_pages':ceil(total_distributors/limit)
+            'total_pages':ceil(total_distributors/limit),
+            'next_cursor':queried_distri[-1]['sequence_id'] if len(queried_distri)>1 else None
         }
         
     

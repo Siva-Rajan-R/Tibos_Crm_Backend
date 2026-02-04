@@ -59,8 +59,8 @@ class OpportunitiesService(BaseServiceModel):
         return await OpportunitiesRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).recover(opportunity_id=opportunity_id)
     
     @catch_errors
-    async def get(self, offset: int = 1, limit: int = 10, query: str = "",include_deleted:Optional[bool]=False):
-        return await OpportunitiesRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(offset=offset,limit=limit,query=query,include_deleted=include_deleted)
+    async def get(self, cursor: int = 1, limit: int = 10, query: str = "",include_deleted:Optional[bool]=False):
+        return await OpportunitiesRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(cursor=cursor,limit=limit,query=query,include_deleted=include_deleted)
             
     @catch_errors
     async def get_by_lead(self, lead_id: str):

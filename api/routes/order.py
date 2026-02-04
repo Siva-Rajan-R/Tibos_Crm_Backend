@@ -66,12 +66,12 @@ async def recover_order(data:RecoverOrderSchema,user:dict=Depends(verify_user),s
 
 
 @router.get('')
-async def get_all_order(q:str=Query(''),offset:Optional[int]=Query(1),limit:Optional[int]=Query(10),filter:Optional[OrdersFilters]=Query(None),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+async def get_all_order(q:str=Query(''),cursor:Optional[int]=Query(1),limit:Optional[int]=Query(10),filter:Optional[OrdersFilters]=Query(None),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleOrdersRequest(
         session=session,
         user_role=user['role'],
         cur_user_id=user['id']
-    ).get(offset=offset,limit=limit,query=q,filter=filter)
+    ).get(cursor=cursor,limit=limit,query=q,filter=filter)
 
 
 @router.get('/search')

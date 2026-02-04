@@ -22,6 +22,7 @@ class OpportunitiesRepo(BaseRepoModel):
         self.user_role = user_role
         self.cur_user_id=cur_user_id
         self.oppr_cols=(
+            Opportunities.sequence_id,
             Opportunities.id.label("opportunity_id"),
             Opportunities.name.label("opportunity_name"),
             Opportunities.product.label("opportunity_product"),
@@ -111,8 +112,7 @@ class OpportunitiesRepo(BaseRepoModel):
         return is_recovered if is_recovered else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Recovering Opportunity",description="Unable to recover the opportunity, may opportunity is not deleted or already recovered")
 
 
-    async def get(self, offset: int = 1, limit: int = 10, query: str = "",include_deleted:bool=False):
-        cursor = (offset - 1) * limit
+    async def get(self, cursor: int = 1, limit: int = 10, query: str = "",include_deleted:bool=False):
         search = f"%{query.lower()}%"
         date_expr=func.date(func.timezone("Asia/Kolkata",Opportunities.created_at))
         deleted_at=func.date(func.timezone("Asia/Kolkata",Opportunities.deleted_at))
@@ -166,7 +166,8 @@ class OpportunitiesRepo(BaseRepoModel):
         return {
             "opportunities": opportunities,
             "total_opportunities": total,
-            "total_pages": ceil(total / limit)
+            "total_pages": ceil(total / limit),
+            'next_cursor':opportunities[-1]['sequence_id'] if len(opportunities)>1 else None
         }
             
 

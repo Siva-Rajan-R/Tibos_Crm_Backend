@@ -25,6 +25,7 @@ class ContactsRepo(BaseRepoModel):
         self.user_role=user_role
         self.cur_user_id=cur_user_id
         self.contact_cols=(
+            Contacts.sequence_id,
             Contacts.id,
             Contacts.customer_id,
             Contacts.name.label('contact_name'),
@@ -105,9 +106,8 @@ class ContactsRepo(BaseRepoModel):
         return is_recovered if is_recovered else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Recovering Contact",description="Unable to recover the contact, may contact is not deleted or already recovered")
         
 
-    async def get(self,offset:int,limit:int,query:str='',include_deleted:bool=False):
+    async def get(self,cursor:int,limit:int,query:str='',include_deleted:bool=False):
         search_term=f"%{query.lower()}%"
-        cursor=(offset-1)*limit
         date_expr=func.date(func.timezone("Asia/Kolkata",Contacts.created_at))
         deleted_at=func.date(func.timezone("Asia/Kolkata",Contacts.deleted_at))
         cols=[
@@ -141,7 +141,7 @@ class ContactsRepo(BaseRepoModel):
         )).mappings().all()
 
         total_contacts:int=0
-        if offset==1:
+        if cursor==1:
             total_contacts=(await self.session.execute(
                 select(func.count(Contacts.id)).where(Contacts.is_deleted==False)
             )).scalar_one_or_none()
@@ -149,7 +149,8 @@ class ContactsRepo(BaseRepoModel):
         return {
             'contacts':queried_contacts,
             'total_contacts':total_contacts,
-            'total_pages':ceil(total_contacts/limit)
+            'total_pages':ceil(total_contacts/limit),
+            'next_cursor':queried_contacts[-1]['sequence_id'] if len(queried_contacts)>1 else None
         }
 
 

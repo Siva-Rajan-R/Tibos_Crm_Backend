@@ -73,7 +73,7 @@ async def recover_opportunity(
 async def get_leads(
     user: dict = Depends(verify_user),
     q: str = Query(""),
-    offset: Optional[int] = Query(1),
+    cursor: Optional[int] = Query(1),
     limit: Optional[int] = Query(10),
     session: AsyncSession = Depends(get_pg_db_session)
 ):
@@ -81,7 +81,7 @@ async def get_leads(
         session=session,
         user_role=user["role"],
         cur_user_id=user['id']
-    ).get(offset=offset, limit=limit, query=q)
+    ).get(cursor=cursor, limit=limit, query=q)
 
 
 @router.get("/search")

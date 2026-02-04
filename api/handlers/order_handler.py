@@ -58,6 +58,17 @@ class HandleOrdersRequest:
                 ).model_dump(mode='json')
             )
         
+        if data.vendor_commision and validate_discount(value=data.vendor_commision) is None:
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponseTypDict(
+                    status_code=400,
+                    success=False,
+                    msg="Error : Creating Order",
+                    description="Invalid vendor discount format"
+                ).model_dump(mode='json')
+            )
+        
         res=await OrdersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(data=data)
         if not res or isinstance(res,ErrorResponseTypDict):
             detail:ErrorResponseTypDict=ErrorResponseTypDict(
@@ -100,6 +111,17 @@ class HandleOrdersRequest:
                     success=False,
                     msg="Error : Creating Order",
                     description="Invalid discount format"
+                ).model_dump(mode='json')
+            )
+        
+        if data.vendor_commision and validate_discount(value=data.vendor_commision) is None:
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponseTypDict(
+                    status_code=400,
+                    success=False,
+                    msg="Error : Creating Order",
+                    description="Invalid vendor discount format"
                 ).model_dump(mode='json')
             )
         
@@ -175,8 +197,18 @@ class HandleOrdersRequest:
         )
 
     @catch_errors
-    async def get(self,offset:int=1,limit:int=10,query:str='',filter:OrdersFilters=None):
-        return await OrdersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(offset=offset,limit=limit,query=query,filter=filter)
+    async def get(self,cursor:int=1,limit:int=10,query:str='',filter:OrdersFilters=None):
+        if cursor is None:
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponseTypDict(
+                    status_code=400,
+                    description="No more datas found for orders",
+                    msg="Error : fetching orders",
+                    success=False
+                )
+            )
+        return await OrdersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(cursor=cursor,limit=limit,query=query,filter=filter)
     
     @catch_errors
     async def search(self,query:str):

@@ -22,6 +22,7 @@ class LeadsRepo(BaseRepoModel):
         self.user_role = user_role
         self.cur_user_id=cur_user_id
         self.leads_cols=(
+            Leads.sequence_id,
             Leads.id.label("lead_id"),
             Leads.name.label("lead_name"), 
             Leads.description.label("lead_description"),
@@ -109,8 +110,7 @@ class LeadsRepo(BaseRepoModel):
         return is_recovered if is_recovered else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Recovering Lead",description="Unable to recover the lead, may lead is not deleted or already recovered")
     
 
-    async def get(self, offset: int = 1, limit: int = 10, query: str = "",include_deleted:bool=False):
-        cursor = (offset - 1) * limit
+    async def get(self, cursor: int = 1, limit: int = 10, query: str = "",include_deleted:bool=False):
         search = f"%{query.lower()}%"
 
         date_expr=func.date(func.timezone("Asia/Kolkata",Leads.created_at))
@@ -156,7 +156,8 @@ class LeadsRepo(BaseRepoModel):
         return {
             "leads": leads,
             "total_leads": total,
-            "total_pages": ceil(total / limit)
+            "total_pages": ceil(total / limit),
+            'next_cursor':leads[-1]['sequence_id'] if len(leads)>1 else None
         }
 
     async def get_by_id(self, lead_id: str):

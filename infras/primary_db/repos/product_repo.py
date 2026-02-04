@@ -22,6 +22,7 @@ class ProductsRepo(BaseRepoModel):
         self.low_qty_thershold=5
         self.cur_user_id=cur_user_id
         self.products_cols=(
+            Products.sequence_id,
             Products.id,
             Products.name,
             Products.description,
@@ -98,9 +99,8 @@ class ProductsRepo(BaseRepoModel):
         is_recovered=(await self.session.execute(prod_torecover)).scalar_one_or_none()
         return is_recovered if is_recovered else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Recovering Product",description="Unable to recover the product, may product is not deleted or already recovered")
         
-    async def get(self,offset:int=1,limit:int=10,query:str='',include_deleted:bool=False):
+    async def get(self,cursor:int=1,limit:int=10,query:str='',include_deleted:bool=False):
         search_term=f"%{query.lower()}%"
-        cursor=(offset-1)*limit
         date_expr=func.date(func.timezone("Asia/Kolkata",Products.created_at))
         deleted_at=func.date(func.timezone("Asia/Kolkata",Products.deleted_at))
         cols=[*self.products_cols]
@@ -131,7 +131,7 @@ class ProductsRepo(BaseRepoModel):
 
         total_products:int=0
         low_qty:int=0
-        if offset == 1:
+        if cursor == 1:
             total_products=(await self.session.execute(
                 select(func.count(Products.id)).where(Products.is_deleted==False)
             )).scalar_one_or_none()
@@ -144,7 +144,8 @@ class ProductsRepo(BaseRepoModel):
             'products':queried_products,
             'total_products':total_products,
             'total_pages':ceil(total_products/limit),
-            'low_quantites':low_qty
+            'low_quantites':low_qty,
+            'next_cursor':queried_products[-1]["sequence_id"] if len(queried_products)>1 else None
         }
     
 

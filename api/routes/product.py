@@ -69,12 +69,12 @@ async def recover_product(data:RecoverProductSchema,user:dict=Depends(verify_use
 
 
 @router.get('')
-async def get_all_product(q:str=Query(''),offset:Optional[int]=Query(1),limit:Optional[int]=Query(10),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+async def get_all_product(q:str=Query(''),cursor:Optional[int]=Query(1),limit:Optional[int]=Query(10),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleProductsRequest(
         session=session,
         user_role=user['role'],
         cur_user_id=user['id']
-    ).get(offset=offset,limit=limit,query=q)
+    ).get(cursor=cursor,limit=limit,query=q)
 
 @router.get('/search')
 async def get_searched_product(q:str=Query(...),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):

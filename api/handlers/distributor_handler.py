@@ -156,8 +156,18 @@ class HandleDistributorRequest:
         )
         
     @catch_errors
-    async def get(self,offset:int=1,limit:int=10,query:str=''):
-        return await DistributorService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(offset=offset,limit=limit,query=query)
+    async def get(self,cursor:int=1,limit:int=10,query:str=''):
+        if cursor is None:
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponseTypDict(
+                    status_code=400,
+                    description="No more datas found for distributor",
+                    msg="Error : fetching distributor",
+                    success=False
+                )
+            )
+        return await DistributorService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(cursor=cursor,limit=limit,query=query)
         
     @catch_errors
     async def search(self,query:str):
