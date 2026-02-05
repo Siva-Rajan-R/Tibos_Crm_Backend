@@ -116,3 +116,7 @@ class PurchaseTypes(Enum):
     EXISTING_RENEWAL="EXISTING-RENEWAL"
     EXISTING_ADD_ON="EXISTING-ADD-ON"
 
+class DistributorType(Enum):
+    REBATE="REBATE"
+    NON_REBATE="NON-REBATE"
+

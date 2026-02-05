@@ -52,7 +52,8 @@ class OrdersRepo(BaseRepoModel):
             Orders.renewal_type,
             Orders.unit_price,
             Orders.bill_to,
-            Orders.vendor_commision
+            Orders.vendor_commision,
+            Orders.distributor_type
         )
 
     async def is_order_exists(self,customer_id:str,product_id:str):
@@ -155,7 +156,8 @@ class OrdersRepo(BaseRepoModel):
                 Orders.purchase_type.ilike(search_term),
                 Orders.renewal_type.ilike(search_term),
                 Distributors.name.ilike(search_term),
-                Orders.bill_to.ilike(search_term)
+                Orders.bill_to.ilike(search_term),
+                Orders.distributor_type.ilike(search_term)
             )
         )
 
@@ -306,7 +308,8 @@ class OrdersRepo(BaseRepoModel):
                     Orders.purchase_type.ilike(search_term),
                     Orders.renewal_type.ilike(search_term),
                     Distributors.name.ilike(search_term),
-                    Orders.bill_to.ilike(search_term)
+                    Orders.bill_to.ilike(search_term),
+                    Orders.distributor_type.ilike(search_term)
                 ),
                 Orders.is_deleted==False
             )
