@@ -20,6 +20,9 @@ from math import ceil
 from typing import Optional
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
 from core.data_formats.enums.filters_enum import OrdersFilters
+from ..models.ui_id import TablesUiLId
+from core.utils.ui_id_generator import generate_ui_id
+from core.constants import UI_ID_STARTING_DIGIT
 
 
 
@@ -52,7 +55,9 @@ class OrdersService(BaseServiceModel):
             return ErrorResponseTypDict
         
         order_id:str=generate_uuid()
-        return await order_obj.add(data=AddOrderDbSchema(**data.model_dump(mode='json'),id=order_id))
+        lui_id:str=(await self.session.execute(select(TablesUiLId.order_luiid))).scalar_one_or_none()
+        cur_uiid=generate_ui_id(prefix="ORD",last_id=lui_id)
+        return await order_obj.add(data=AddOrderDbSchema(**data.model_dump(mode='json'),id=order_id,ui_id=cur_uiid))
         # need to implement invoice generation process + email sending
     
     @catch_errors

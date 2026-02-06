@@ -7,6 +7,7 @@ from ..main import PG_BASE
 class Distributors(PG_BASE):
     __tablename__="distributors"
     id=Column(String,primary_key=True)
+    ui_id=Column(String,nullable=True)
     sequence_id=Column(BigInteger,Identity(always=True),nullable=False)
     name=Column(String,nullable=False)
     discount=Column(String,nullable=False)

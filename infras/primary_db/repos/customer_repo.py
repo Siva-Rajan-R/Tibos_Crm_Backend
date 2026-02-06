@@ -13,6 +13,7 @@ from core.decorators.db_session_handler_dec import start_db_transaction
 from math import ceil
 from ..models.user import Users
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
+from ..models.ui_id import TablesUiLId
 
 
 
@@ -24,6 +25,7 @@ class CustomersRepo(BaseRepoModel):
         self.customer_cols=(
             Customers.sequence_id,
             Customers.id,
+            Customers.ui_id,
             Customers.name,
             Customers.mobile_number,
             Customers.email,
@@ -55,7 +57,9 @@ class CustomersRepo(BaseRepoModel):
     @start_db_transaction
     async def add(self,data:AddCustomerDbSchema):
 
-        self.session.add(Customers(**data.model_dump(mode='json')))
+        self.session.add(Customers(**data.model_dump(mode='json',exclude=['lui_id'])))
+    
+        await self.session.execute(update(TablesUiLId).where(TablesUiLId.id=="1").values(customer_luiid=data.ui_id))
 
         return True
     

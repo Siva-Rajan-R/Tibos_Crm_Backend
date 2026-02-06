@@ -16,6 +16,9 @@ from schemas.db_schemas.contact import AddContactDbSchema,UpdateContactDbSchema
 from schemas.request_schemas.contact import AddContactSchema,UpdateContactSchema
 from ..repos.contact_repo import ContactsRepo
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
+from ..models.ui_id import TablesUiLId
+from core.utils.ui_id_generator import generate_ui_id
+from core.constants import UI_ID_STARTING_DIGIT
 
 
 
@@ -45,7 +48,10 @@ class ContactsService(BaseServiceModel):
             return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Contact",description="Customer with the given id does not exist")
         
         contact_id=generate_uuid(data=data.name)
-        return await contact_obj.add(data=AddContactDbSchema(**data.model_dump(mode='json'),id=contact_id))
+        lui_id:str=(await self.session.execute(select(TablesUiLId.contact_luiid))).scalar_one_or_none()
+        cur_uiid=generate_ui_id(prefix="CONTC",last_id=lui_id)
+
+        return await contact_obj.add(data=AddContactDbSchema(**data.model_dump(mode='json'),id=contact_id,ui_id=cur_uiid,lui_id=lui_id))
         
     @catch_errors  
     async def update(self,data:UpdateContactSchema):

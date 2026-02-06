@@ -4,7 +4,9 @@ from core.data_formats.enums.pg_enums import OpportunityStatus, BillingType
 
 
 class CreateOpportunityDbSchema(BaseModel):
+    lui_id:Optional[str]=None
     id:str
+    ui_id:str
     lead_id: str
     name: str
     product: str

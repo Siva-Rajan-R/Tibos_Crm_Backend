@@ -14,6 +14,9 @@ from schemas.request_schemas.customer import AddCustomerSchema,UpdateCustomerSch
 from core.decorators.error_handler_dec import catch_errors
 from math import ceil
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
+from ..models.ui_id import TablesUiLId
+from core.utils.ui_id_generator import generate_ui_id
+from core.constants import UI_ID_STARTING_DIGIT
 
 
 
@@ -32,7 +35,9 @@ class CustomersService(BaseServiceModel):
             return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Customer",description="Customer with the given email or mobile number already exists")
         
         customer_id:str=generate_uuid()
-        return await customer_obj.add(data=AddCustomerDbSchema(**data.model_dump(mode='json'),id=customer_id))
+        lui_id:str=(await self.session.execute(select(TablesUiLId.customer_luiid))).scalar_one_or_none()
+        cur_uiid=generate_ui_id(prefix="CUST",last_id=lui_id)
+        return await customer_obj.add(data=AddCustomerDbSchema(**data.model_dump(mode='json'),id=customer_id,ui_id=cur_uiid,lui_id=lui_id))
     
     @catch_errors
     async def add_bulk(self,datas:List[dict]):

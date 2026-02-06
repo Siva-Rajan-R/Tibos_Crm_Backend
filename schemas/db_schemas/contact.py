@@ -3,6 +3,8 @@ from typing import Optional,List
 
 
 class AddContactDbSchema(BaseModel):
+    lui_id:Optional[str]=None
+    ui_id:str
     id:str
     name:str
     customer_id:str

@@ -6,6 +6,7 @@ from ..main import PG_BASE
 class Contacts(PG_BASE):
     __tablename__="contacts"
     id=Column(String,primary_key=True)
+    ui_id=Column(String,nullable=True)
     sequence_id=Column(Integer,Identity(always=True),nullable=False)
     customer_id=Column(String,ForeignKey("customers.id",ondelete="CASCADE"))
     name=Column(String,nullable=False)

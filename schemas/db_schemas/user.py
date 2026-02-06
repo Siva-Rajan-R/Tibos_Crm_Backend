@@ -3,7 +3,9 @@ from core.data_formats.enums.common_enums import UserRoles
 from typing import Optional
 
 class AddUserDbSchema(BaseModel):
+    lui_id:Optional[str]=None
     id:str
+    ui_id:str
     name:str
     email:EmailStr
     role:UserRoles

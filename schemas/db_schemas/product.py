@@ -3,7 +3,9 @@ from core.data_formats.enums.pg_enums import ProductTypes
 from typing import Optional
 
 class AddProductDbSchema(BaseModel):
+    lui_id:Optional[str]=None
     id:str
+    ui_id:str
     name:str
     description:str
     price:float

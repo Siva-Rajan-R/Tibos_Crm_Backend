@@ -5,7 +5,9 @@ from core.data_formats.enums.pg_enums import LeadSource, LeadStatus
 
 
 class AddLeadDbSchema(BaseModel):
+    lui_id:Optional[str]=None
     id:str
+    ui_id:str
     name: str
     email: Optional[EmailStr] = None
     phone: str

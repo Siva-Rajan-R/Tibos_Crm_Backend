@@ -15,6 +15,7 @@ from core.decorators.error_handler_dec import catch_errors
 from ..models.user import Users
 from schemas.db_schemas.contact import AddContactDbSchema,UpdateContactDbSchema
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
+from ..models.ui_id import TablesUiLId
 
 
 
@@ -27,6 +28,7 @@ class ContactsRepo(BaseRepoModel):
         self.contact_cols=(
             Contacts.sequence_id,
             Contacts.id,
+            Contacts.ui_id,
             Contacts.customer_id,
             Contacts.name.label('contact_name'),
             Contacts.email.label('contact_email'),
@@ -54,7 +56,8 @@ class ContactsRepo(BaseRepoModel):
     @start_db_transaction
     async def add(self,data:AddContactDbSchema):
         """using this method we can add the contacts to the db"""
-        self.session.add(Contacts(**data.model_dump(mode='json')))
+        self.session.add(Contacts(**data.model_dump(mode='json',exclude=['lui_id'])))
+        await self.session.execute(update(TablesUiLId).where(TablesUiLId.id=="1").values(contact_luiid=data.ui_id))
         return True
 
 

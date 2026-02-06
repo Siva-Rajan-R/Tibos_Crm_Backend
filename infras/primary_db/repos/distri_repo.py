@@ -13,6 +13,7 @@ from core.decorators.db_session_handler_dec import start_db_transaction
 from math import ceil
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
 from ..models.user import Users
+from ..models.ui_id import TablesUiLId
 
 
 class DistributorsRepo(BaseRepoModel):
@@ -23,6 +24,7 @@ class DistributorsRepo(BaseRepoModel):
         self.distri_cols=(
             Distributors.sequence_id,
             Distributors.id,
+            Distributors.ui_id,
             Distributors.name,
             Distributors.discount
         )
@@ -30,7 +32,8 @@ class DistributorsRepo(BaseRepoModel):
         
     @start_db_transaction
     async def add(self,data:CreateDistriDbSchema):
-        self.session.add(Distributors(**data.model_dump(mode='json')))
+        self.session.add(Distributors(**data.model_dump(mode='json',exclude=['lui_id'])))
+        await self.session.execute(update(TablesUiLId).where(TablesUiLId.id=="1").values(distri_luiid=data.ui_id))
         return True
         
     @start_db_transaction  

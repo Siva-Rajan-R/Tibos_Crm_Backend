@@ -12,6 +12,7 @@ from math import ceil
 from ..models.user import Users
 from typing import List
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
+from ..models.ui_id import TablesUiLId
 
 
 
@@ -23,6 +24,7 @@ class ProductsRepo(BaseRepoModel):
         self.cur_user_id=cur_user_id
         self.products_cols=(
             Products.sequence_id,
+            Products.ui_id,
             Products.id,
             Products.name,
             Products.description,
@@ -41,7 +43,8 @@ class ProductsRepo(BaseRepoModel):
     
     @start_db_transaction
     async def add(self,data:AddProductDbSchema):
-        self.session.add(Products(**data.model_dump(mode='json')))
+        self.session.add(Products(**data.model_dump(mode='json',exclude=['lui_id'])))
+        await self.session.execute(update(TablesUiLId).where(TablesUiLId.id=="1").values(product_luiid=data.ui_id))
         return True
     
     @start_db_transaction

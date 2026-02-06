@@ -7,6 +7,7 @@ class Leads(PG_BASE):
     __tablename__ = "leads"
 
     id = Column(String, primary_key=True)
+    ui_id=Column(String,nullable=True)
     sequence_id=Column(Integer,Identity(always=True),nullable=False)
     name = Column(String, nullable=False)
     email = Column(String,nullable=False)

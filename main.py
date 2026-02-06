@@ -4,6 +4,9 @@ from fastapi.middleware.cors import CORSMiddleware
 from infras.primary_db.services.user_service import UserService,UserRoles
 from infras.primary_db.main import init_pg_db
 from infras.caching.main import check_redis_health,redis_client
+from sqlalchemy.dialects.postgresql import insert
+
+from infras.primary_db.models.ui_id import TablesUiLId
 from icecream import ic
 from infras.primary_db.main import AsyncLocalSession
 import sys,subprocess,asyncio
@@ -34,6 +37,8 @@ async def api_lifespan(app:FastAPI):
         await init_pg_db()
         async with AsyncLocalSession() as session:
             await UserService(session=session,user_role=UserRoles.SUPER_ADMIN,cur_user_id='').init_superadmin()
+            await session.execute(insert(TablesUiLId).values(id="1").on_conflict_do_nothing(index_elements=["id"]))
+            await session.commit()
         await check_redis_health()
         # await redis_client.flushall()
         yield

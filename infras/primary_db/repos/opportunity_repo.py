@@ -14,6 +14,7 @@ from datetime import datetime
 from math import ceil
 from ..models.user import Users
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
+from ..models.ui_id import TablesUiLId
 
 
 class OpportunitiesRepo(BaseRepoModel):
@@ -23,6 +24,7 @@ class OpportunitiesRepo(BaseRepoModel):
         self.cur_user_id=cur_user_id
         self.oppr_cols=(
             Opportunities.sequence_id,
+            Opportunities.ui_id,
             Opportunities.id.label("opportunity_id"),
             Opportunities.name.label("opportunity_name"),
             Opportunities.product.label("opportunity_product"),
@@ -47,7 +49,8 @@ class OpportunitiesRepo(BaseRepoModel):
     
     @start_db_transaction
     async def add(self,data:CreateOpportunityDbSchema):
-        self.session.add(Opportunities(**data.model_dump(mode='json')))
+        self.session.add(Opportunities(**data.model_dump(mode='json',exclude=['lui_id'])))
+        await self.session.execute(update(TablesUiLId).where(TablesUiLId.id=="1").values(oppor_luiid=data.ui_id))
         return True
 
 

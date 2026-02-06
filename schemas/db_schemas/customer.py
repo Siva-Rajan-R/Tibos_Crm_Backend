@@ -4,7 +4,9 @@ from core.data_formats.enums.pg_enums import CustomerIndustries,CustomerSectors
 from core.data_formats.typed_dicts.customer_dict import CustomerAddressTypDict
 
 class AddCustomerDbSchema(BaseModel):
+    lui_id:Optional[str]=None
     id:str
+    ui_id:str
     name:str
     mobile_number:str
     email:EmailStr

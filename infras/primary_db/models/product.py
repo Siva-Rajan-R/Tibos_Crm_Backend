@@ -7,6 +7,7 @@ from core.data_formats.enums.pg_enums import ProductTypes
 class Products(PG_BASE):
     __tablename__="products"
     id=Column(String,primary_key=True)
+    ui_id=Column(String,nullable=True)
     sequence_id=Column(Integer,Identity(always=True),nullable=False)
     name=Column(String,nullable=False)
     part_number=Column(String,nullable=False,unique=True)

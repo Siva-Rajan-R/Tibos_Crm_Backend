@@ -16,6 +16,9 @@ from core.decorators.error_handler_dec import catch_errors
 from datetime import datetime
 from math import ceil
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
+from ..models.ui_id import TablesUiLId
+from core.utils.ui_id_generator import generate_ui_id
+from core.constants import UI_ID_STARTING_DIGIT
 
 
 class OpportunitiesService(BaseServiceModel):
@@ -39,7 +42,9 @@ class OpportunitiesService(BaseServiceModel):
         
         
         oppr_id:str=generate_uuid()
-        return await OpportunitiesRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(data=CreateOpportunityDbSchema(**data.model_dump(mode='json'),id=oppr_id))
+        lui_id:str=(await self.session.execute(select(TablesUiLId.oppor_luiid))).scalar_one_or_none()
+        cur_uiid=generate_ui_id(prefix="OPPR",last_id=lui_id,lui_id=lui_id)
+        return await OpportunitiesRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(data=CreateOpportunityDbSchema(**data.model_dump(mode='json'),id=oppr_id,ui_id=cur_uiid))
 
 
     @catch_errors

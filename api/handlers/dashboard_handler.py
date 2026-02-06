@@ -38,7 +38,7 @@ class HandleDashboardRequest:
             (cast(func.coalesce(Orders.unit_price, 0), Numeric) *
             cast(func.coalesce(Orders.quantity, 0), Numeric))
             -
-            vendor_comm_amount
+            (vendor_comm_amount*cast(func.coalesce(Orders.quantity, 0), Numeric))
             -
             cast(func.coalesce(Orders.final_price, 0), Numeric)
         )

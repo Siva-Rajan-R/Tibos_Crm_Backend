@@ -1,6 +1,8 @@
 from core.data_formats.enums.common_enums import UserRoles
 from typing import Optional,Dict
 
+UI_ID_STARTING_DIGIT=100000
+
 ROLES_ALLOWED:Dict[str,Dict[str,set|None]]={
     UserRoles.ADMIN.value:{
         'user':None

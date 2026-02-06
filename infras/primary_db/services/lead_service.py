@@ -14,6 +14,9 @@ from schemas.db_schemas.lead import AddLeadDbSchema,UpdateLeadDbSchema
 from schemas.request_schemas.lead import AddLeadSchema,UpdateLeadSchema
 from core.decorators.error_handler_dec import catch_errors
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
+from ..models.ui_id import TablesUiLId
+from core.utils.ui_id_generator import generate_ui_id
+from core.constants import UI_ID_STARTING_DIGIT
 
 
 class LeadsService(BaseServiceModel):
@@ -31,7 +34,9 @@ class LeadsService(BaseServiceModel):
             return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Lead",description="Lead with the given email or phone number already exists")
         
         lead_id:str=generate_uuid()
-        return await lead_obj.add(data=AddLeadDbSchema(**data.model_dump(),id=lead_id))
+        lui_id:str=(await self.session.execute(select(TablesUiLId.lead_luiid))).scalar_one_or_none()
+        cur_uiid=generate_ui_id(prefix="LEAD",last_id=lui_id)
+        return await lead_obj.add(data=AddLeadDbSchema(**data.model_dump(),id=lead_id,ui_id=cur_uiid,lui_id=lui_id))
     
     @catch_errors
     async def update(self,data:UpdateLeadSchema):

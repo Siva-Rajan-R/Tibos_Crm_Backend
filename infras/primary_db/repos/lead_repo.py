@@ -14,6 +14,7 @@ from core.decorators.db_session_handler_dec import start_db_transaction
 from pydantic import EmailStr
 from ..models.user import Users
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
+from ..models.ui_id import TablesUiLId
 
 
 class LeadsRepo(BaseRepoModel):
@@ -24,6 +25,7 @@ class LeadsRepo(BaseRepoModel):
         self.leads_cols=(
             Leads.sequence_id,
             Leads.id.label("lead_id"),
+            Leads.ui_id,
             Leads.name.label("lead_name"), 
             Leads.description.label("lead_description"),
             Leads.phone.label("lead_phone"),
@@ -51,7 +53,8 @@ class LeadsRepo(BaseRepoModel):
 
     @start_db_transaction
     async def add(self,data:AddLeadDbSchema):
-        self.session.add(Leads(**data.model_dump()))
+        self.session.add(Leads(**data.model_dump(exclude=['lui_id'])))
+        await self.session.execute(update(TablesUiLId).where(TablesUiLId.id=="1").values(lead_luiid=data.ui_id))
         return True
     
     @start_db_transaction

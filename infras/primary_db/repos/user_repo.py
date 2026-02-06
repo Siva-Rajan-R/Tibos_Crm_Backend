@@ -15,6 +15,7 @@ from security.data_hashing import verfiy_hashed,hash_data
 from core.decorators.db_session_handler_dec import start_db_transaction
 from secrets import token_urlsafe
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
+from ..models.ui_id import TablesUiLId
 
 DEFAULT_SUPERADMIN_INFO=json.loads(os.getenv('DEFAULT_SUPERADMIN_INFO'))
  
@@ -28,7 +29,8 @@ class UserRepo(BaseRepoModel):
             Users.id,
             Users.email,
             Users.name,
-            Users.role
+            Users.role,
+            Users.ui_id
         )
 
     async def isuser_exists(self,user_id_email:str):
@@ -48,7 +50,8 @@ class UserRepo(BaseRepoModel):
     @start_db_transaction
     async def add(self,data:AddUserDbSchema):      
 
-        self.session.add(Users(**data.model_dump(mode='json')))
+        self.session.add(Users(**data.model_dump(mode='json',exclude=['lui_id'])))
+        await self.session.execute(update(TablesUiLId).where(TablesUiLId.id=="1").values(user_luiid=data.ui_id))
         
         return True
     

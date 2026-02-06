@@ -5,7 +5,9 @@ from typing import Optional
 from datetime import date
 
 class AddOrderDbSchema(BaseModel):
+    lui_id:Optional[str]=None
     id:str
+    ui_id:str
     customer_id:str
     product_id:str
     distributor_id:str

@@ -1,5 +1,5 @@
 from fastapi import APIRouter,Depends,HTTPException,BackgroundTasks,Request,Query
-from schemas.request_schemas.user import UserRoleUpdateSchema,AddUserSchema,UpdateUserSchema,RecoverUserSchema
+from schemas.request_schemas.user import UserRoleUpdateSchema,AddUserSchema,UpdateUserSchema,RecoverUserSchema,PasswordResetSchema
 from ..handlers.user_handler import HandleUserRequest,UserRoles
 from infras.primary_db.main import get_pg_db_session
 from api.dependencies.token_verification import verify_user
@@ -29,6 +29,10 @@ async def add_user(data:AddUserSchema,request:Request,bgt:BackgroundTasks,user:d
 async def update_user(data:UpdateUserSchema,request:Request,bgt:BackgroundTasks,user:dict=Depends(verify_user),session=Depends(get_pg_db_session)):
     user = await HandleUserRequest(session=session,user_role=user['role'],cur_user_id=user['id'],bgt=bgt,request=request).update(data=data)
     return user
+
+@router.put('/pwd/reset')
+async def reset_user_pwd(data:PasswordResetSchema,request:Request,bgt:BackgroundTasks,user:dict=Depends(verify_user),session=Depends(get_pg_db_session)):
+    return await HandleUserRequest(session=session,user_role=user['role'],cur_user_id=user['id'],bgt=bgt,request=request).reset_pwd(data=data)
 
 @router.get('')
 async def get_users(request:Request,bgt:BackgroundTasks,user:dict=Depends(verify_user),session=Depends(get_pg_db_session)):

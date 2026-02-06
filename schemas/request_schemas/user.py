@@ -18,3 +18,7 @@ class UserRoleUpdateSchema(BaseModel):
 
 class RecoverUserSchema(BaseModel):
     user_id:str
+
+class PasswordResetSchema(BaseModel):
+    user_id:str
+    new_password:str

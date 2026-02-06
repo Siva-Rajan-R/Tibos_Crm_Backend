@@ -9,6 +9,7 @@ class Opportunities(PG_BASE):
     __tablename__ = "opportunities"
 
     id = Column(String, primary_key=True)
+    ui_id=Column(String,nullable=True)
     sequence_id=Column(Integer,Identity(always=True),nullable=False)
     lead_id = Column(
         String,

@@ -16,6 +16,9 @@ from schemas.request_schemas.distributor import CreateDistriSchema,UpdateDistriS
 from core.decorators.error_handler_dec import catch_errors
 from math import ceil
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
+from ..models.ui_id import TablesUiLId
+from core.utils.ui_id_generator import generate_ui_id
+from core.constants import UI_ID_STARTING_DIGIT
 
 
 class DistributorService(BaseServiceModel):
@@ -29,7 +32,9 @@ class DistributorService(BaseServiceModel):
     async def add(self,data:CreateDistriSchema):
         
         distri_id:str=generate_uuid()
-        return await DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(data=CreateDistriDbSchema(**data.model_dump(mode='json'),id=distri_id))
+        lui_id:str=(await self.session.execute(select(TablesUiLId.distri_luiid))).scalar_one_or_none()
+        cur_uiid=generate_ui_id(prefix="DIST",last_id=lui_id)
+        return await DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(data=CreateDistriDbSchema(**data.model_dump(mode='json'),id=distri_id,ui_id=cur_uiid,lui_id=lui_id))
         
     @catch_errors  
     async def update(self,data:UpdateDistriSchema):

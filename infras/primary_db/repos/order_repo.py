@@ -18,7 +18,7 @@ from ..models.user import Users
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
 from core.data_formats.enums.filters_enum import OrdersFilters
 from core.utils.discount_validator import validate_discount
-
+from ..models.ui_id import TablesUiLId
 
 
 class OrdersRepo(BaseRepoModel):
@@ -28,6 +28,7 @@ class OrdersRepo(BaseRepoModel):
         self.cur_user_id=cur_user_id
         self.orders_cols=(
             Orders.id,
+            Orders.ui_id,
             Orders.sequence_id,
             Orders.customer_id,
             Orders.product_id,
@@ -70,7 +71,8 @@ class OrdersRepo(BaseRepoModel):
 
     @start_db_transaction
     async def add(self,data:AddOrderDbSchema):
-        self.session.add(Orders(**data.model_dump(mode='json')))
+        self.session.add(Orders(**data.model_dump(mode='json',exclude=['lui_id'])))
+        await self.session.execute(update(TablesUiLId).where(TablesUiLId.id=="1").values(order_luiid=data.ui_id))
         # need to implement invoice generation process + email sending
         return True
     
@@ -230,7 +232,7 @@ class OrdersRepo(BaseRepoModel):
                 (cast(func.coalesce(Orders.unit_price, 0), Numeric) *
                 cast(func.coalesce(Orders.quantity, 0), Numeric))
                 -
-                vendor_comm_amount
+                (vendor_comm_amount*cast(func.coalesce(Orders.quantity, 0), Numeric))
                 -
                 cast(func.coalesce(Orders.final_price, 0), Numeric)
             )

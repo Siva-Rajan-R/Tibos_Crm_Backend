@@ -8,7 +8,7 @@ from icecream import ic
 from core.data_formats.enums.common_enums import UserRoles
 import os,json
 from schemas.db_schemas.user import AddUserDbSchema,UpdateUserDbSchema
-from schemas.request_schemas.user import AddUserSchema,UpdateUserSchema,RecoverUserSchema
+from schemas.request_schemas.user import AddUserSchema,UpdateUserSchema,RecoverUserSchema,PasswordResetSchema
 from schemas.request_schemas.auth import AuthForgotAcceptSchema,AuthForgotEmailSchema,AuthSchema
 from typing import Optional
 from security.data_hashing import verfiy_hashed,hash_data
@@ -151,6 +151,17 @@ class HandleUserRequest:
                 )
             )
         
+        if len(data.confirm_password)<7:
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponseTypDict(
+                    msg="Error : Resteing Password",
+                    description="Password length Should be greater than 6",
+                    status_code=400,
+                    success=False
+                )
+            )
+        
         res=await UserService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update_password(user_toupdate_id=user_toupdate_id,new_password=data.confirm_password)
         if not res or isinstance(res,ErrorResponseTypDict):
             detail:ErrorResponseTypDict=ErrorResponseTypDict(
@@ -195,6 +206,40 @@ class HandleUserRequest:
                 status_code=200,
                 success=True,
                 msg="User deleted successfully"
+            )
+        )
+    
+    async def reset_pwd(self,data:PasswordResetSchema):
+        res=await UserService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update_password(user_toupdate_id=data.user_id,new_password=data.new_password)
+        if not res or isinstance(res,ErrorResponseTypDict):
+            detail:ErrorResponseTypDict=ErrorResponseTypDict(
+                    status_code=400,
+                    msg="Error : Reseting User Password",
+                    description="A Unknown Error, Please Try Again Later!",
+                    success=False
+                ) if not isinstance(res,ErrorResponseTypDict) else res
+            
+            raise HTTPException(
+                status_code=detail.status_code,
+                detail=detail.model_dump(mode='json')
+            )
+        
+        if len(data.new_password)<7:
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponseTypDict(
+                    msg="Error : Resteing Password",
+                    description="Password length Should be greater than 6",
+                    status_code=400,
+                    success=False
+                ).model_dump(mode='json')
+            )
+        
+        return SuccessResponseTypDict(
+            detail=BaseResponseTypDict(
+                msg="User Password changed successfully",
+                success=True,
+                status_code=200
             )
         )
     

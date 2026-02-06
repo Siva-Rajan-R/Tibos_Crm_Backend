@@ -15,6 +15,9 @@ from security.data_hashing import verfiy_hashed,hash_data
 from core.decorators.error_handler_dec import catch_errors
 from secrets import token_urlsafe
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
+from ..models.ui_id import TablesUiLId
+from core.utils.ui_id_generator import generate_ui_id
+from core.constants import UI_ID_STARTING_DIGIT
 
 
 DEFAULT_SUPERADMIN_INFO=json.loads(os.getenv('DEFAULT_SUPERADMIN_INFO'))
@@ -55,9 +58,11 @@ class UserService(BaseServiceModel):
             return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding User",description="User with the given email already exists")
 
         user_id:str=generate_uuid()
+        lui_id:str=(await self.session.execute(select(TablesUiLId.user_luiid))).scalar_one_or_none()
+        cur_uiid=generate_ui_id(prefix="USR",last_id=lui_id,lui_id=lui_id)
         pwd=token_urlsafe(16)
         hashed_pwd=hash_data(data=pwd)
-        await UserRepo(session=self.session,user_role=self.user_role,cur_user_id='').add(data=AddUserDbSchema(**data.model_dump(mode='json'),id=user_id,password=hashed_pwd))
+        await UserRepo(session=self.session,user_role=self.user_role,cur_user_id='').add(data=AddUserDbSchema(**data.model_dump(mode='json'),id=user_id,password=hashed_pwd,ui_id=cur_uiid))
         return {'password':pwd}
         
     
