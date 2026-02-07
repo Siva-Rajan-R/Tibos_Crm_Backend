@@ -6,7 +6,7 @@ from pydantic import EmailStr
 import aiosmtplib
 from icecream import ic
 
-from infras.caching.models.redis_model import unlink_redis
+from infras.caching.models.auth_model import unlink_auth_forgot
 from core.settings import SETTINGS
 
 
@@ -47,7 +47,7 @@ async def send_email(
 
     except Exception as e:
         ic("Error sending email:", e)
-        await unlink_redis(key=[f"forgot-req-{client_ip}"])
+        await unlink_auth_forgot(ip=client_ip)
         return False
 
 

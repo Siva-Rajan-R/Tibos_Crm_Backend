@@ -1,4 +1,5 @@
 from fastapi import APIRouter,Depends,HTTPException,Request,BackgroundTasks
+from infras.primary_db.repos.user_repo import UserRepo
 from fastapi.responses import RedirectResponse
 from fastapi.templating import Jinja2Templates
 from services.email_service import send_email
@@ -10,7 +11,7 @@ from security.jwt_token import generate_jwt_token,ACCESS_JWT_KEY,REFRESH_JWT_KEY
 from core.data_formats.enums.common_enums import UserRoles
 from api.dependencies.token_verification import verify_user
 from core.utils.uuid_generator import generate_uuid
-from infras.caching.models.redis_model import get_redis,set_redis,unlink_redis
+from infras.caching.models.auth_model import get_auth_revoke,set_auth_revoke,unlink_auth_revoke,unlink_auth_forgot,get_auth_forgot,set_auth_forgot
 from infras.primary_db.main import get_pg_db_session
 import os
 from ..handlers.user_handler import HandleUserRequest
@@ -43,8 +44,8 @@ async def auth_user(data:AuthSchema,request:Request,session=Depends(get_pg_db_se
     
     verfiy_hashed(plain_data=data.password,hashed_data=user['password'])
     
-    access_token=generate_jwt_token(data={'data':{'email':user['email'],'role':user['role'],'id':user['id']}},secret=ACCESS_JWT_KEY,alg=JWT_ALG,exp_day=7)
-    refresh_token=generate_jwt_token(data={'data':{'email':user['email'],'role':user['role'],'id':user['id']}},secret=REFRESH_JWT_KEY,alg=JWT_ALG,exp_day=7)
+    access_token=generate_jwt_token(data={'data':{'email':user['email'],'role':user['role'],'id':user['id'],'token_version':user['token_version']}},secret=ACCESS_JWT_KEY,alg=JWT_ALG,exp_day=7)
+    refresh_token=generate_jwt_token(data={'data':{'email':user['email'],'role':user['role'],'id':user['id'],'token_version':user['token_version']}},secret=REFRESH_JWT_KEY,alg=JWT_ALG,exp_day=7)
     ic(f"Auth tokens : {access_token} {refresh_token}")
     return {
         'access_token':access_token,
@@ -57,7 +58,7 @@ async def auth_user(data:AuthSchema,request:Request,session=Depends(get_pg_db_se
 @router.post('/forgot')
 async def forgot_password(data:AuthForgotEmailSchema,bgt:BackgroundTasks,request:Request,session=Depends(get_pg_db_session)):
     try:
-        forgot_req:str=await get_redis(f"forgot-req-{request.client.host}")
+        forgot_req:str=await get_auth_forgot(ip=request.client.host)
         if forgot_req:
             raise HTTPException(
                 status_code=409,
@@ -88,8 +89,7 @@ async def forgot_password(data:AuthForgotEmailSchema,bgt:BackgroundTasks,request
             client_ip=str(request.client.host)
         )
 
-        await set_redis(key=f"forgot-req-{request.client.host}",value=auth_id,expire=1000)
-        await set_redis(key=auth_id,value={'ip':request.client.host,'id':user['id'],'email':user['email'],'name':user['name']},expire=1000)
+        await set_auth_forgot(ip=request.client.host,data={'auth_id':auth_id,'ip':request.client.host,'id':user['id'],'email':user['email'],'name':user['name']})
 
         return "Sending email to user..."
     
@@ -106,16 +106,8 @@ async def forgot_password(data:AuthForgotEmailSchema,bgt:BackgroundTasks,request
 
 @router.post('/forgot/accept')
 async def accept_new_password(data:AuthForgotAcceptSchema,bgt:BackgroundTasks,request:Request,session=Depends(get_pg_db_session)):
-    forgot_req_ip:str=await get_redis(f"forgot-req-{request.client.host}")
-    auth_info:dict=await get_redis(data.auth_id)
-
-    await unlink_redis([f"forgot-req-{request.client.host}",data.auth_id])
-
-    if not forgot_req_ip:
-        raise HTTPException(
-            status_code=403,
-            detail="Not requested forgot"
-        )
+    auth_info:dict=await get_auth_forgot(ip=request.client.host)
+    await unlink_auth_forgot(ip=request.client.host)
     
     if not auth_info:
         raise HTTPException(
@@ -123,10 +115,10 @@ async def accept_new_password(data:AuthForgotAcceptSchema,bgt:BackgroundTasks,re
             detail="Auth id expired"
         )
     
-    if auth_info['ip']!=request.client.host:
+    if auth_info['auth_id']!=data.auth_id:
         raise HTTPException(
             status_code=401,
-            detail="Network interuppted"
+            detail="Invalid auth id"
         )
     
     
@@ -137,6 +129,8 @@ async def accept_new_password(data:AuthForgotAcceptSchema,bgt:BackgroundTasks,re
         user_name=auth_info['name'],
         dashboard_link=f"{FRONTEND_URL}/login"
     )
+
+    await set_auth_revoke(user_id=auth_info['id'])
 
     bgt.add_task(
         send_email,
@@ -152,9 +146,22 @@ async def accept_new_password(data:AuthForgotAcceptSchema,bgt:BackgroundTasks,re
  
 
 @router.get('/token/new')
-async def get_new_access_token(user:dict=Depends(verify_user)):
+async def get_new_access_token(bgt:BackgroundTasks,request:Request,user:dict=Depends(verify_user),session=Depends(get_pg_db_session)):
+    user_info=await UserRepo(session=session,user_role=UserRoles.SUPER_ADMIN,cur_user_id='').isuser_exists(user_id_email=user['email'])
+    if not user_info:
+        raise HTTPException(
+            status_code=403,
+            detail="Invalid Token, Please Login again"
+        )
+    
+    if user_info['role']!=user['role']:
+        raise HTTPException(
+            status_code=403,
+            detail="Invalid Token. Please Login again"
+        )
+    
     return {'access_token':generate_jwt_token(
-        data={'data':{'email':user['email'],'role':user['role']}},
+        data={'data':{'email':user['email'],'role':user['role'],'id':user['id'],'token_version':user['token_version']}},
         secret=ACCESS_JWT_KEY,
         alg=JWT_ALG,
         exp_day=7

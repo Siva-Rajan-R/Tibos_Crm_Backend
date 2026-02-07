@@ -59,10 +59,10 @@ class UserService(BaseServiceModel):
 
         user_id:str=generate_uuid()
         lui_id:str=(await self.session.execute(select(TablesUiLId.user_luiid))).scalar_one_or_none()
-        cur_uiid=generate_ui_id(prefix="USR",last_id=lui_id,lui_id=lui_id)
+        cur_uiid=generate_ui_id(prefix="USR",last_id=lui_id)
         pwd=token_urlsafe(16)
         hashed_pwd=hash_data(data=pwd)
-        await UserRepo(session=self.session,user_role=self.user_role,cur_user_id='').add(data=AddUserDbSchema(**data.model_dump(mode='json'),id=user_id,password=hashed_pwd,ui_id=cur_uiid))
+        await UserRepo(session=self.session,user_role=self.user_role,cur_user_id='').add(data=AddUserDbSchema(**data.model_dump(mode='json'),id=user_id,password=hashed_pwd,ui_id=cur_uiid,lui_id=lui_id))
         return {'password':pwd}
         
     

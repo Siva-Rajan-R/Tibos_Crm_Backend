@@ -6,7 +6,7 @@ from ..handlers.user_handler import HandleUserRequest
 from infras.primary_db.repos.user_repo import UserRepo
 from core.data_formats.enums.common_enums import UserRoles
 from icecream import ic
-from infras.caching.models.redis_model import get_redis,set_redis,unlink_redis
+from infras.caching.models.auth_model import get_auth_revoke,set_auth_revoke,unlink_auth_revoke,unlink_auth_forgot,get_auth_forgot,set_auth_forgot
 from core.constants import ROLES_ALLOWED
 from models.response_models.req_res_models import ErrorResponseTypDict,BaseResponseTypDict,SuccessResponseTypDict
 
@@ -37,67 +37,37 @@ async def verify_user(request:Request,credentials:HTTPAuthorizationCredentials=D
                 success=False
             ).model_dump(mode='json')
         )
-
-    ic(request.url.path)
-    ic(secret,decoded_token)
-    user_id:str=decoded_token.get('id')
-    ic(user_id)
-
-    is_ipexists=False
-    # checking if the incoming ip has already validated or not
-    if res:=(await get_redis(f"token-verify-{user_id}")):
-        ic('redis response',res)
-        if res['ip']==ip:
-        # if this both conditions met it will return the decoded token
-            if res['count']>=3 and res['id']==user_id:
-                # *important need to revoke if the role was change after 3 attempts
-                ic('verified and returned via redis')
-                return decoded_token
-            else:
-                """
-                if the count is lesser and token is same means then only it will increase,
-                otherwise it will unlink and create a new one after the pg db verification
-                """
-                if res['count']<3 and res['id']==user_id:
-                    is_ipexists=True
-                    res['count']=res['count']+1
-                    await set_redis(f"token-verify-{user_id}",res,expire=300)
-                else:
-                    await unlink_redis(key=[f"token-verify-{user_id}"])
-
-    user_data=(await UserRepo(session=session,user_role='',cur_user_id='').isuser_exists(user_id_email=decoded_token['email']))
-    ic(user_data)
-    if not user_data:
-        raise HTTPException(
-            status_code=401,
-            detail=ErrorResponseTypDict(
-                status_code=401,
-                msg="Error : ",
-                description="Invalid User",
-                success=False
-            ).model_dump(mode='json')
-        )
     
-    ic(decoded_token['role'],user_data['role'])
+    extracted_user_id:str=decoded_token.get('id')
+    extracted_user_role:str=decoded_token.get('role')
+    extracted_user_email:str=decoded_token.get('email')
+    extracted_user_token_version:float=decoded_token.get('token_version')
 
-    if decoded_token['role']!=user_data['role']:
-        raise HTTPException(
-            status_code=401,
-            detail=ErrorResponseTypDict(
-                msg="Error : ",
-                description="User role changed, please login again",
+    if await get_auth_revoke(user_id=extracted_user_id):
+
+        user=await UserRepo(session=session,user_role=UserRoles.SUPER_ADMIN,cur_user_id="").isuser_exists(include_deleted=False,user_id_email=extracted_user_id)
+        ic(user)
+        if not user:
+            raise HTTPException(
                 status_code=401,
-                success=False
-            ).model_dump(mode='json')
-        )
+                detail=ErrorResponseTypDict(
+                    status_code=401,
+                    msg="Error : verifying Token",
+                    description="User does not exists",
+                    success=False
+                ).model_dump(mode='json')
+            )
+        if user['token_version']!=extracted_user_token_version:
+            raise HTTPException(
+                status_code=401,
+                detail=ErrorResponseTypDict(
+                    status_code=401,
+                    msg="Error : verifying Token",
+                    description="Some of your info (Pwd,Name,Role) are changed, please login again",
+                    success=False
+                ).model_dump(mode='json')
+            )
 
-    if not is_ipexists:
-        ic('setting token,count for the ip')
-        await set_redis(f"token-verify-{user_id}",{'id':user_id,'count':0,'ip':ip})
-
-    ic('verified and returned via pg')
-    ic("decoded token : ",decoded_token['email'])
-    await session.close()
     return decoded_token
 
 

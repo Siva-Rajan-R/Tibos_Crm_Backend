@@ -10,6 +10,7 @@ class AddUserDbSchema(BaseModel):
     email:EmailStr
     role:UserRoles
     password:str
+    token_version:Optional[float]=0.0
 
 class UpdateUserDbSchema(BaseModel):
     user_id:str

@@ -33,7 +33,7 @@ class UserRepo(BaseRepoModel):
             Users.ui_id
         )
 
-    async def isuser_exists(self,user_id_email:str):
+    async def isuser_exists(self,user_id_email:str,include_deleted=False):
         return (await self.session.execute(
             select(
                 Users.id,
@@ -41,9 +41,10 @@ class UserRepo(BaseRepoModel):
                 Users.password,
                 Users.name,
                 Users.role,
-                Users.tf_secret
+                Users.tf_secret,
+                Users.token_version
 
-            ).where(or_(Users.email==user_id_email,Users.id==user_id_email))
+            ).where(or_(Users.email==user_id_email,Users.id==user_id_email),Users.is_deleted==include_deleted)
         )).mappings().one_or_none()
 
 
@@ -67,7 +68,8 @@ class UserRepo(BaseRepoModel):
         ).where(
             Users.id==data.user_id
         ).values(
-            **data_toupdate
+            token_version=Users.token_version+0.1,
+            **data_toupdate,
         ).returning(Users.id)
         is_updated = (await self.session.execute(username_toupdate)).scalar_one_or_none()
 
@@ -76,7 +78,8 @@ class UserRepo(BaseRepoModel):
     @start_db_transaction
     async def update_role(self,user_toupdate_id:str,role_toupdate:UserRoles):    
         userrole_toupdate=update(Users).where(Users.id==user_toupdate_id).values(
-            role=role_toupdate.value
+            role=role_toupdate.value,
+            token_version=Users.token_version+0.1
         ).returning(Users.id)
 
         is_updated=(await self.session.execute(userrole_toupdate)).scalar_one_or_none()
@@ -87,7 +90,8 @@ class UserRepo(BaseRepoModel):
     @start_db_transaction
     async def update_password(self,user_toupdate_id:str,new_hashed_password:str):
         userpwd_toupdate=update(Users).where(Users.id==user_toupdate_id).values(
-            password=new_hashed_password
+            password=new_hashed_password,
+            token_version=Users.token_version+0.1
         ).returning(Users.id)
 
         is_updated=(await self.session.execute(userpwd_toupdate)).scalar_one_or_none()

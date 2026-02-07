@@ -5,7 +5,6 @@ from infras.primary_db.main import get_pg_db_session
 from api.dependencies.token_verification import verify_user
 from services.email_service import send_email
 from templates.email.accepted import get_login_credential_email_content
-from infras.caching.models.redis_model import unlink_redis
 from icecream import ic
 import os
 from core.settings import SETTINGS

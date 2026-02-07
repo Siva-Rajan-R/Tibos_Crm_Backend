@@ -8,7 +8,6 @@ from core.decorators.error_handler_dec import catch_errors
 from . import HTTPException,ErrorResponseTypDict,SuccessResponseTypDict,BaseResponseTypDict
 from . import Request,Response
 from security.twofactor_generator import generate_2factor_qr,generate_2factor_secret,verify_2factor
-from infras.caching.models.redis_model import unlink_redis,set_redis,get_redis
 from schemas.request_schemas.twofactor import TwoFactorOtpSchema
 from fastapi.responses import StreamingResponse
 
@@ -43,7 +42,7 @@ class Handle2FactorRequest:
 
         cache_data={'secret':secret}
         cache_key=f'user-{user_id}-ip-{request.client.host}'
-        await set_redis(key=cache_key,value=cache_data,expire=500)
+        # await set_redis(key=cache_key,value=cache_data,expire=500)
 
         if qrcode:
             return StreamingResponse(
@@ -56,8 +55,9 @@ class Handle2FactorRequest:
     async def verify(self,user_id:str,request:Request,data:TwoFactorOtpSchema):
 
         cache_key=f'user-{user_id}-ip-{request.client.host}'
-        cached_data:dict=await get_redis(key=cache_key)
-        await unlink_redis(key=[cache_key])
+        cached_data=""
+        # cached_data:dict=await get_redis(key=cache_key)
+        # await unlink_redis(key=[cache_key])
         if not cached_data:
             raise HTTPException(
                 status_code=401,

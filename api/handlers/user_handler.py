@@ -1,4 +1,5 @@
 from infras.primary_db.services.user_service import UserService
+
 from sqlalchemy import select,update,delete,and_,or_,func
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import EmailStr
@@ -13,12 +14,12 @@ from schemas.request_schemas.auth import AuthForgotAcceptSchema,AuthForgotEmailS
 from typing import Optional
 from security.data_hashing import verfiy_hashed,hash_data
 from core.decorators.error_handler_dec import catch_errors
-from infras.caching.models.redis_model import unlink_redis
 from secrets import token_urlsafe
 from . import HTTPException,BaseResponseTypDict,ErrorResponseTypDict,SuccessResponseTypDict,BackgroundTasks,Request
 from services.email_service import send_email
 from templates.email.accepted import get_login_credential_email_content
 from core.settings import SETTINGS
+from infras.caching.models.auth_model import get_auth_revoke,set_auth_revoke,unlink_auth_revoke,unlink_auth_forgot,get_auth_forgot,set_auth_forgot
 
 DEFAULT_SUPERADMIN_INFO=SETTINGS.DEFAULT_SUPERADMIN_INFO
 FRONTEND_URL=SETTINGS.FRONTEND_URL
@@ -102,7 +103,7 @@ class HandleUserRequest:
                 detail=detail.model_dump(mode='json')
             )
         
-        await unlink_redis(key=[f"token-verify-{data.user_id}"])
+        await set_auth_revoke(user_id=data.user_id)
         return SuccessResponseTypDict(
             detail=BaseResponseTypDict(
                 status_code=200,
@@ -128,7 +129,7 @@ class HandleUserRequest:
                 detail=detail.model_dump(mode='json')
             )
         
-        await unlink_redis(key=[f"token-verify-{user_toupdate_id}"])
+        await set_auth_revoke(user_id=user_toupdate_id)
         return SuccessResponseTypDict(
             detail=BaseResponseTypDict(
                 status_code=200,
@@ -148,7 +149,7 @@ class HandleUserRequest:
                     description="Misstmatch of new and confirm password",
                     status_code=400,
                     success=False
-                )
+                ).model_dump(mode='json')
             )
         
         if len(data.confirm_password)<7:
@@ -159,7 +160,7 @@ class HandleUserRequest:
                     description="Password length Should be greater than 6",
                     status_code=400,
                     success=False
-                )
+                ).model_dump(mode='json')
             )
         
         res=await UserService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update_password(user_toupdate_id=user_toupdate_id,new_password=data.confirm_password)
@@ -175,6 +176,8 @@ class HandleUserRequest:
                 status_code=detail.status_code,
                 detail=detail.model_dump(mode='json')
             )
+        
+        await set_auth_revoke(user_id=user_toupdate_id)
         
         return SuccessResponseTypDict(
             detail=BaseResponseTypDict(
@@ -200,7 +203,7 @@ class HandleUserRequest:
                 detail=detail.model_dump(mode='json')
             )
         
-        await unlink_redis(key=[f"token-verify-{userid_toremove}"])
+        await set_auth_revoke(user_id=userid_toremove)
         return SuccessResponseTypDict(
             detail=BaseResponseTypDict(
                 status_code=200,
@@ -234,6 +237,8 @@ class HandleUserRequest:
                     success=False
                 ).model_dump(mode='json')
             )
+        
+        await set_auth_revoke(user_id=data.user_id)
         
         return SuccessResponseTypDict(
             detail=BaseResponseTypDict(
