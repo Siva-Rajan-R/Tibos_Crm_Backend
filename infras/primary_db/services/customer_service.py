@@ -78,8 +78,7 @@ class CustomersService(BaseServiceModel):
                 mob_nos[data['mobile_number']]=data['mobile_number']
                 ic(data)
                 datas_toadd.append(Customers(**data, id=customer_id,ui_id=cur_uiid))
-                formated_address={}
-                
+                formated_address={}      
         ic(skipped_items,datas_toadd,duplicate_items)
         return await customer_obj.add_bulk(datas=datas_toadd,lui_id=lui_id)
         
