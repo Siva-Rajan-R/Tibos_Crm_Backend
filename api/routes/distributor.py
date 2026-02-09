@@ -1,9 +1,10 @@
-from fastapi import Depends,APIRouter,Query
+from fastapi import Depends,APIRouter,Query,File,UploadFile,Form
 from schemas.request_schemas.distributor import CreateDistriSchema,UpdateDistriSchema,RecoverDistriSchema
 from infras.primary_db.main import get_pg_db_session,AsyncSession
 from api.dependencies.token_verification import verify_user
 from ..handlers.distributor_handler import HandleDistributorRequest
 from typing import Optional
+from core.data_formats.enums.common_enums import ImportExportTypeEnum
 
 
 router=APIRouter(
@@ -21,6 +22,14 @@ async def add_distributor(data:CreateDistriSchema,user:dict=Depends(verify_user)
     ).add(
         data=data
     )
+
+@router.post('/bulk')
+async def add_customer_bulk(user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session),type:ImportExportTypeEnum=Form(...),file:UploadFile=File(...)):
+    return await HandleDistributorRequest(
+        session=session,
+        user_role=user['role'],
+        cur_user_id=user['id']
+    ).add_bulk(type=type,file=file)
 
 
 @router.put('')

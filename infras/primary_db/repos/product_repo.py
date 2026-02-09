@@ -48,8 +48,9 @@ class ProductsRepo(BaseRepoModel):
         return True
     
     @start_db_transaction
-    async def add_bulk(self,datas:List[Products]):
+    async def add_bulk(self,datas:List[Products],lui_id:str):
         self.session.add_all(datas)
+        await self.session.execute(update(TablesUiLId).where(TablesUiLId.id=="1").values(product_luiid=lui_id))
         return True
 
 

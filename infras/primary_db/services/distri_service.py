@@ -35,6 +35,24 @@ class DistributorService(BaseServiceModel):
         lui_id:str=(await self.session.execute(select(TablesUiLId.distri_luiid))).scalar_one_or_none()
         cur_uiid=generate_ui_id(prefix="DIST",last_id=lui_id)
         return await DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(data=CreateDistriDbSchema(**data.model_dump(mode='json'),id=distri_id,ui_id=cur_uiid,lui_id=lui_id))
+
+    @catch_errors
+    async def add_bulk(self,datas:List[dict]):
+        skipped_items=[]
+        
+        datas_toadd=[]
+        distri_obj=DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id)
+        lui_id:str=(await self.session.execute(select(TablesUiLId.distri_luiid))).scalar_one_or_none()
+        for data in datas:
+            distri_id:str=generate_uuid()
+            cur_uiid=generate_ui_id(prefix="DIST",last_id=lui_id)
+            ic("Before increment : ",lui_id)
+            lui_id=cur_uiid
+            ic("After increment : ",lui_id)
+            datas_toadd.append(Distributors(**data, id=distri_id,ui_id=cur_uiid))
+                
+        ic(skipped_items,datas_toadd)
+        return await distri_obj.add_bulk(datas=datas_toadd,lui_id=lui_id)
         
     @catch_errors  
     async def update(self,data:UpdateDistriSchema):

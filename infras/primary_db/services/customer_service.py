@@ -45,14 +45,34 @@ class CustomersService(BaseServiceModel):
         
         datas_toadd=[]
         customer_obj=CustomersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id)
+        lui_id:str=(await self.session.execute(select(TablesUiLId.customer_luiid))).scalar_one_or_none()
         for data in datas:
+            formated_address={}
             if (await customer_obj.is_customer_exists(email=data['email'],mobile_number=data['mobile_number'])):
                 skipped_items.append(data)
             else:
                 customer_id:str=generate_uuid()
-                datas_toadd.append(Customers(**data, id=customer_id))
+                
+                cur_uiid=generate_ui_id(prefix="CUST",last_id=lui_id)
+                ic("Before increment : ",lui_id)
+                lui_id=cur_uiid
+                ic("After increment : ",lui_id)
+                formated_address['address']=data['address']
+                del data['address']
+                formated_address['city']=data['city']
+                del data['city']
+                formated_address['state']=data['state']
+                del data['state']
+                formated_address['pincode']=data['pincode']
+                del data['pincode']
+
+                data['address']=formated_address
+                ic(data)
+                datas_toadd.append(Customers(**data, id=customer_id,ui_id=cur_uiid))
+                formated_address={}
+                
         ic(skipped_items,datas_toadd)
-        return await customer_obj.add_bulk(datas=datas_toadd)
+        return await customer_obj.add_bulk(datas=datas_toadd,lui_id=lui_id)
         
     @catch_errors  
     async def update(self,data:UpdateCustomerSchema):

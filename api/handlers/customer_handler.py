@@ -84,7 +84,7 @@ class HandleCustomersRequest:
                     detail=ErrorResponseTypDict(
                         status_code=400,
                         success=False,
-                        msg="Adding bulk products",
+                        msg="Adding bulk customer|account",
                         description="Invalid columns or insufficent datas to add"
                     ).model_dump(mode='json')
                 )

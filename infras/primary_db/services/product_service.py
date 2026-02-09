@@ -37,16 +37,21 @@ class ProductsService(BaseServiceModel):
     async def add_bulk(self,datas:List[dict]):
         datas_toadd=[]
         skipped_items=[]
+        lui_id:str=(await self.session.execute(select(TablesUiLId.product_luiid))).scalar_one_or_none()
         for data in datas:
             ic(data)
             if (await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_part_number(part_number=data.get('part_number'))):
                 skipped_items.append(data)
             else:
                 prod_id:str=generate_uuid()
-                datas_toadd.append(Products(**data,id=prod_id))
+                cur_uiid=generate_ui_id(prefix="PROD",last_id=lui_id)
+                ic("Before increment : ",lui_id)
+                lui_id=cur_uiid
+                ic("After increment : ",lui_id)
+                datas_toadd.append(Products(**data,id=prod_id,ui_id=cur_uiid))
             
         ic(datas_toadd,skipped_items)
-        return await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add_bulk(datas=datas_toadd)
+        return await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add_bulk(datas=datas_toadd,lui_id=lui_id)
 
     @catch_errors   
     async def update(self,data:UpdateProductDbSchema):

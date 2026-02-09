@@ -42,7 +42,7 @@ class ContactsRepo(BaseRepoModel):
         is_exists=(await self.session.execute(
             select(Contacts.id)
             .where(
-                Contacts.customer_id==customer_id,
+                or_(Contacts.customer_id==customer_id,Contacts.ui_id==customer_id),
                 or_(
                     Contacts.email==email,
                     Contacts.mobile_number==mobile_number
@@ -58,6 +58,12 @@ class ContactsRepo(BaseRepoModel):
         """using this method we can add the contacts to the db"""
         self.session.add(Contacts(**data.model_dump(mode='json',exclude=['lui_id'])))
         await self.session.execute(update(TablesUiLId).where(TablesUiLId.id=="1").values(contact_luiid=data.ui_id))
+        return True
+
+    @start_db_transaction
+    async def add_bulk(self,datas:List[Contacts],lui_id:str):
+        self.session.add_all(datas)
+        await self.session.execute(update(TablesUiLId).where(TablesUiLId.id=="1").values(contact_luiid=lui_id))
         return True
 
 

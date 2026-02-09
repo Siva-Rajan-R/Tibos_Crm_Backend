@@ -11,7 +11,10 @@ from schemas.db_schemas.contact import AddContactDbSchema,UpdateContactDbSchema
 from schemas.request_schemas.contact import AddContactSchema,UpdateContactSchema,RecoverContactSchema
 from . import HTTPException,ErrorResponseTypDict,SuccessResponseTypDict,BaseResponseTypDict
 from core.utils.mob_no_validator import mobile_number_validator
-
+from models.import_export_models.excel_headings_mapper import CONTACTS_MAPPER
+from core.data_formats.enums.common_enums import ImportExportTypeEnum
+from fastapi import UploadFile
+from core.utils.excel_data_extractor import extract_excel_data
 
 
 class HandleContactsRequest:
@@ -69,6 +72,42 @@ class HandleContactsRequest:
                 success=True,
                 msg="Contact created successfully"
             )
+        )
+    
+    @catch_errors
+    async def add_bulk(self,type:ImportExportTypeEnum,file:UploadFile):
+        if type.value==ImportExportTypeEnum.EXCEL.value:
+            datas_toadd=extract_excel_data(excel_file=file.file,headings_mapper=CONTACTS_MAPPER)
+            if not datas_toadd or len(datas_toadd)<=0:
+                raise HTTPException(
+                    status_code=400,
+                    detail=ErrorResponseTypDict(
+                        status_code=400,
+                        success=False,
+                        msg="Adding bulk contacts",
+                        description="Invalid columns or insufficent datas to add"
+                    ).model_dump(mode='json')
+                )
+            res=await ContactsService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add_bulk(datas=datas_toadd)
+            if res:
+                return SuccessResponseTypDict(
+                    detail=BaseResponseTypDict(
+                        status_code=200,
+                        msg="Contacts added successfully",
+                        success=True
+                    )
+                )
+            
+        detail:ErrorResponseTypDict=ErrorResponseTypDict(
+                status_code=400,
+                msg="Error : Creating Contacts",
+                description="A Unknown Error, Please Try Again Later!",
+                success=False
+            ) if not isinstance(res,ErrorResponseTypDict) else res
+        
+        raise HTTPException(
+            status_code=detail.status_code,
+            detail=detail.model_dump(mode='json')
         )
         
     @catch_errors  

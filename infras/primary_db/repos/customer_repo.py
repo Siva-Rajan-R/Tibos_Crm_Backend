@@ -64,8 +64,10 @@ class CustomersRepo(BaseRepoModel):
         return True
     
     @start_db_transaction
-    async def add_bulk(self,datas:List[Customers]):
+    async def add_bulk(self,datas:List[Customers],lui_id:str):
         self.session.add_all(datas)
+        await self.session.execute(update(TablesUiLId).where(TablesUiLId.id=="1").values(customer_luiid=lui_id))
+
         return True
         
     @start_db_transaction  
@@ -198,7 +200,7 @@ class CustomersRepo(BaseRepoModel):
                 *self.customer_cols,
                 date_expr.label("customer_created_at")
             )
-            .where(Customers.id==customer_id,Customers.is_deleted==False)
+            .where(or_(Customers.id==customer_id,Customers.ui_id==customer_id),Customers.is_deleted==False)
         )).mappings().one_or_none()
         
         return {'customer':queried_customers}
