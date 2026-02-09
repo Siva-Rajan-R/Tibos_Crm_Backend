@@ -139,6 +139,8 @@ class OpportunitiesRepo(BaseRepoModel):
             .join(Users,Users.id==Leads.deleted_by,isouter=True)
             .where(
                 or_(
+                    Opportunities.id.ilike(search),
+                    Opportunities.ui_id.ilike(search),
                     Opportunities.name.ilike(search),
                     Opportunities.product.ilike(search),
                     Opportunities.status.ilike(search),
@@ -216,6 +218,8 @@ class OpportunitiesRepo(BaseRepoModel):
             .join(Leads, Leads.id == Opportunities.lead_id)
             .where(
                 or_(
+                    Opportunities.id.ilike(search),
+                    Opportunities.ui_id.ilike(search),
                     Opportunities.name.ilike(search),
                     Opportunities.product.ilike(search),
                     Opportunities.status.ilike(search),
@@ -256,7 +260,8 @@ class OpportunitiesRepo(BaseRepoModel):
             )
             .join(Leads, Leads.id == Opportunities.lead_id)
             .where(
-                Opportunities.id==opportunity_id,
+                or_(Opportunities.id==opportunity_id,
+                Opportunities.ui_id==opportunity_id),
                 Opportunities.is_deleted==False
             )
         )

@@ -5,16 +5,33 @@
 
 import pandas as pd
 
-DISTRI_MAPPER={
-    'name':[],
-    'discount':[]
+ORDERS_MAPPER={
+    'customer_id':[],
+    'product_id':[],
+    'distributor_id':[],
+    'quantity':[],
+    'additional_discount':[],
+    'per_unit_price':[],
+    'vendor_commision':[],
+    'bill_to':[],
+    'order_cnf_date':[],
+    'purchase_type':[],
+    'activation_date':[],
+    'payment_terms':[],
+    'shipping_method':[],
+    'payment_status':[],
+    'invoice_status':[],
+    'invoice_number':[],
+    'invoice_date':[],
+    'product_rebate_type':[]
 }
-FILE_NAME='TibosDistriDataFormat.xlsx'
 
-# df=pd.DataFrame(DISTRI_MAPPER)
-# df.to_excel(FILE_NAME,index=False)
+FILE_NAME='TibosOrderDataFormat.xlsx'
 
-ex_data=pd.read_excel(FILE_NAME)
-df=pd.DataFrame(data=ex_data)
-converted_data=df.to_dict('dict')
-print(converted_data)
+df=pd.DataFrame(ORDERS_MAPPER)
+df.to_excel(FILE_NAME,index=False)
+
+# ex_data=pd.read_excel(FILE_NAME)
+# df=pd.DataFrame(data=ex_data)
+# converted_data=df.to_dict('dict')
+# print(converted_data)

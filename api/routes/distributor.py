@@ -24,7 +24,7 @@ async def add_distributor(data:CreateDistriSchema,user:dict=Depends(verify_user)
     )
 
 @router.post('/bulk')
-async def add_customer_bulk(user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session),type:ImportExportTypeEnum=Form(...),file:UploadFile=File(...)):
+async def add_distributor_bulk(user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session),type:ImportExportTypeEnum=Form(...),file:UploadFile=File(...)):
     return await HandleDistributorRequest(
         session=session,
         user_role=user['role'],

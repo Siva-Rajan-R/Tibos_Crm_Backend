@@ -137,6 +137,7 @@ class LeadsRepo(BaseRepoModel):
                 .where(
                     or_(
                         Leads.id.ilike(search),
+                        Leads.ui_id.ilike(search),
                         Leads.name.ilike(search),
                         Leads.phone.ilike(search),
                         Leads.email.ilike(search),
@@ -175,7 +176,7 @@ class LeadsRepo(BaseRepoModel):
                     follwup_expr.label("lead_next_followup"),
                     lastcont_expr.label("lead_last_contacted"),
                     date_expr.label("lead_created_at")
-                ).where(Leads.id == lead_id,Leads.is_deleted==False)
+                ).where(or_(Leads.id == lead_id,Leads.ui_id==lead_id),Leads.is_deleted==False)
             )
         ).mappings().one_or_none()
 
@@ -199,6 +200,7 @@ class LeadsRepo(BaseRepoModel):
             .where(
                 or_(
                     Leads.id.ilike(search),
+                    Leads.ui_id.ilike(search),
                     Leads.name.ilike(search),
                     Leads.phone.ilike(search),
                     Leads.email.ilike(search),

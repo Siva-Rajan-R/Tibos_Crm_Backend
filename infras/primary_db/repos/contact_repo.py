@@ -42,7 +42,7 @@ class ContactsRepo(BaseRepoModel):
         is_exists=(await self.session.execute(
             select(Contacts.id)
             .where(
-                or_(Contacts.customer_id==customer_id,Contacts.ui_id==customer_id),
+                Contacts.customer_id==customer_id,
                 or_(
                     Contacts.email==email,
                     Contacts.mobile_number==mobile_number
@@ -139,6 +139,7 @@ class ContactsRepo(BaseRepoModel):
                     Contacts.id.ilike(search_term),
                     Contacts.email.ilike(search_term),
                     Contacts.mobile_number.ilike(search_term),
+                    Contacts.ui_id.ilike(search_term),
                     func.cast(Contacts.created_at,String).ilike(search_term),
                     Customers.name.ilike(search_term),
                     Customers.email.ilike(search_term),
@@ -178,6 +179,7 @@ class ContactsRepo(BaseRepoModel):
                     func.cast(Contacts.created_at,String).ilike(search_term),
                     Customers.name.ilike(search_term),
                     Customers.email.ilike(search_term),
+                    Contacts.ui_id.ilike(search_term),
                     Customers.website_url.ilike(search_term)
                 ),
                 Contacts.is_deleted==False
@@ -194,7 +196,7 @@ class ContactsRepo(BaseRepoModel):
                 date_expr.label("contact_created_at")
             )
             .join(Customers,Customers.id==Contacts.customer_id,isouter=True)
-            .where(Contacts.id==contact_id,Contacts.is_deleted==False)
+            .where(or_(Contacts.id==contact_id,Contacts.ui_id==contact_id),Contacts.is_deleted==False)
         )).mappings().one_or_none()
 
         return {'contact':queried_contacts}
@@ -215,6 +217,7 @@ class ContactsRepo(BaseRepoModel):
                 or_(
                     Contacts.name.ilike(search_term),
                     Contacts.id.ilike(search_term),
+                    Contacts.ui_id.ilike(search_term),
                     Contacts.email.ilike(search_term),
                     Contacts.mobile_number.ilike(search_term),
                     func.cast(Contacts.created_at,String).ilike(search_term),

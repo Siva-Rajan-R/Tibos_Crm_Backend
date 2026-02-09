@@ -17,13 +17,15 @@ from schemas.db_schemas.order import AddOrderDbSchema,UpdateOrderDbSchema
 from schemas.request_schemas.order import AddOrderSchema,UpdateOrderSchema
 from core.decorators.error_handler_dec import catch_errors
 from math import ceil
-from typing import Optional
+from typing import Optional,List
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
 from core.data_formats.enums.filters_enum import OrdersFilters
 from ..models.ui_id import TablesUiLId
 from core.utils.ui_id_generator import generate_ui_id
 from core.constants import UI_ID_STARTING_DIGIT
-
+from core.utils.discount_validator import parse_discount
+from core.data_formats.typed_dicts.pg_dict import DeliveryInfo
+import pandas as pd
 
 
 class OrdersService(BaseServiceModel):
@@ -52,21 +54,107 @@ class OrdersService(BaseServiceModel):
         
         distri_exists=await DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(distributor_id=data.distributor_id)
         if not distri_exists or len(distri_exists)<1:
-            return ErrorResponseTypDict
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Order",description="Distributor with the given id does not exist")
         
+        total_price=data.quantity*prod_exists['product']['price']
+        distri_dic_final_price=(total_price-parse_discount(distri_exists['distributors']['discount'],total_price))
+        final_price=(distri_dic_final_price-parse_discount(data.discount,distri_dic_final_price))
         order_id:str=generate_uuid()
         lui_id:str=(await self.session.execute(select(TablesUiLId.order_luiid))).scalar_one_or_none()
         cur_uiid=generate_ui_id(prefix="ORD",last_id=lui_id)
-        return await order_obj.add(data=AddOrderDbSchema(**data.model_dump(mode='json'),id=order_id,ui_id=cur_uiid))
+        return await order_obj.add(data=AddOrderDbSchema(**data.model_dump(mode='json'),id=order_id,ui_id=cur_uiid,final_price=final_price,total_price=total_price))
         # need to implement invoice generation process + email sending
     
+    @catch_errors
+    async def add_bulk(self,datas:List[dict]):
+        skipped_items=[]
+        
+        datas_toadd=[]
+        orders_obj=OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id)
+        lui_id:str=(await self.session.execute(select(TablesUiLId.order_luiid))).scalar_one_or_none()
+        for data in datas:
+            
+            cust_exists=await CustomersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(customer_id=data['customer_id'])
+            if not cust_exists['customer'] or len(cust_exists['customer'])<1:
+                skipped_items.append(data)
+                continue
+            
+            prod_exists=await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(product_id=data['product_id'])
+            if not prod_exists['product'] or len(prod_exists['product'])<1:
+                skipped_items.append(data)
+                continue
+            
+            distri_exists=await DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(distributor_id=data['distributor_id'])
+            if not distri_exists['distributors'] or len(distri_exists['distributors'])<1:
+                skipped_items.append(data)
+                continue
+            
+
+            data['customer_id']=cust_exists['customer']['id']
+            data['distributor_id']=distri_exists['distributors']['id']
+            data['product_id']=prod_exists['product']['id']
+
+            if (await orders_obj.is_order_exists(customer_id=data['customer_id'],product_id=data['product_id'])):
+                skipped_items.append(data)
+                continue
+            
+            data['delivery_info']=DeliveryInfo(
+                requested_date=pd.Timestamp(data['requested_date']).strftime("%Y-%m-%d"),
+                delivery_date=pd.Timestamp(data['delivery_date']).strftime("%Y-%m-%d"),
+                shipping_method=data['shipping_method'],
+                payment_terms=data['payment_terms']
+            )
+
+            data['invoice_date']=pd.Timestamp(data['invoice_date']).strftime("%Y-%m-%d")
+
+            del data['requested_date']
+            del data['delivery_date']
+            del data['shipping_method']
+            del data['payment_terms']
+
+            ic(data)
+            total_price=data['quantity']*prod_exists['product']['price']
+            ic(total_price)
+            distri_dic_final_price=(total_price-parse_discount(distri_exists['distributors']['discount'],total_price))
+            ic(distri_dic_final_price)
+            final_price=(distri_dic_final_price-parse_discount(data['discount'],distri_dic_final_price))
+            ic(final_price)
+            order_id:str=generate_uuid()
+            
+            cur_uiid=generate_ui_id(prefix="ORD",last_id=lui_id)
+            lui_id=cur_uiid
+            datas_toadd.append(Orders(**data, id=order_id,ui_id=cur_uiid,final_price=final_price,total_price=total_price))
+                
+        ic(skipped_items,datas_toadd)
+        return await orders_obj.add_bulk(datas=datas_toadd,lui_id=lui_id)
+    
+
     @catch_errors
     async def update(self,data:UpdateOrderSchema):
         data_toupdate=data.model_dump(mode='json',exclude_none=True,exclude_unset=True)
         if not data_toupdate or len(data_toupdate)<1:
             return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Order",description="No valid fields to update provided")
         
-        return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateOrderDbSchema(**data_toupdate))
+        order_obj=OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id)
+        if (await order_obj.is_order_exists(customer_id=data.customer_id,product_id=data.product_id)):
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Order",description="Order with the given customer id and product id already exists")
+        
+        cust_exists=await CustomersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(customer_id=data.customer_id)
+        if not cust_exists or len(cust_exists)<1:
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Order",description="Customer with the given id does not exist")
+        
+        prod_exists=await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(product_id=data.product_id)
+        if not prod_exists or len(prod_exists)<1:
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Order",description="Product with the given id does not exist")
+        
+        distri_exists=await DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(distributor_id=data.distributor_id)
+        if not distri_exists or len(distri_exists)<1:
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Order",description="Distributor with the given id does not exist")
+        
+        total_price=data.quantity*prod_exists['product']['price']
+        distri_dic_final_price=(total_price-parse_discount(distri_exists['distributors']['discount'],total_price))
+        final_price=(distri_dic_final_price-parse_discount(data.discount,distri_dic_final_price))
+        return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateOrderDbSchema(**data_toupdate,total_price=total_price,final_price=final_price))
         
         # need to implement invoice generation process + email sending
 

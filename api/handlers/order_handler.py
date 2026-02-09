@@ -12,7 +12,10 @@ from math import ceil
 from . import HTTPException,ErrorResponseTypDict,SuccessResponseTypDict,BaseResponseTypDict
 from core.utils.discount_validator import validate_discount
 from core.data_formats.enums.filters_enum import OrdersFilters
-
+from core.data_formats.enums.common_enums import ImportExportTypeEnum
+from core.utils.excel_data_extractor import extract_excel_data
+from models.import_export_models.excel_headings_mapper import ORDERS_MAPPER
+from fastapi import UploadFile
 
 class HandleOrdersRequest:
     def __init__(self,session:AsyncSession,user_role:UserRoles,cur_user_id:str):
@@ -88,6 +91,42 @@ class HandleOrdersRequest:
                 success=True,
                 msg="Order created successfully"
             )
+        )
+    
+    @catch_errors
+    async def add_bulk(self,type:ImportExportTypeEnum,file:UploadFile):
+        if type.value==ImportExportTypeEnum.EXCEL.value:
+            datas_toadd=extract_excel_data(excel_file=file.file,headings_mapper=ORDERS_MAPPER)
+            if not datas_toadd or len(datas_toadd)<=0:
+                raise HTTPException(
+                    status_code=400,
+                    detail=ErrorResponseTypDict(
+                        status_code=400,
+                        success=False,
+                        msg="Adding bulk order",
+                        description="Invalid columns or insufficent datas to add"
+                    ).model_dump(mode='json')
+                )
+            res=await OrdersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add_bulk(datas=datas_toadd)
+            if res:
+                return SuccessResponseTypDict(
+                    detail=BaseResponseTypDict(
+                        status_code=200,
+                        msg="Orders added successfully",
+                        success=True
+                    )
+                )
+            
+        detail:ErrorResponseTypDict=ErrorResponseTypDict(
+                status_code=400,
+                msg="Error : Creating Order",
+                description="A Unknown Error, Please Try Again Later!",
+                success=False
+            ) if not isinstance(res,ErrorResponseTypDict) else res
+        
+        raise HTTPException(
+            status_code=detail.status_code,
+            detail=detail.model_dump(mode='json')
         )
     
     @catch_errors

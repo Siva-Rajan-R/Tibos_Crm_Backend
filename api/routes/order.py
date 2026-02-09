@@ -1,10 +1,11 @@
-from fastapi import Depends,APIRouter,Query
+from fastapi import Depends,APIRouter,Query,Form,UploadFile,Query,File
 from schemas.request_schemas.order import AddOrderSchema,UpdateOrderSchema,RecoverOrderSchema
 from core.data_formats.enums.filters_enum import OrdersFilters
 from infras.primary_db.main import get_pg_db_session,AsyncSession
 from api.dependencies.token_verification import verify_user
 from ..handlers.order_handler import HandleOrdersRequest
-from typing import Optional
+from typing import Optional,List
+from core.data_formats.enums.common_enums import ImportExportTypeEnum
 
 
 
@@ -26,6 +27,14 @@ async def add_order(data:AddOrderSchema,user:dict=Depends(verify_user),session:A
     ).add(
         data=data
     )
+
+@router.post('/bulk')
+async def add_order_bulk(user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session),type:ImportExportTypeEnum=Form(...),file:UploadFile=File(...)):
+    return await HandleOrdersRequest(
+        session=session,
+        user_role=user['role'],
+        cur_user_id=user['id']
+    ).add_bulk(type=type,file=file)
 
 
 @router.put('')

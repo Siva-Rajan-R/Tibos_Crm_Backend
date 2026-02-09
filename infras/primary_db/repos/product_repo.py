@@ -187,7 +187,7 @@ class ProductsRepo(BaseRepoModel):
                 *self.products_cols,
                 date_expr.label("product_created_at")
             )
-            .where(or_(Products.id==product_id,Products.part_number==product_id),Products.is_deleted==False)
+            .where(or_(Products.id==product_id,Products.ui_id==product_id,Products.part_number==product_id),Products.is_deleted==False)
             .order_by(Products.name)
         )).mappings().one_or_none()
 

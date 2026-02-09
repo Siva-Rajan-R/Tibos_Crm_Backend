@@ -9,9 +9,7 @@ class AddOrderSchema(BaseModel):
     product_id:str
     distributor_id:str
     quantity:int
-    total_price:float
     discount:str
-    final_price:float
     unit_price:float
     delivery_info:DeliveryInfo
     payment_status:PaymentStatus

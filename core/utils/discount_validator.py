@@ -22,3 +22,26 @@ def validate_discount(value:str)->Optional[Union[float,str]]:
             is_discount=None
 
     return is_discount
+
+
+def parse_discount(discount, total):
+    print("discount", discount, "total", total)
+
+    if not discount:
+        ic("parsed discount value =>",0)
+        return 0
+
+    discount_str = str(discount).strip()
+
+    if discount_str.endswith("%"):
+        percent = float(discount_str.replace("%", ""))
+        ic("parsed discount value =>",total * (percent / 100))
+        return total * (percent / 100)
+
+    try:
+        ic("parsed discount value =>",discount)
+        return float(discount)
+    
+    except (ValueError, TypeError):
+        ic("parsed discount value =>",0)
+        return 0

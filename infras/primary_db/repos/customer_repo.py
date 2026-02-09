@@ -135,6 +135,7 @@ class CustomersRepo(BaseRepoModel):
             .where(
                 or_(
                     Customers.id.ilike(search_term),
+                    Customers.ui_id.ilike(search_term),
                     Customers.name.ilike(search_term),
                     Customers.email.ilike(search_term),
                     Customers.industry.ilike(search_term),
@@ -174,6 +175,7 @@ class CustomersRepo(BaseRepoModel):
             ).where(
                 or_(
                     Customers.id.ilike(search_term),
+                    Customers.ui_id.ilike(search_term),
                     Customers.name.ilike(search_term),
                     Customers.email.ilike(search_term),
                     Customers.industry.ilike(search_term),

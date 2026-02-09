@@ -25,7 +25,7 @@ async def add_contact(data:AddContactSchema,user:dict=Depends(verify_user),sessi
 
 
 @router.post('/bulk')
-async def add_customer_bulk(user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session),type:ImportExportTypeEnum=Form(...),file:UploadFile=File(...)):
+async def add_contact_bulk(user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session),type:ImportExportTypeEnum=Form(...),file:UploadFile=File(...)):
     return await HandleContactsRequest(
         session=session,
         user_role=user['role'],

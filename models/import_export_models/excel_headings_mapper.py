@@ -35,3 +35,25 @@ DISTRI_MAPPER={
     'name':'name',
     'discount':'discount'
 }
+
+ORDERS_MAPPER={
+    'customer_id':'customer_id',
+    'product_id':'product_id',
+    'distributor_id':'distributor_id',
+    'quantity':'quantity',
+    'additional_discount':'discount',
+    'per_unit_price':'unit_price',
+    'vendor_commision':'vendor_commision',
+    'bill_to':'bill_to',
+    'order_cnf_date':'requested_date',
+    'renewal_type':'renewal_type',
+    'purchase_type':'purchase_type',
+    'activation_date':'delivery_date',
+    'payment_terms':'payment_terms',
+    'shipping_method':'shipping_method',
+    'payment_status':'payment_status',
+    'invoice_status':'invoice_status',
+    'invoice_number':'invoice_number',
+    'invoice_date':'invoice_date',
+    'product_rebate_type':'distributor_type'
+}

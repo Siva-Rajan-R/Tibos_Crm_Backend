@@ -1,4 +1,4 @@
-from typing import cast
+from typing import cast,List
 from . import HTTPException,BaseRepoModel
 from ..models.order import Orders
 from ..models.product import Products
@@ -19,6 +19,7 @@ from models.response_models.req_res_models import SuccessResponseTypDict,BaseRes
 from core.data_formats.enums.filters_enum import OrdersFilters
 from core.utils.discount_validator import validate_discount
 from ..models.ui_id import TablesUiLId
+
 
 
 class OrdersRepo(BaseRepoModel):
@@ -68,12 +69,21 @@ class OrdersRepo(BaseRepoModel):
             )
         ).scalar_one_or_none()
 
+        return is_exists
+
 
     @start_db_transaction
     async def add(self,data:AddOrderDbSchema):
         self.session.add(Orders(**data.model_dump(mode='json',exclude=['lui_id'])))
         await self.session.execute(update(TablesUiLId).where(TablesUiLId.id=="1").values(order_luiid=data.ui_id))
         # need to implement invoice generation process + email sending
+        return True
+    
+    @start_db_transaction
+    async def add_bulk(self,datas:List[Orders],lui_id:str):
+        self.session.add_all(datas)
+        await self.session.execute(update(TablesUiLId).where(TablesUiLId.id=="1").values(order_luiid=lui_id))
+
         return True
     
     @start_db_transaction
@@ -143,6 +153,7 @@ class OrdersRepo(BaseRepoModel):
         conditions.append(
             or_(
                 Orders.id.ilike(search_term),
+                Orders.ui_id.ilike(search_term),
                 Orders.distributor_id.ilike(search_term),
                 Products.name.ilike(search_term),
                 Products.id.ilike(search_term),
@@ -295,6 +306,7 @@ class OrdersRepo(BaseRepoModel):
             .where(
                 or_(
                     Orders.id.ilike(search_term),
+                    Orders.ui_id.ilike(search_term),
                     Orders.distributor_id.ilike(search_term),
                     Products.name.ilike(search_term),
                     Products.id.ilike(search_term),
@@ -331,7 +343,7 @@ class OrdersRepo(BaseRepoModel):
             .join(Products,Products.id==Orders.product_id,isouter=True)
             .join(Customers,Customers.id==Orders.customer_id,isouter=True)
             .join(Distributors,Distributors.id==Orders.distributor_id,isouter=True) 
-            .where(Orders.id==order_id,Orders.is_deleted==False)
+            .where(or_(Orders.id==order_id,Orders.ui_id==order_id),Orders.is_deleted==False)
         )).mappings().one_or_none()
 
         return {'order':queried_orders}
