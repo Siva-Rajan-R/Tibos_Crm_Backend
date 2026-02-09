@@ -57,16 +57,16 @@ class CustomersService(BaseServiceModel):
                 ic("Before increment : ",lui_id)
                 lui_id=cur_uiid
                 ic("After increment : ",lui_id)
-                formated_address['address']=data['address']
-                del data['address']
-                formated_address['city']=data['city']
-                del data['city']
-                formated_address['state']=data['state']
-                del data['state']
-                formated_address['pincode']=data['pincode']
-                del data['pincode']
+                # formated_address['address']=data['address']
+                # del data['address']
+                # formated_address['city']=data['city']
+                # del data['city']
+                # formated_address['state']=data['state']
+                # del data['state']
+                # formated_address['pincode']=data['pincode']
+                # del data['pincode']
 
-                data['address']=formated_address
+                # data['address']=formated_address
                 ic(data)
                 datas_toadd.append(Customers(**data, id=customer_id,ui_id=cur_uiid))
                 formated_address={}

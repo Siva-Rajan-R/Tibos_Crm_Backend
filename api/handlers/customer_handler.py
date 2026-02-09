@@ -78,6 +78,7 @@ class HandleCustomersRequest:
     async def add_bulk(self,type:ImportExportTypeEnum,file:UploadFile):
         if type.value==ImportExportTypeEnum.EXCEL.value:
             datas_toadd=extract_excel_data(excel_file=file.file,headings_mapper=ACCOUNTS_MAPPER)
+            ic(datas_toadd)
             if not datas_toadd or len(datas_toadd)<=0:
                 raise HTTPException(
                     status_code=400,

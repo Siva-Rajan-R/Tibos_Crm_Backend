@@ -4,41 +4,48 @@ from icecream import ic
 
 
 def extract_excel_data(excel_file,headings_mapper:dict):
+    ic(headings_mapper)
     ex_data=pd.read_excel(excel_file)
     df=pd.DataFrame(data=ex_data)
-    converted_data=df.to_dict('dict')
-    print(converted_data)
-    if len(headings_mapper)!=len(converted_data):
+    converted_data=df.to_dict('records')
+        
+    if len(headings_mapper.keys())!=len(converted_data[0].keys()):
         print("Insufficient headings")
         return False
     
     final_data=[]
+    temp_dict={}
     is_breaked=False
-    for key,value in converted_data.items():
-        index=0
-        for j in value.values():
-            mapper_key=headings_mapper.get(key)
-            if mapper_key is None:
-                print("Mistmatched Heading")
-                is_breaked=True
+    for data in converted_data:
+        for key,val in data.items():
+            try:
+                key_toadd=headings_mapper[key]
+                if key_toadd=="mobile_number" or key_toadd=="gst_number":
+                    val=str(val).strip().replace(" ","")
+                
+                if key_toadd=="mobile_number" and len(val)>10:
+                    temp_dict.clear()
+                    break
+
+                if isinstance(val,str) and val[0]=="{" and val[-1]=="}":
+                    val=eval(val)
+
+                temp_dict[key_toadd]=val
+
+            except Exception as e:
+                temp_dict.clear()
+                # is_breaked=True
                 break
 
-            mapper_value=j
-            if (mapper_key == "mobile_number" or mapper_key == "gst_number") and mapper_value is not None:
-                mapper_value = str(int(mapper_value))
-            if isinstance(j,str) and (j[0]=='{' and j[-1]=='}'):
-                mapper_value=eval(j)
-                
-            try:
-                final_data[index]
-                final_data[index][mapper_key]=mapper_value
-            except:
-                final_data.insert(index,{mapper_key:mapper_value})
+        if is_breaked:
+            break
 
-            index+=1
-        index=0
-    ic(final_data)
-    return [] if is_breaked else final_data
+        if len(temp_dict)>0:
+            final_data.append(temp_dict)
+        temp_dict={}
+    
+    print(len(final_data))
+    return final_data if not is_breaked else None
 
 
 if __name__=="__main__":
