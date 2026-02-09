@@ -49,8 +49,8 @@ class CustomersRepo(BaseRepoModel):
                 ),
                 Customers.is_deleted==False
             )
-        )).scalar_one_or_none()
-
+        )).mappings().all()
+        ic(is_exists)
         return is_exists
 
         
@@ -65,6 +65,7 @@ class CustomersRepo(BaseRepoModel):
     
     @start_db_transaction
     async def add_bulk(self,datas:List[Customers],lui_id:str):
+        ic("Entered into bulk")
         self.session.add_all(datas)
         await self.session.execute(update(TablesUiLId).where(TablesUiLId.id=="1").values(customer_luiid=lui_id))
 

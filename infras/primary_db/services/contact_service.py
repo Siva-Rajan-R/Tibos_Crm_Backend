@@ -56,8 +56,8 @@ class ContactsService(BaseServiceModel):
     @catch_errors
     async def add_bulk(self,datas:List[dict]):
         skipped_items=[]
-        
         datas_toadd=[]
+        
         contact_obj=ContactsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id)
         lui_id:str=(await self.session.execute(select(TablesUiLId.contact_luiid))).scalar_one_or_none()
         for data in datas:

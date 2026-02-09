@@ -42,17 +42,20 @@ class CustomersService(BaseServiceModel):
     @catch_errors
     async def add_bulk(self,datas:List[dict]):
         skipped_items=[]
-        
         datas_toadd=[]
+        duplicate_items=[]
+        emails={}
+        mob_nos={}
+
         customer_obj=CustomersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id)
         lui_id:str=(await self.session.execute(select(TablesUiLId.customer_luiid))).scalar_one_or_none()
         for data in datas:
             formated_address={}
             if (await customer_obj.is_customer_exists(email=data['email'],mobile_number=data['mobile_number'])):
                 skipped_items.append(data)
+                continue
             else:
                 customer_id:str=generate_uuid()
-                
                 cur_uiid=generate_ui_id(prefix="CUST",last_id=lui_id)
                 ic("Before increment : ",lui_id)
                 lui_id=cur_uiid
@@ -67,11 +70,17 @@ class CustomersService(BaseServiceModel):
                 # del data['pincode']
 
                 # data['address']=formated_address
+                if emails.get(data['email']) or mob_nos.get(data['mobile_number']):
+                    duplicate_items.append(data)
+                    continue
+                
+                emails[data['email']]=data['email']
+                mob_nos[data['mobile_number']]=data['mobile_number']
                 ic(data)
                 datas_toadd.append(Customers(**data, id=customer_id,ui_id=cur_uiid))
                 formated_address={}
                 
-        ic(skipped_items,datas_toadd)
+        ic(skipped_items,datas_toadd,duplicate_items)
         return await customer_obj.add_bulk(datas=datas_toadd,lui_id=lui_id)
         
     @catch_errors  
