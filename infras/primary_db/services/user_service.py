@@ -38,9 +38,13 @@ class UserService(BaseServiceModel):
             if (await user_obj.isuser_exists(user_id_email=superadmins['email'])):
                 ic("✅ Default Super-Admin Already Exists")
                 return
+            lui_id:str=(await self.session.execute(select(TablesUiLId.user_luiid))).scalar_one_or_none()
+            cur_uiid=generate_ui_id(prefix="USR",last_id=lui_id)
             await UserRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(
                 data=AddUserDbSchema(
                     id=generate_uuid(),
+                    lui_id=lui_id,
+                    ui_id=cur_uiid,
                     email=superadmins['email'],
                     name=superadmins['name'],
                     role=UserRoles.SUPER_ADMIN,
