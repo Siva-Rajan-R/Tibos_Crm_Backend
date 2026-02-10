@@ -38,7 +38,7 @@ class ProductsRepo(BaseRepoModel):
         queried_products=(await self.session.execute(
             select(Products.id)
             .where(Products.part_number==part_number,Products.is_deleted==False)
-        )).scalar_one_or_none()
+        )).mappings().all()
         return queried_products
     
     @start_db_transaction

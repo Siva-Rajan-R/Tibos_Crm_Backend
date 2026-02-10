@@ -26,8 +26,8 @@ class ProductsService(BaseServiceModel):
         
     @catch_errors
     async def add(self,data:AddProductSchema):
-        if (await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_part_number(part_number=data.part_number)):
-            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Product",description="Product with the given part number already exists")
+        # if (await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_part_number(part_number=data.part_number)):
+        #     return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Product",description="Product with the given part number already exists")
         prod_id:str=generate_uuid()
         lui_id:str=(await self.session.execute(select(TablesUiLId.product_luiid))).scalar_one_or_none()
         cur_uiid=generate_ui_id(prefix="PROD",last_id=lui_id)
@@ -40,15 +40,16 @@ class ProductsService(BaseServiceModel):
         lui_id:str=(await self.session.execute(select(TablesUiLId.product_luiid))).scalar_one_or_none()
         for data in datas:
             ic(data)
-            if (await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_part_number(part_number=data.get('part_number'))):
-                skipped_items.append(data)
-            else:
-                prod_id:str=generate_uuid()
-                cur_uiid=generate_ui_id(prefix="PROD",last_id=lui_id)
-                ic("Before increment : ",lui_id)
-                lui_id=cur_uiid
-                ic("After increment : ",lui_id)
-                datas_toadd.append(Products(**data,id=prod_id,ui_id=cur_uiid))
+            # if (await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_part_number(part_number=data.get('part_number'))):
+            #     skipped_items.append(data)
+            #     continue
+
+            prod_id:str=generate_uuid()
+            cur_uiid=generate_ui_id(prefix="PROD",last_id=lui_id)
+            ic("Before increment : ",lui_id)
+            lui_id=cur_uiid
+            ic("After increment : ",lui_id)
+            datas_toadd.append(Products(**data,id=prod_id,ui_id=cur_uiid))
             
         ic(datas_toadd,skipped_items)
         return await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add_bulk(datas=datas_toadd,lui_id=lui_id)

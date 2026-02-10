@@ -40,12 +40,12 @@ class ContactsService(BaseServiceModel):
 
         
         contact_obj=ContactsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id)
-        if (await contact_obj.is_contact_exists(email=data.email,mobile_number=data.mobile_number,customer_id=data.customer_id)):
-            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Contact",description="Contact with the given email or mobile number already exists for the customer")
+        # if (await contact_obj.is_contact_exists(email=data.email,mobile_number=data.mobile_number,customer_id=data.customer_id)):
+        #     return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Contact",description="Contact with the given email or mobile number already exists for the customer")
         
-        is_cust_exists=await CustomersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(customer_id=data.customer_id)
-        if not is_cust_exists['customer'] or len(is_cust_exists['customer'])<1:
-            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Contact",description="Customer with the given id does not exist")
+        # is_cust_exists=await CustomersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(customer_id=data.customer_id)
+        # if not is_cust_exists['customer'] or len(is_cust_exists['customer'])<1:
+        #     return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Contact",description="Customer with the given id does not exist")
         
         contact_id=generate_uuid(data=data.name)
         lui_id:str=(await self.session.execute(select(TablesUiLId.contact_luiid))).scalar_one_or_none()
@@ -62,15 +62,15 @@ class ContactsService(BaseServiceModel):
         lui_id:str=(await self.session.execute(select(TablesUiLId.contact_luiid))).scalar_one_or_none()
         for data in datas:
             is_cust_exists=await CustomersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(customer_id=data['customer_id'])
-            if not is_cust_exists['customer'] or len(is_cust_exists['customer'])<1:
-                skipped_items.append(data)
-                continue
+            # if not is_cust_exists['customer'] or len(is_cust_exists['customer'])<1:
+            #     skipped_items.append(data)
+            #     continue
 
             data['customer_id']=is_cust_exists['customer']['id']
 
-            if (await contact_obj.is_contact_exists(email=data['email'],mobile_number=data['mobile_number'],customer_id=data['customer_id'])):
-                skipped_items.append(data)
-                continue
+            # if (await contact_obj.is_contact_exists(email=data['email'],mobile_number=data['mobile_number'],customer_id=data['customer_id'])):
+            #     skipped_items.append(data)
+            #     continue
             
             contact_id:str=generate_uuid()
             

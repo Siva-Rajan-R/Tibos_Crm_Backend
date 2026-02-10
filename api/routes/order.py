@@ -6,6 +6,7 @@ from api.dependencies.token_verification import verify_user
 from ..handlers.order_handler import HandleOrdersRequest
 from typing import Optional,List
 from core.data_formats.enums.common_enums import ImportExportTypeEnum
+from schemas.request_schemas.order import OrderFilterSchema
 
 
 
@@ -74,13 +75,13 @@ async def recover_order(data:RecoverOrderSchema,user:dict=Depends(verify_user),s
     )
 
 
-@router.get('')
-async def get_all_order(q:str=Query(''),cursor:Optional[int]=Query(1),limit:Optional[int]=Query(10),filter:Optional[OrdersFilters]=Query(None),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+@router.post('/get')
+async def get_all_order(filters:OrderFilterSchema,q:str=Query(''),cursor:Optional[int]=Query(1),limit:Optional[int]=Query(10),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleOrdersRequest(
         session=session,
         user_role=user['role'],
         cur_user_id=user['id']
-    ).get(cursor=cursor,limit=limit,query=q,filter=filter)
+    ).get(cursor=cursor,limit=limit,query=q,filter=filters)
 
 
 @router.get('/search')

@@ -1,7 +1,7 @@
 from infras.primary_db.services import customer_service,contact_service,user_service,product_service,lead_service,opportunity_service,distri_service,order_service
 from sqlalchemy.ext.asyncio import AsyncSession
 from core.data_formats.enums.common_enums import UserRoles
-
+from schemas.request_schemas.order import OrderFilterSchema
 class HandleRecycleBinRequests:
     def __init__(self,session:AsyncSession):
         self.session=session
@@ -17,7 +17,7 @@ class HandleRecycleBinRequests:
         leads=await lead_service.LeadsService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True,cursor=cursor)
         opportunities=await opportunity_service.OpportunitiesService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True,cursor=cursor)
         distributors=await distri_service.DistributorService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True,cursor=cursor)
-        orders=await order_service.OrdersService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True,cursor=cursor)
+        orders=await order_service.OrdersService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True,cursor=cursor,filter=OrderFilterSchema())
 
         return [
             {

@@ -31,8 +31,8 @@ class CustomersService(BaseServiceModel):
     async def add(self,data:AddCustomerSchema):
         # Need to check if the given email or mobile number already exists or not on the customer db
         customer_obj=CustomersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id)
-        if (await customer_obj.is_customer_exists(email=data.email,mobile_number=data.mobile_number)):
-            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Customer",description="Customer with the given email or mobile number already exists")
+        # if (await customer_obj.is_customer_exists(email=data.email,mobile_number=data.mobile_number)):
+        #     return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Customer",description="Customer with the given email or mobile number already exists")
         
         customer_id:str=generate_uuid()
         lui_id:str=(await self.session.execute(select(TablesUiLId.customer_luiid))).scalar_one_or_none()
@@ -44,41 +44,40 @@ class CustomersService(BaseServiceModel):
         skipped_items=[]
         datas_toadd=[]
         duplicate_items=[]
-        emails={}
-        mob_nos={}
 
         customer_obj=CustomersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id)
         lui_id:str=(await self.session.execute(select(TablesUiLId.customer_luiid))).scalar_one_or_none()
         for data in datas:
             formated_address={}
-            if (await customer_obj.is_customer_exists(email=data['email'],mobile_number=data['mobile_number'])):
-                skipped_items.append(data)
-                continue
-            else:
-                customer_id:str=generate_uuid()
-                cur_uiid=generate_ui_id(prefix="CUST",last_id=lui_id)
-                ic("Before increment : ",lui_id)
-                lui_id=cur_uiid
-                ic("After increment : ",lui_id)
-                # formated_address['address']=data['address']
-                # del data['address']
-                # formated_address['city']=data['city']
-                # del data['city']
-                # formated_address['state']=data['state']
-                # del data['state']
-                # formated_address['pincode']=data['pincode']
-                # del data['pincode']
+            # if (await customer_obj.is_customer_exists(email=data['email'],mobile_number=data['mobile_number'])):
+            #     skipped_items.append(data)
+            #     continue
 
-                # data['address']=formated_address
-                if emails.get(data['email']) or mob_nos.get(data['mobile_number']):
-                    duplicate_items.append(data)
-                    continue
-                
-                emails[data['email']]=data['email']
-                mob_nos[data['mobile_number']]=data['mobile_number']
-                ic(data)
-                datas_toadd.append(Customers(**data, id=customer_id,ui_id=cur_uiid))
-                formated_address={}      
+            customer_id:str=generate_uuid()
+            cur_uiid=generate_ui_id(prefix="CUST",last_id=lui_id)
+            ic("Before increment : ",lui_id)
+            lui_id=cur_uiid
+            ic("After increment : ",lui_id)
+            formated_address['address']=data['address']
+            del data['address']
+            formated_address['city']=data['city']
+            del data['city']
+            formated_address['state']=data['state']
+            del data['state']
+            formated_address['pincode']=data['pincode']
+            del data['pincode']
+
+            data['address']=formated_address
+            # if emails.get(data['email']) or mob_nos.get(data['mobile_number']):
+            #     duplicate_items.append(data)
+            #     continue
+            
+            # emails[data['email']]=data['email']
+            # mob_nos[data['mobile_number']]=data['mobile_number']
+
+            ic(data)
+            datas_toadd.append(Customers(**data, id=customer_id,ui_id=cur_uiid))
+            formated_address={}      
         ic(skipped_items,datas_toadd,duplicate_items)
         return await customer_obj.add_bulk(datas=datas_toadd,lui_id=lui_id)
         

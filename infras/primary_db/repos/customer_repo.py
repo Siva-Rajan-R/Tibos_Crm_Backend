@@ -206,6 +206,7 @@ class CustomersRepo(BaseRepoModel):
             .where(or_(Customers.id==customer_id,Customers.ui_id==customer_id),Customers.is_deleted==False)
         )).mappings().one_or_none()
         
+        ic(queried_customers)
         return {'customer':queried_customers}
 
 

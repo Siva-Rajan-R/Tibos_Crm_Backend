@@ -26,7 +26,7 @@ from core.constants import UI_ID_STARTING_DIGIT
 from core.utils.discount_validator import parse_discount
 from core.data_formats.typed_dicts.pg_dict import DeliveryInfo
 import pandas as pd
-
+from schemas.request_schemas.order import OrderFilterSchema
 
 class OrdersService(BaseServiceModel):
     def __init__(self,session:AsyncSession,user_role:UserRoles,cur_user_id:str):
@@ -167,7 +167,7 @@ class OrdersService(BaseServiceModel):
         return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).recover(order_id=order_id,customer_id=customer_id)
 
     @catch_errors
-    async def get(self,cursor:int=1,limit:int=10,query:str='',include_deleted:Optional[bool]=False,filter:OrdersFilters=None):
+    async def get(self,filter:OrderFilterSchema,cursor:int=1,limit:int=10,query:str='',include_deleted:Optional[bool]=False,):
         return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(cursor=cursor,limit=limit,query=query,include_deleted=include_deleted,filter=filter)
     
     @catch_errors

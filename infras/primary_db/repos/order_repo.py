@@ -5,7 +5,7 @@ from ..models.product import Products
 from ..models.customer import Customers
 from ..models.distributor import Distributors
 from core.utils.uuid_generator import generate_uuid
-from sqlalchemy import Numeric, select,delete,update,or_,func,String,cast,case
+from sqlalchemy import Numeric, select,delete,update,or_,func,String,cast,case,and_
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
 from core.data_formats.enums.common_enums import UserRoles
@@ -19,6 +19,7 @@ from models.response_models.req_res_models import SuccessResponseTypDict,BaseRes
 from core.data_formats.enums.filters_enum import OrdersFilters
 from core.utils.discount_validator import validate_discount
 from ..models.ui_id import TablesUiLId
+from schemas.request_schemas.order import OrderFilterSchema
 
 
 
@@ -137,14 +138,22 @@ class OrdersRepo(BaseRepoModel):
 
     async def get(
         self,
+        filter: OrderFilterSchema,
         cursor: int = 1,
         limit: int = 10,
         query: str = '',
         include_deleted: bool = False,
-        filter: OrdersFilters | None = None
     ):
         conditions = []
         total_orders_condition=[]
+        filters=[]
+        filter_mapper={
+            'payment_status':Orders.payment_status,
+            'invoice_status':Orders.invoice_status,
+            'purchase_type':Orders.purchase_type,
+            'renewal_type':Orders.renewal_type,
+            'distributor_type':Orders.distributor_type
+        }
 
         search_term = f"%{query.lower()}%"
         # cursor = (offset - 1) * limit
@@ -176,16 +185,6 @@ class OrdersRepo(BaseRepoModel):
 
         # conditions.append(Orders.sequence_id > cursor)
         conditions.append(Orders.is_deleted.is_(include_deleted))
-
-        # ---------------- FILTER LOGIC (IMPORTANT) ----------------
-        if filter == OrdersFilters.PENDING_DUES:
-            conditions.append(Orders.payment_status == PaymentStatus.NOT_PAID.value)
-            total_orders_condition.append(Orders.payment_status == PaymentStatus.NOT_PAID.value)
-
-        elif filter == OrdersFilters.PENDING_INVOICE:
-            conditions.append(Orders.invoice_status == InvoiceStatus.INCOMPLETED.value)
-            total_orders_condition.append(Orders.invoice_status == InvoiceStatus.INCOMPLETED.value)
-
         # ---------------- DATE FIELDS ----------------
         date_expr = func.date(func.timezone("Asia/Kolkata", Orders.created_at))
         deleted_at = func.date(func.timezone("Asia/Kolkata", Orders.deleted_at))
@@ -197,6 +196,12 @@ class OrdersRepo(BaseRepoModel):
                 deleted_at.label("deleted_at")
             ])
 
+    
+        for key,value in filter.model_dump(mode='json').items():
+            if value is not None:
+                filters.append(filter_mapper[key]==value)
+
+        ic(filters)
         queried_orders = (
             await self.session.execute(
                 select(
@@ -207,7 +212,11 @@ class OrdersRepo(BaseRepoModel):
                 .join(Customers, Customers.id == Orders.customer_id, isouter=True)
                 .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
                 .join(Users, Users.id == Orders.deleted_by, isouter=True)
-                .where(*conditions,Orders.sequence_id>cursor)
+                .where(
+                    *conditions,
+                    *filters,
+                    Orders.sequence_id>cursor
+                )
                 .limit(limit)
                 .order_by(Orders.sequence_id.asc())
             )

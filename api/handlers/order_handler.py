@@ -16,6 +16,7 @@ from core.data_formats.enums.common_enums import ImportExportTypeEnum
 from core.utils.excel_data_extractor import extract_excel_data
 from models.import_export_models.excel_headings_mapper import ORDERS_MAPPER
 from fastapi import UploadFile
+from schemas.request_schemas.order import OrderFilterSchema
 
 class HandleOrdersRequest:
     def __init__(self,session:AsyncSession,user_role:UserRoles,cur_user_id:str):
@@ -236,7 +237,7 @@ class HandleOrdersRequest:
         )
 
     @catch_errors
-    async def get(self,cursor:int=1,limit:int=10,query:str='',filter:OrdersFilters=None):
+    async def get(self,filter:OrderFilterSchema,cursor:int=1,limit:int=10,query:str=''):
         if cursor is None:
             raise HTTPException(
                 status_code=400,

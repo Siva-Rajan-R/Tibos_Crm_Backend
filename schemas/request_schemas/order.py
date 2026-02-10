@@ -1,7 +1,7 @@
 from pydantic import BaseModel,EmailStr
 from core.data_formats.typed_dicts.pg_dict import DeliveryInfo
 from core.data_formats.enums.pg_enums import PaymentStatus,InvoiceStatus,PurchaseTypes,RenewalTypes,DistributorType
-from typing import Optional
+from typing import Optional,Union
 from datetime import date
 
 class AddOrderSchema(BaseModel):
@@ -47,3 +47,11 @@ class UpdateOrderSchema(BaseModel):
 class RecoverOrderSchema(BaseModel):
     order_id:str
     customer_id:str
+
+
+class OrderFilterSchema(BaseModel):
+    payment_status:Optional[Union[PaymentStatus,None]]=None
+    invoice_status:Optional[Union[InvoiceStatus,None]]=None
+    purchase_type:Optional[Union[PurchaseTypes,None]]=None
+    renewal_type:Optional[Union[RenewalTypes,None]]=None
+    distributor_type:Optional[Union[DistributorType,None]]=None
