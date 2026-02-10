@@ -49,6 +49,7 @@ class DistributorService(BaseServiceModel):
             ic("Before increment : ",lui_id)
             lui_id=cur_uiid
             ic("After increment : ",lui_id)
+            data['discount']=str(data['discount']*100)+"%"
             datas_toadd.append(Distributors(**data, id=distri_id,ui_id=cur_uiid))
                 
         ic(skipped_items,datas_toadd)

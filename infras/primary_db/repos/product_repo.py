@@ -119,6 +119,8 @@ class ProductsRepo(BaseRepoModel):
             .join(Users,Users.id==Products.deleted_by,isouter=True)
             .where(
                 or_(
+                    Products.ui_id.ilike(search_term),
+                    Products.part_number.ilike(search_term),
                     Products.id.ilike(search_term),
                     Products.name.ilike(search_term),
                     Products.description.ilike(search_term),
@@ -165,6 +167,8 @@ class ProductsRepo(BaseRepoModel):
             )
             .where(
                 or_(
+                    Products.ui_id.ilike(search_term),
+                    Products.part_number.ilike(search_term),
                     Products.id.ilike(search_term),
                     Products.name.ilike(search_term),
                     Products.description.ilike(search_term),

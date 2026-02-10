@@ -85,6 +85,7 @@
 
 
 
-a={'name':None,'age':'19','dob':None}
-
-print()
+a=[]
+if a and (a!=[] or len(a)>0):
+    print("hi")
+print("hoo")

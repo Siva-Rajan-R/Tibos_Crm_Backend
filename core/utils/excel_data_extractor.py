@@ -45,6 +45,7 @@ def extract_excel_data(excel_file,headings_mapper:dict):
         temp_dict={}
     
     print(len(final_data))
+    ic(final_data)
     return final_data if not is_breaked else None
 
 

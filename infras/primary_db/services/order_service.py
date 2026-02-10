@@ -41,8 +41,10 @@ class OrdersService(BaseServiceModel):
         # then check customer is exists or not
         # then chck product is exists or not
         order_obj=OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id)
-        if (await order_obj.is_order_exists(customer_id=data.customer_id,product_id=data.product_id)):
-            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Order",description="Order with the given customer id and product id already exists")
+        invoice_no_exists=await order_obj.get(filter=OrderFilterSchema(),query=data.invoice_number)
+        ic(invoice_no_exists['orders'])
+        if data.invoice_number and (invoice_no_exists['orders']!=[] or len(invoice_no_exists['orders'])>0):
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Order",description="Order with the given invoice number is already exists")
         
         cust_exists=await CustomersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(customer_id=data.customer_id)
         if not cust_exists or len(cust_exists)<1:
@@ -94,9 +96,14 @@ class OrdersService(BaseServiceModel):
             data['distributor_id']=distri_exists['distributors']['id']
             data['product_id']=prod_exists['product']['id']
 
-            if (await orders_obj.is_order_exists(customer_id=data['customer_id'],product_id=data['product_id'])):
+            invoice_no_exists=await orders_obj.get(filter=OrderFilterSchema(),query=data['invoice_number'])
+            if data['invoice_number'] and (invoice_no_exists['orders']!=[] or len(invoice_no_exists['orders'])>0):
                 skipped_items.append(data)
                 continue
+    
+            # if (await orders_obj.is_order_exists(customer_id=data['customer_id'],product_id=data['product_id'])):
+            #     skipped_items.append(data)
+            #     continue
             
             data['delivery_info']=DeliveryInfo(
                 requested_date=pd.Timestamp(data['requested_date']).strftime("%Y-%m-%d"),
@@ -114,6 +121,8 @@ class OrdersService(BaseServiceModel):
 
             ic(data)
             total_price=data['quantity']*prod_exists['product']['price']
+            data['discount']=str(data['discount']*100)+"%"
+            data['vendor_commision']=str(data['vendor_commision'])
             ic(total_price)
             distri_dic_final_price=(total_price-parse_discount(distri_exists['distributors']['discount'],total_price))
             ic(distri_dic_final_price)
@@ -123,6 +132,7 @@ class OrdersService(BaseServiceModel):
             
             cur_uiid=generate_ui_id(prefix="ORD",last_id=lui_id)
             lui_id=cur_uiid
+            ic(data)
             datas_toadd.append(Orders(**data, id=order_id,ui_id=cur_uiid,final_price=final_price,total_price=total_price))
                 
         ic(skipped_items,datas_toadd)
@@ -135,9 +145,9 @@ class OrdersService(BaseServiceModel):
         if not data_toupdate or len(data_toupdate)<1:
             return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Order",description="No valid fields to update provided")
         
-        order_obj=OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id)
-        if (await order_obj.is_order_exists(customer_id=data.customer_id,product_id=data.product_id)):
-            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Order",description="Order with the given customer id and product id already exists")
+        invoice_no_exists=await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(filter=OrderFilterSchema(),query=data.invoice_number)
+        if data.invoice_number and (invoice_no_exists['orders']!=[] or len(invoice_no_exists['orders'])>0):
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Order",description="Order with the given invoice number is already exists")
         
         cust_exists=await CustomersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(customer_id=data.customer_id)
         if not cust_exists or len(cust_exists)<1:
