@@ -2,7 +2,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 from infras.primary_db.models.order import Orders,PaymentStatus,InvoiceStatus
 from datetime import datetime,date
-from sqlalchemy import select,func,case,cast,Numeric
+from sqlalchemy import select,func,case,cast,Numeric,Date
 from typing import Optional
 from icecream import ic
 from core.data_formats.enums.common_enums import UserRoles
@@ -15,7 +15,11 @@ class HandleDashboardRequest:
         self.cur_user_id=cur_user_id
 
     async def get_dashboard(self,from_date:Optional[date]=None,to_date:Optional[date]=None,timezone: Optional[str]="Asia/Kolkata"):
-        day_expr = func.date(func.timezone(timezone, Orders.created_at))
+        # day_expr = func.date(func.timezone(timezone, Orders.delivery_info['requested_date']))
+        day_expr = cast(
+        Orders.delivery_info["requested_date"].astext,
+        Date
+    ).label("day")
         vendor_comm_amount = case(
             # WHEN vendor_commision LIKE '%'
             (

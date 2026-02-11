@@ -28,7 +28,7 @@ class CustomersRepo(BaseRepoModel):
             Customers.ui_id,
             Customers.name,
             Customers.mobile_number,
-            Customers.email,
+            func.string_to_array(Customers.email,',').label('emails'),
             Customers.gst_number,
             Customers.no_of_employee,
             Customers.website_url,

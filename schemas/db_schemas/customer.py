@@ -9,7 +9,7 @@ class AddCustomerDbSchema(BaseModel):
     ui_id:str
     name:str
     mobile_number:str
-    email:EmailStr
+    email:str
     website_url:Optional[str]
     no_of_employee:int
     gst_number:Optional[str]
@@ -23,7 +23,7 @@ class UpdateCustomerDbSchema(BaseModel):
     customer_id:str
     name:Optional[str]=None
     mobile_number:Optional[str]=None
-    email:Optional[EmailStr]=None
+    email:str
     website_url:Optional[str]=None
     no_of_employee:Optional[int]=None
     gst_number:Optional[str]=None

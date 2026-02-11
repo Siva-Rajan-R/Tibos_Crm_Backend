@@ -176,8 +176,8 @@ class OrdersService(BaseServiceModel):
         return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(order_id=order_id)
         
     @catch_errors
-    async def get_by_customer_id(self,customer_id:str,offset:int,limit:int):
-        return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_customer_id(customer_id=customer_id,offset=offset,limit=limit)
+    async def get_by_customer_id(self,customer_id:str,cursor:int,limit:int):
+        return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_customer_id(customer_id=customer_id,cursor=cursor,limit=limit)
 
 
 

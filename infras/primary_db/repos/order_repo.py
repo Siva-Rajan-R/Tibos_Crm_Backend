@@ -269,7 +269,7 @@ class OrdersRepo(BaseRepoModel):
             )).scalar_one_or_none()
 
             order_value=(await self.session.execute(
-                func.sum(Orders.final_price)
+                select(func.sum(Orders.final_price)).where(Orders.is_deleted==False)
             )).scalar()
 
             pending_invoice=(
@@ -373,37 +373,82 @@ class OrdersRepo(BaseRepoModel):
         )).mappings().all()
 
         total_orders:int=0
-        total_revenue:int=0
-        highest_revenue:int=0
-        if cursor==1 or cursor==0:
+        total_revenue=0
+        order_value=0
+        pending_dues=0
+        pending_invoice=0
+        ic(cursor)
+        if cursor==1:
+            vendor_comm_amount = case(
+                # WHEN vendor_commision LIKE '%'
+                (
+                    Orders.vendor_commision.like('%\%%'),
+                    # percentage: (unit_price * quantity) * percent / 100
+                    (
+                        cast(func.coalesce(Orders.unit_price, 0), Numeric) *
+                        cast(func.coalesce(Orders.quantity, 0), Numeric)
+                    )
+                    *
+                    (
+                        cast(func.replace(Orders.vendor_commision, '%', ''), Numeric) / 100
+                    )
+                ),
+                # ELSE flat amount
+                else_=cast(func.coalesce(Orders.vendor_commision, '0'), Numeric)
+            )
+
             profit_expr = (
-                ((cast(func.coalesce(Orders.unit_price, 0), Numeric) *
-                cast(func.coalesce(Orders.quantity, 0), Numeric)))
+                (cast(func.coalesce(Orders.unit_price, 0), Numeric) *
+                cast(func.coalesce(Orders.quantity, 0), Numeric))
+                -
+                (vendor_comm_amount*cast(func.coalesce(Orders.quantity, 0), Numeric))
                 -
                 cast(func.coalesce(Orders.final_price, 0), Numeric)
             )
-            total_orders=(await self.session.execute(
-                select(func.count(Orders.id))
-                .where(Orders.customer_id==customer_id,Orders.is_deleted==False)
-            )).scalar_one_or_none()
-
+            ic("iii")
             total_revenue=(await self.session.execute(
                 select(func.coalesce(func.sum(profit_expr), 0))
-                .where(Orders.customer_id==customer_id,Orders.is_deleted==False)
+                .where(Orders.is_deleted==False,Orders.customer_id==customer_id)
+            )).scalar()
+            ic(total_revenue)
+            
+            total_orders=(await self.session.execute(
+                select(func.count(Orders.id))
+                .where(Orders.is_deleted==False,Orders.customer_id==customer_id)
             )).scalar_one_or_none()
 
-            highest_revenue=(await self.session.execute(
-                select(func.max(Orders.final_price))
-                .where(Orders.customer_id==customer_id,Orders.is_deleted==False)
+            order_value=(await self.session.execute(
+                select(func.sum(Orders.final_price)).where(Orders.is_deleted==False,Orders.customer_id==customer_id)
+                
             )).scalar()
+
+            pending_invoice=(
+                await self.session.execute(
+                    select(
+                        func.count().filter(Orders.invoice_status == InvoiceStatus.INCOMPLETED.value).label("pending_invoices")
+                    ).where(Orders.is_deleted==False,Orders.customer_id==customer_id)
+                )
+            ).scalar_one_or_none()
+            pending_dues=(
+                await self.session.execute(
+                    select(func.count().filter(Orders.payment_status == PaymentStatus.NOT_PAID.value).label("pending_dues"))
+                    .where(Orders.is_deleted==False,Orders.customer_id==customer_id)
+                )
+            ).scalar_one_or_none()
+
+        ic(total_orders,limit,total_revenue,order_value)
+        ic("Hi",func.round(order_value,0))
+        ic(queried_orders)
 
         return {
             'orders':queried_orders,
             'total_orders':total_orders,
             'total_pages':ceil(total_orders/limit),
-            'total_revenue':total_revenue,
-            'highest_revenue':highest_revenue,
-            'next_cursor':queried_orders[-1]['sequence_id'] if len(queried_orders)>0 else []
+            'total_revenue':round(total_revenue) if total_revenue else 0,
+            'order_value':round(order_value,0) if order_value else 0,
+            'pending_invoice':pending_invoice,
+            'pending_dues':pending_dues,
+            'next_cursor':queried_orders[-1]['sequence_id'] if len(queried_orders)>0 else None
         }
 
 

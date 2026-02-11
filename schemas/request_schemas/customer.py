@@ -6,7 +6,7 @@ from core.data_formats.typed_dicts.customer_dict import CustomerAddressTypDict
 class AddCustomerSchema(BaseModel):
     name:str
     mobile_number:str
-    email:EmailStr
+    emails:List[EmailStr]
     website_url:Optional[str]=None
     no_of_employee:int
     gst_number:Optional[str]=None
@@ -20,7 +20,7 @@ class UpdateCustomerSchema(BaseModel):
     customer_id:str
     name:Optional[str]=None
     mobile_number:Optional[str]=None
-    email:Optional[EmailStr]=None
+    emails:Optional[List[EmailStr]]=None
     website_url:Optional[str]=None
     no_of_employee:Optional[int]=None
     gst_number:Optional[str]=None

@@ -1,5 +1,6 @@
 from . import BaseServiceModel
 from ..models.contact import Contacts
+from .customer_service import CustomersService
 from ..models.order import Orders
 from ..models.customer import Customers
 from ..repos.customer_repo import CustomersRepo
@@ -111,8 +112,8 @@ class ContactsService(BaseServiceModel):
         return await ContactsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(contact_id=contact_id)
     
     @catch_errors
-    async def get_by_customer_id(self,customer_id:str,offset:int,limit:int,query:str=''):
-        return await ContactsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_customer_id(customer_id=customer_id,offset=offset,limit=limit,query=query)
+    async def get_by_customer_id(self,customer_id:str,cursor:int,limit:int):
+        return await ContactsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_customer_id(cursor=cursor,limit=limit,customer_id=customer_id)
 
 
 

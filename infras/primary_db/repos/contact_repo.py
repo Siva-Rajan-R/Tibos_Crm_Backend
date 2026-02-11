@@ -201,30 +201,15 @@ class ContactsRepo(BaseRepoModel):
 
         return {'contact':queried_contacts}
     
-    async def get_by_customer_id(self,customer_id:str,offset:int,limit:int,query:str=''):
-        cursor=(offset-1)*limit
-        search_term=f"%{query.lower()}%"
+    async def get_by_customer_id(self,customer_id:str,cursor:int,limit:int):
         date_expr=func.date(func.timezone("Asia/Kolkata",Contacts.created_at))
         queried_contacts=(await self.session.execute(
             select(
                 *self.contact_cols,
                 date_expr.label("contact_created_at")
-
-
             )
             .join(Customers,Customers.id==Contacts.customer_id,isouter=True)
             .where(
-                or_(
-                    Contacts.name.ilike(search_term),
-                    Contacts.id.ilike(search_term),
-                    Contacts.ui_id.ilike(search_term),
-                    Contacts.email.ilike(search_term),
-                    Contacts.mobile_number.ilike(search_term),
-                    func.cast(Contacts.created_at,String).ilike(search_term),
-                    Customers.name.ilike(search_term),
-                    Customers.email.ilike(search_term),
-                    Customers.website_url.ilike(search_term)
-                ),
                 customer_id==Contacts.customer_id,
                 Contacts.sequence_id>cursor,
                 Contacts.is_deleted==False
@@ -233,7 +218,7 @@ class ContactsRepo(BaseRepoModel):
         )).mappings().all()
 
         total_contacts:int=0
-        if offset==1:
+        if cursor==1:
             total_contacts=(await self.session.execute(
                 select(func.count(Contacts.id))
                 .where(customer_id==Contacts.customer_id)

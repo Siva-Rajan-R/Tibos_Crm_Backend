@@ -96,9 +96,9 @@ async def get_contact_by_contact_id(contact_id:str,user:dict=Depends(verify_user
     ).get_by_id(contact_id=contact_id)
 
 @router.get('/customer/{customer_id}')
-async def get_contact_by_customer_id(customer_id:str,user:dict=Depends(verify_user),q:Optional[str]=Query(''),offset:Optional[int]=Query(1),limit:Optional[int]=Query(10),session:AsyncSession=Depends(get_pg_db_session)):
+async def get_contact_by_customer_id(customer_id:str,user:dict=Depends(verify_user),cursor:Optional[int]=Query(1),limit:Optional[int]=Query(10),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleContactsRequest(
         session=session,
         user_role=user['role'],
         cur_user_id=user['id']
-    ).get_by_customer_id(customer_id=customer_id,offset=offset,limit=limit,query=q)
+    ).get_by_customer_id(customer_id=customer_id,cursor=cursor,limit=limit)

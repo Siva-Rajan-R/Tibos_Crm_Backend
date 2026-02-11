@@ -104,9 +104,9 @@ async def get_order_by_order_id(order_id:str,user:dict=Depends(verify_user),sess
 
 
 @router.get('/customer/{customer_id}')
-async def get_order_by_customer_id(customer_id:str,user:dict=Depends(verify_user),offset:Optional[int]=Query(1),limit:Optional[int]=Query(10),session:AsyncSession=Depends(get_pg_db_session)):
+async def get_order_by_customer_id(customer_id:str,user:dict=Depends(verify_user),cursor:Optional[int]=Query(1),limit:Optional[int]=Query(10),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleOrdersRequest(
         session=session,
         user_role=user['role'],
         cur_user_id=user['id']
-    ).get_by_customer_id(customer_id=customer_id,offset=offset,limit=limit)
+    ).get_by_customer_id(customer_id=customer_id,cursor=cursor,limit=limit)

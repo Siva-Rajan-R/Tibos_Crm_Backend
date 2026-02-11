@@ -37,7 +37,11 @@ class CustomersService(BaseServiceModel):
         customer_id:str=generate_uuid()
         lui_id:str=(await self.session.execute(select(TablesUiLId.customer_luiid))).scalar_one_or_none()
         cur_uiid=generate_ui_id(prefix="CUST",last_id=lui_id)
-        return await customer_obj.add(data=AddCustomerDbSchema(**data.model_dump(mode='json'),id=customer_id,ui_id=cur_uiid,lui_id=lui_id))
+        data_toadd=data.model_dump(mode='json')
+        data_toadd['email']=','.join(data_toadd['emails'])
+        del data_toadd['emails']
+        ic(data_toadd)
+        return await customer_obj.add(data=AddCustomerDbSchema(**data_toadd,id=customer_id,ui_id=cur_uiid,lui_id=lui_id))
     
     @catch_errors
     async def add_bulk(self,datas:List[dict]):
@@ -84,7 +88,8 @@ class CustomersService(BaseServiceModel):
     @catch_errors  
     async def update(self,data:UpdateCustomerSchema):
         data_toupdate=data.model_dump(mode='json',exclude_none=True,exclude_unset=True)
-
+        data_toupdate['email']=','.join(data_toupdate['emails'])
+        del data_toupdate['emails']
         if not data_toupdate or len(data_toupdate)<1:
             return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Customer",description="No valid fields to update provided")
         
