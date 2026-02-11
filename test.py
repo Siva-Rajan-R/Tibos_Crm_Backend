@@ -85,7 +85,50 @@
 
 
 
-a=[]
-if a and (a!=[] or len(a)>0):
-    print("hi")
-print("hoo")
+import requests
+
+TENANT_ID = "5306f651-8fb6-47ee-8b65-2685aadbc3c0"
+CLIENT_ID = "27f272ed-19e9-4460-a0c0-13d40b3855c8"
+CLIENT_SECRET = "Tij8Q~mb85YqaqiPKvyyQiy4QjKRLbqLbeO0jawH"
+
+def get_token():
+    url = f"https://login.microsoftonline.com/{TENANT_ID}/oauth2/v2.0/token"
+    data = {
+        "client_id": CLIENT_ID,
+        "client_secret": CLIENT_SECRET,
+        "scope": "https://graph.microsoft.com/.default",
+        "grant_type": "client_credentials",
+    }
+    res = requests.post(url, data=data,headers={"Content-Type": "application/x-www-form-urlencoded"})
+    print(res.text)
+    res.raise_for_status()
+    return res.json()["access_token"]
+
+
+ACCESS_TOKEN = get_token()
+
+url = "https://graph.microsoft.com/v1.0/users/crm@tibos.in/sendMail"
+
+headers = {
+    "Authorization": f"Bearer {ACCESS_TOKEN}",
+    "Content-Type": "application/json",
+}
+
+payload = {
+    "message": {
+        "subject": "Graph API test",
+        "body": {
+            "contentType": "HTML",
+            "content": "<h2>Email sent using Microsoft Graph API</h2>"
+        },
+        "toRecipients": [
+            {"emailAddress": {"address": "siva@tibos.in"}}
+        ]
+    },
+    "saveToSentItems": True
+}
+
+res = requests.post(url, headers=headers, json=payload)
+print(res.status_code)
+print(res.text)
+
