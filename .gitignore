@@ -5,3 +5,4 @@ myvenv
 mylogs.txt
 alembic
 alembic.ini
+test.py
