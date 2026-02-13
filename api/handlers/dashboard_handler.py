@@ -52,7 +52,7 @@ class HandleDashboardRequest:
             func.count().filter(Orders.payment_status == PaymentStatus.NOT_PAID.value).label("pending_dues"),
             func.count().filter(Orders.invoice_status == InvoiceStatus.INCOMPLETED.value).label("pending_invoices"),
             func.round(func.coalesce(func.sum(profit_expr), 0)).label("total_revenue"),
-            func.round(func.sum(Orders.final_price)).label("order_value")
+            func.round(func.sum(Orders.unit_price*Orders.quantity)).label("order_value")
         ).where(
             Orders.is_deleted==False
         ).group_by(

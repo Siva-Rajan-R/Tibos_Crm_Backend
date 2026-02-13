@@ -110,3 +110,11 @@ async def get_order_by_customer_id(customer_id:str,user:dict=Depends(verify_user
         user_role=user['role'],
         cur_user_id=user['id']
     ).get_by_customer_id(customer_id=customer_id,cursor=cursor,limit=limit)
+
+@router.get('/date/last/{customer_id}/{product_id}')
+async def get_last_order_date(customer_id:str,product_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+    return await HandleOrdersRequest(
+        session=session,
+        user_role=user['role'],
+        cur_user_id=user['id']
+    ).get_last_order_date(customer_id=customer_id,product_id=product_id)

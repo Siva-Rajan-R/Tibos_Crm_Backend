@@ -5,7 +5,7 @@ from ..models.product import Products
 from ..models.customer import Customers
 from ..models.distributor import Distributors
 from core.utils.uuid_generator import generate_uuid
-from sqlalchemy import Numeric, select,delete,update,or_,func,String,cast,case,and_
+from sqlalchemy import Numeric, select,delete,update,or_,func,String,cast,case,and_,Date,desc
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
 from core.data_formats.enums.common_enums import UserRoles
@@ -20,6 +20,7 @@ from core.data_formats.enums.filters_enum import OrdersFilters
 from core.utils.discount_validator import validate_discount
 from ..models.ui_id import TablesUiLId
 from schemas.request_schemas.order import OrderFilterSchema
+from core.data_formats.enums.pg_enums import PurchaseTypes
 
 
 
@@ -259,30 +260,52 @@ class OrdersRepo(BaseRepoModel):
             ic("iii")
             total_revenue=(await self.session.execute(
                 select(func.coalesce(func.sum(profit_expr), 0))
-                .where(Orders.is_deleted==False)
+                .join(Products, Products.id == Orders.product_id, isouter=True)
+                .join(Customers, Customers.id == Orders.customer_id, isouter=True)
+                .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
+                .join(Users, Users.id == Orders.deleted_by, isouter=True)
+                .where(*conditions,*filters,Orders.is_deleted==False)
             )).scalar()
             ic(total_revenue)
             
             total_orders=(await self.session.execute(
                 select(func.count(Orders.id))
-                .where(Orders.is_deleted==False,*total_orders_condition)
+                .join(Products, Products.id == Orders.product_id, isouter=True)
+                .join(Customers, Customers.id == Orders.customer_id, isouter=True)
+                .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
+                .join(Users, Users.id == Orders.deleted_by, isouter=True)
+                .where(*conditions,*filters,Orders.is_deleted==False,*total_orders_condition)
             )).scalar_one_or_none()
 
             order_value=(await self.session.execute(
-                select(func.sum(Orders.final_price)).where(Orders.is_deleted==False)
+                select(func.sum(Orders.unit_price*Orders.quantity))
+                .join(Products, Products.id == Orders.product_id, isouter=True)
+                .join(Customers, Customers.id == Orders.customer_id, isouter=True)
+                .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
+                .join(Users, Users.id == Orders.deleted_by, isouter=True)
+                .where(*conditions,*filters,Orders.is_deleted==False)
             )).scalar()
 
             pending_invoice=(
                 await self.session.execute(
                     select(
                         func.count().filter(Orders.invoice_status == InvoiceStatus.INCOMPLETED.value).label("pending_invoices")
-                    ).where(Orders.is_deleted==False)
+                    )
+                    .join(Products, Products.id == Orders.product_id, isouter=True)
+                    .join(Customers, Customers.id == Orders.customer_id, isouter=True)
+                    .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
+                    .join(Users, Users.id == Orders.deleted_by, isouter=True)
+                    .where(*conditions,*filters,Orders.is_deleted==False)
                 )
             ).scalar_one_or_none()
             pending_dues=(
                 await self.session.execute(
                     select(func.count().filter(Orders.payment_status == PaymentStatus.NOT_PAID.value).label("pending_dues"))
-                    .where(Orders.is_deleted==False)
+                    .join(Products, Products.id == Orders.product_id, isouter=True)
+                    .join(Customers, Customers.id == Orders.customer_id, isouter=True)
+                    .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
+                    .join(Users, Users.id == Orders.deleted_by, isouter=True)
+                    .where(*conditions,*filters,Orders.is_deleted==False)
                 )
             ).scalar_one_or_none()
 
@@ -450,6 +473,30 @@ class OrdersRepo(BaseRepoModel):
             'pending_dues':pending_dues,
             'next_cursor':queried_orders[-1]['sequence_id'] if len(queried_orders)>0 else None
         }
+    
+
+    async def get_last_order_date(self,customer_id:str,product_id:str):
+        date_expr=cast(
+            Orders.delivery_info['delivery_date'].astext,
+            Date
+        )
+
+        last_ord_date_stmt=(
+            select(
+                date_expr.label('last_date')
+            )
+            .where(
+                Orders.customer_id==customer_id,
+                Orders.product_id==product_id,
+                Orders.is_deleted==False,
+                Orders.purchase_type!=PurchaseTypes.EXISTING_ADD_ON.value
+            )
+            .order_by(desc(date_expr))
+            .limit(1)
+        )
+        
+        last_ord_date=(await self.session.execute(last_ord_date_stmt)).scalar_one_or_none()
+        return {'order_ldate':last_ord_date}
 
 
 

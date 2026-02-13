@@ -178,6 +178,10 @@ class OrdersService(BaseServiceModel):
     @catch_errors
     async def get_by_customer_id(self,customer_id:str,cursor:int,limit:int):
         return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_customer_id(customer_id=customer_id,cursor=cursor,limit=limit)
+    
+    @catch_errors
+    async def get_last_order_date(self,customer_id:str,product_id:str):
+        return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_last_order_date(customer_id=customer_id,product_id=product_id)
 
 
 
