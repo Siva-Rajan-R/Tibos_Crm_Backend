@@ -27,6 +27,10 @@ from core.utils.discount_validator import parse_discount
 from core.data_formats.typed_dicts.pg_dict import DeliveryInfo
 import pandas as pd
 from schemas.request_schemas.order import OrderFilterSchema
+from core.utils.calculations import get_distributor_amount,get_remaining_days
+from core.data_formats.enums.pg_enums import PurchaseTypes
+
+
 
 class OrdersService(BaseServiceModel):
     def __init__(self,session:AsyncSession,user_role:UserRoles,cur_user_id:str):
@@ -55,9 +59,14 @@ class OrdersService(BaseServiceModel):
             return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Order",description="Distributor with the given id does not exist")
         
         total_price=data.quantity*prod_exists['product']['price']
-        distri_dic_final_price=(total_price-parse_discount(distri_exists['distributors']['discount'],total_price))
+        distri_amt=total_price-parse_discount(distri_exists['distributors']['discount'],total_price)
+        distri_dic_final_price=distri_amt
         final_price=(distri_dic_final_price-parse_discount(data.discount,distri_dic_final_price))
         order_id:str=generate_uuid()
+        if data.purchase_type.value==PurchaseTypes.EXISTING_ADD_ON.value:
+            lorder_date=(await self.get_last_order_date(customer_id=data.customer_id,product_id=data.product_id))['order_ldate']
+            remaining_days=get_remaining_days(from_date=lorder_date,to_date=data.delivery_info.get("delivery_date"))
+            final_price=total_price/365*remaining_days
         lui_id:str=(await self.session.execute(select(TablesUiLId.order_luiid))).scalar_one_or_none()
         cur_uiid=generate_ui_id(prefix="ORD",last_id=lui_id)
         return await order_obj.add(data=AddOrderDbSchema(**data.model_dump(mode='json'),id=order_id,ui_id=cur_uiid,final_price=final_price,total_price=total_price))
@@ -146,10 +155,16 @@ class OrdersService(BaseServiceModel):
         
 
         total_price=data.quantity*prod_exists['product']['price']
+        distri_amt=total_price-parse_discount(distri_exists['distributors']['discount'],total_price)
+        
         del data_toupdate['total_price']
         ic(data_toupdate)
-        distri_dic_final_price=(total_price-parse_discount(distri_exists['distributors']['discount'],total_price))
+        distri_dic_final_price=distri_amt
         final_price=(distri_dic_final_price-parse_discount(data.discount,distri_dic_final_price))
+        if data.purchase_type.value==PurchaseTypes.EXISTING_ADD_ON.value:
+            lorder_date=(await self.get_last_order_date(customer_id=data.customer_id,product_id=data.product_id))['order_ldate']
+            remaining_days=get_remaining_days(from_date=lorder_date,to_date=data.delivery_info.get("delivery_date"))
+            final_price=final_price/365*remaining_days
         del data_toupdate['final_price']
         return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateOrderDbSchema(**data_toupdate,total_price=total_price,final_price=final_price))
         

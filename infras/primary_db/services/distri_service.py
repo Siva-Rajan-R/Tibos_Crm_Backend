@@ -19,6 +19,7 @@ from models.response_models.req_res_models import SuccessResponseTypDict,BaseRes
 from ..models.ui_id import TablesUiLId
 from core.utils.ui_id_generator import generate_ui_id
 from core.constants import UI_ID_STARTING_DIGIT
+from schemas.request_schemas.order import OrderFilterSchema
 
 
 class DistributorService(BaseServiceModel):
@@ -66,7 +67,7 @@ class DistributorService(BaseServiceModel):
         
     @catch_errors
     async def delete(self,distributor_id:str,soft_delete:bool=True):
-        have_order=(await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(query=distributor_id,limit=1)).get('orders')
+        have_order=(await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(query=distributor_id,limit=1,filter=OrderFilterSchema())).get('orders')
         if have_order or len(have_order)>0:
             return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Deleting Distributor",description="Distributor has associated orders and cannot be deleted")
         

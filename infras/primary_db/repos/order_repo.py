@@ -46,6 +46,7 @@ class OrdersRepo(BaseRepoModel):
             Products.name.label('product_name'),
             Products.product_type,
             Products.description,
+            Products.price.label('product_price'),
             Customers.name.label('customer_name'),
             Customers.mobile_number,
             Distributors.name.label('distributor_name'),

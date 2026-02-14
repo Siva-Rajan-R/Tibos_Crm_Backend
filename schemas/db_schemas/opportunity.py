@@ -1,5 +1,5 @@
 from pydantic import BaseModel
-from typing import Optional
+from typing import Optional,Union
 from core.data_formats.enums.pg_enums import OpportunityStatus, BillingType
 
 
@@ -13,7 +13,7 @@ class CreateOpportunityDbSchema(BaseModel):
     billing_type: BillingType
     deal_value: float
     description: Optional[str] = None
-    status:OpportunityStatus
+    status:str
 
 
 class UpdateOpportunityDbSchema(BaseModel):
@@ -23,4 +23,4 @@ class UpdateOpportunityDbSchema(BaseModel):
     billing_type: Optional[BillingType]=None
     deal_value: Optional[float]=None
     description: Optional[str] = None
-    status: Optional[OpportunityStatus]=None
+    status: Optional[str]=None
