@@ -28,4 +28,4 @@ async def get_auth_forgot(ip:str):
 
 async def unlink_auth_forgot(ip:str):
     KEY=f"AUTH-FORGOT-{ip}"
-    return unlink_redis(keys=[KEY])
+    return await unlink_redis(keys=[KEY])

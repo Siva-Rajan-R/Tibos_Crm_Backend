@@ -9,7 +9,7 @@ class AddProductSchema(BaseModel):
     price:float
     available_qty:int
     part_number:str
-    product_type:Union[str,ProductTypes]
+    product_type:str
 
 class UpdateProductSchema(BaseModel):
     product_id:str
@@ -17,7 +17,7 @@ class UpdateProductSchema(BaseModel):
     description:Optional[str]=None
     price:Optional[float]=None
     available_qty:Optional[int]=None
-    product_type:Optional[Union[str,ProductTypes]]=None
+    product_type:Optional[str]=None
     part_number:Optional[str]=None
 
 class RecoverProductSchema(BaseModel):

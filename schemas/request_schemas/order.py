@@ -21,6 +21,7 @@ class AddOrderSchema(BaseModel):
     bill_to:Optional[str]=None
     vendor_commision:Optional[str]=None
     distributor_type:DistributorType
+    emailto_send_id:Optional[str]=None
 
 
 class UpdateOrderSchema(BaseModel):
@@ -43,6 +44,7 @@ class UpdateOrderSchema(BaseModel):
     bill_to:Optional[str]=None
     vendor_commision:Optional[str]=None
     distributor_type:Optional[DistributorType]=None
+    emailto_send_id:Optional[str]=None
 
 class RecoverOrderSchema(BaseModel):
     order_id:str

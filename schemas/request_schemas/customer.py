@@ -10,8 +10,8 @@ class AddCustomerSchema(BaseModel):
     website_url:Optional[str]=None
     no_of_employee:int
     gst_number:Optional[str]=None
-    industry:Union[str,CustomerIndustries]
-    sector:Union[str,CustomerSectors]
+    industry:str
+    sector:str
     address:CustomerAddressTypDict
     owner:str
     tenant_id:str
@@ -24,8 +24,8 @@ class UpdateCustomerSchema(BaseModel):
     website_url:Optional[str]=None
     no_of_employee:Optional[int]=None
     gst_number:Optional[str]=None
-    industry:Optional[Union[str,CustomerIndustries]]=None
-    sector:Optional[Union[str,CustomerSectors]]=None
+    industry:Optional[str]=None
+    sector:Optional[str]=None
     address:Optional[CustomerAddressTypDict]=None
     owner:Optional[str]=None
     tenant_id:Optional[str]=None

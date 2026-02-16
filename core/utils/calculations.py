@@ -13,7 +13,7 @@ def get_remaining_days(from_date:Union[str,date],to_date:Union[str,date]):
     if isinstance(to_date,str):
         formated_to_date=datetime.strptime(to_date, "%Y-%m-%d").date()
 
-    remaining_days=formated_to_date-formated_from_date
+    remaining_days=formated_from_date-formated_to_date
 
     return remaining_days.days
 

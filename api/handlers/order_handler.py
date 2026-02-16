@@ -2,6 +2,7 @@ from infras.primary_db.services.order_service import OrdersService
 from sqlalchemy import select,delete,update,or_,func,String
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
+from fastapi import Request,BackgroundTasks
 from core.data_formats.enums.common_enums import UserRoles
 from core.data_formats.enums.pg_enums import PaymentStatus,InvoiceStatus
 from core.data_formats.typed_dicts.pg_dict import DeliveryInfo
@@ -17,6 +18,10 @@ from core.utils.excel_data_extractor import extract_excel_data
 from models.import_export_models.excel_headings_mapper import ORDERS_MAPPER
 from fastapi import UploadFile
 from schemas.request_schemas.order import OrderFilterSchema
+from services.email_service import send_email
+from templates.email.order import get_crm_order_email_content
+from infras.primary_db.services.setting_service import SettingsService
+from core.data_formats.enums.common_enums import SettingsEnum
 
 class HandleOrdersRequest:
     def __init__(self,session:AsyncSession,user_role:UserRoles,cur_user_id:str):
@@ -39,7 +44,7 @@ class HandleOrdersRequest:
         #     )
 
     @catch_errors
-    async def add(self,data:AddOrderSchema):
+    async def add(self,data:AddOrderSchema,request:Request,bgt:BackgroundTasks):
         if data.invoice_status.value==InvoiceStatus.COMPLETED.value and ((not data.invoice_number or len(data.invoice_number)<1 or (not data.invoice_date))):
             raise HTTPException(
                 status_code=400,
@@ -86,6 +91,9 @@ class HandleOrdersRequest:
                 status_code=detail.status_code,
                 detail=detail.model_dump(mode='json')
             )
+        if data.emailto_send_id:
+            email_content=get_crm_order_email_content(customer_name="Tibos Testing",order_id="1234567899",company_name="TIBOS SOLUTIONS PVT LIMITED",total_amount=1000,items=[])
+            bgt.add_task(send_email,client_ip=request.client.host,reciver_emails=['siva@tibos.in','siva967763@gmail.com'],subject="Order Confirmation",body=email_content,is_html=True,sender_email_id=data.emailto_send_id)
         return SuccessResponseTypDict(
             detail=BaseResponseTypDict(
                 status_code=200,
@@ -131,7 +139,7 @@ class HandleOrdersRequest:
         )
     
     @catch_errors
-    async def update(self,data:UpdateOrderSchema):
+    async def update(self,data:UpdateOrderSchema,request:Request,bgt:BackgroundTasks):
         if data.invoice_status.value==InvoiceStatus.COMPLETED.value and ((not data.invoice_number or len(data.invoice_number)<1 or (not data.invoice_date))):
             raise HTTPException(
                 status_code=400,
@@ -178,7 +186,9 @@ class HandleOrdersRequest:
                 status_code=detail.status_code,
                 detail=detail.model_dump(mode='json')
             )
-        
+        if data.emailto_send_id:
+            email_content=get_crm_order_email_content(customer_name="Tibos Testing",order_id="1234567899",company_name="TIBOS SOLUTIONS PVT LIMITED",total_amount=1000,items=[])
+            bgt.add_task(send_email,client_ip=request.client.host,reciver_emails=['siva@tibos.in','siva967763@gmail.com'],subject="Order Confirmation",body=email_content,is_html=True,sender_email_id=data.emailto_send_id)
         return SuccessResponseTypDict(
             detail=BaseResponseTypDict(
                 status_code=200,

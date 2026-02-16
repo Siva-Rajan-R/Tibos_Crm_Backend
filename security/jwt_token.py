@@ -2,7 +2,7 @@ from core.configs.security_configs.pyjwt_config import jwt_token,DecodeError,Exp
 from icecream import ic
 from . import HTTPException
 from datetime import datetime,timedelta,timezone
-from security.symm_encryption import encrypt_data,decrypt_data
+from security.symm_encryption import SymmetricEncryption
 import os,json
 from core.settings import SETTINGS
 
@@ -17,7 +17,7 @@ def generate_jwt_token(data:dict,secret:str,alg:str,exp_min:int=0,exp_day:int=0,
     try:
         data['exp']=datetime.now(timezone.utc)+timedelta(days=exp_day,minutes=exp_min,seconds=exp_sec)
         data['iss']="DeB-Auth"
-        encrypted_data=encrypt_data(data=json.dumps(data['data']))
+        encrypted_data=SymmetricEncryption(secret_key=SETTINGS.SYMME_KEY).encrypt_data(data=json.dumps(data['data']))
         data['data']=encrypted_data
         token=jwt_token.encode(
             payload=data,
@@ -44,7 +44,7 @@ def decode_jwt_token(token:str,secret:str,alg:str)->dict:
             algorithms=alg
         )
 
-        decrypted_data=json.loads(decrypt_data(encrypted_data=decoded_token['data'])) #{email:...,role:...}
+        decrypted_data=json.loads(SymmetricEncryption(secret_key=SETTINGS.SYMME_KEY).decrypt_data(encrypted_data=decoded_token['data'])) #{email:...,role:...}
 
         return decrypted_data
     except ExpiredSignatureError:

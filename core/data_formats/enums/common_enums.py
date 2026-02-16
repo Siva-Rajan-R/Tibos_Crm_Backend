@@ -62,3 +62,6 @@ class OwnersEnum(Enum):
 class ImportExportTypeEnum(Enum):
     EXCEL="EXCEL"
     # CSV="CSV"
+
+class SettingsEnum(Enum):
+    EMAIL="EMAIL"

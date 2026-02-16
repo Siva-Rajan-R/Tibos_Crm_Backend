@@ -5,7 +5,7 @@ from ..models.product import Products
 from ..models.customer import Customers
 from ..models.distributor import Distributors
 from core.utils.uuid_generator import generate_uuid
-from sqlalchemy import Numeric, select,delete,update,or_,func,String,cast,case,and_,Date,desc
+from sqlalchemy import Numeric, select,delete,update,or_,func,String,cast,case,and_,Date,desc,text
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
 from core.data_formats.enums.common_enums import UserRoles
@@ -21,6 +21,7 @@ from core.utils.discount_validator import validate_discount
 from ..models.ui_id import TablesUiLId
 from schemas.request_schemas.order import OrderFilterSchema
 from core.data_formats.enums.pg_enums import PurchaseTypes
+from datetime import datetime,timedelta
 
 
 
@@ -484,7 +485,11 @@ class OrdersRepo(BaseRepoModel):
 
         last_ord_date_stmt=(
             select(
-                date_expr.label('last_date')
+                Orders.unit_price,
+                Orders.bill_to,
+                Orders.renewal_type,
+                Orders.delivery_info,
+                date_expr.label("last_date")
             )
             .where(
                 Orders.customer_id==customer_id,
@@ -496,8 +501,10 @@ class OrdersRepo(BaseRepoModel):
             .limit(1)
         )
         
-        last_ord_date=(await self.session.execute(last_ord_date_stmt)).scalar_one_or_none()
-        return {'order_ldate':last_ord_date}
+        last_ord_date=(await self.session.execute(last_ord_date_stmt)).mappings().one_or_none()
+        return {'order_ldate':{**last_ord_date,'expiry_date':last_ord_date['last_date']+timedelta(days=364)}if last_ord_date else last_ord_date}
+    
+
 
 
 

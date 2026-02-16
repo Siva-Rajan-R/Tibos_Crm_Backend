@@ -1,4 +1,4 @@
-from fastapi import Depends,APIRouter,Query,Form,UploadFile,Query,File
+from fastapi import Depends,APIRouter,Query,Form,UploadFile,Query,File,Request,BackgroundTasks
 from schemas.request_schemas.order import AddOrderSchema,UpdateOrderSchema,RecoverOrderSchema
 from core.data_formats.enums.filters_enum import OrdersFilters
 from infras.primary_db.main import get_pg_db_session,AsyncSession
@@ -17,7 +17,7 @@ router=APIRouter(
 
 
 @router.post('')
-async def add_order(data:AddOrderSchema,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+async def add_order(data:AddOrderSchema,request:Request,bgt:BackgroundTasks,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     data.delivery_info['shipping_method']=data.delivery_info['shipping_method'].value
     data.delivery_info['delivery_date']=str(data.delivery_info['delivery_date'])
     data.delivery_info['requested_date']=str(data.delivery_info['requested_date'])
@@ -26,7 +26,9 @@ async def add_order(data:AddOrderSchema,user:dict=Depends(verify_user),session:A
         user_role=user['role'],
         cur_user_id=user['id']
     ).add(
-        data=data
+        data=data,
+        request=request,
+        bgt=bgt
     )
 
 @router.post('/bulk')
@@ -39,13 +41,15 @@ async def add_order_bulk(user:dict=Depends(verify_user),session:AsyncSession=Dep
 
 
 @router.put('')
-async def update_order(data:UpdateOrderSchema,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+async def update_order(data:UpdateOrderSchema,request:Request,bgt:BackgroundTasks,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleOrdersRequest(
         session=session,
         user_role=user['role'],
         cur_user_id=user['id']
     ).update(
-        data=data
+        data=data,
+        request=request,
+        bgt=bgt
     )
 
 

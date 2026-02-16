@@ -1,4 +1,36 @@
-<!DOCTYPE html>
+def get_crm_order_email_content(
+    customer_name: str,
+    order_id: str,
+    company_name: str,
+    items: list,
+    total_amount: float,
+    currency: str = "₹",
+    support_email: str = "support@tibos.in",
+    footer_note: str = "Thank you for choosing us.",
+) -> str:
+    """
+    Returns a professional HTML order confirmation email
+    """
+
+    # Build table rows
+    rows_html = ""
+    for item in items:
+        line_total = item["qty"] * item["price"]
+        rows_html += f"""
+        <tr>
+            <td style="padding:8px;border:1px solid #e5e7eb;">{item["name"]}</td>
+            <td style="padding:8px;border:1px solid #e5e7eb;text-align:center;">{item["qty"]}</td>
+            <td style="padding:8px;border:1px solid #e5e7eb;text-align:right;">
+                {currency}{item["price"]:,.2f}
+            </td>
+            <td style="padding:8px;border:1px solid #e5e7eb;text-align:right;">
+                {currency}{line_total:,.2f}
+            </td>
+        </tr>
+        """
+
+    html = f"""
+    <!DOCTYPE html>
     <html>
     <head>
         <meta charset="UTF-8" />
@@ -88,3 +120,6 @@
         </table>
     </body>
     </html>
+    """
+
+    return html

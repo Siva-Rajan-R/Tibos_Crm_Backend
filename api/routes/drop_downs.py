@@ -1,7 +1,7 @@
 from fastapi import APIRouter,Depends
 from api.dependencies.token_verification import verify_user
 from infras.primary_db.main import AsyncSession,get_pg_db_session
-from core.data_formats.enums.common_enums import UserRoles,IndianStatesEnum,OwnersEnum
+from core.data_formats.enums.common_enums import UserRoles,IndianStatesEnum,OwnersEnum,SettingsEnum
 from core.data_formats.enums.pg_enums import ProductTypes,CustomerSectors,ShippingMethods,CustomerIndustries,PaymentStatus,InvoiceStatus,BillingType,LeadSource,LeadStatus,OpportunityStatus,PurchaseTypes,RenewalTypes,DistributorType
 from core.data_formats.enums.payment_enums import PaymentTermsEnum
 
@@ -13,6 +13,7 @@ router=APIRouter(
 @router.get('/all')
 async def get_all_dd(user:dict=Depends(verify_user)):
     return{
+        'settings':list(SettingsEnum._value2member_map_.values()),
         'user_roles':list(UserRoles._value2member_map_.values()),
         'product_types':list(ProductTypes._value2member_map_.values()),
         'customer_sectors':list(CustomerSectors._value2member_map_.values()),

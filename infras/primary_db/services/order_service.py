@@ -64,7 +64,7 @@ class OrdersService(BaseServiceModel):
         final_price=(distri_dic_final_price-parse_discount(data.discount,distri_dic_final_price))
         order_id:str=generate_uuid()
         if data.purchase_type.value==PurchaseTypes.EXISTING_ADD_ON.value:
-            lorder_date=(await self.get_last_order_date(customer_id=data.customer_id,product_id=data.product_id))['order_ldate']
+            lorder_date=(await self.get_last_order_date(customer_id=data.customer_id,product_id=data.product_id))['order_ldate']['expiry_date']
             remaining_days=get_remaining_days(from_date=lorder_date,to_date=data.delivery_info.get("delivery_date"))
             final_price=total_price/365*remaining_days
         lui_id:str=(await self.session.execute(select(TablesUiLId.order_luiid))).scalar_one_or_none()
@@ -162,9 +162,9 @@ class OrdersService(BaseServiceModel):
         distri_dic_final_price=distri_amt
         final_price=(distri_dic_final_price-parse_discount(data.discount,distri_dic_final_price))
         if data.purchase_type.value==PurchaseTypes.EXISTING_ADD_ON.value:
-            lorder_date=(await self.get_last_order_date(customer_id=data.customer_id,product_id=data.product_id))['order_ldate']
+            lorder_date=(await self.get_last_order_date(customer_id=data.customer_id,product_id=data.product_id))['order_ldate']['expiry_date']
             remaining_days=get_remaining_days(from_date=lorder_date,to_date=data.delivery_info.get("delivery_date"))
-            final_price=final_price/365*remaining_days
+            final_price=total_price/365*remaining_days
         del data_toupdate['final_price']
         return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateOrderDbSchema(**data_toupdate,total_price=total_price,final_price=final_price))
         

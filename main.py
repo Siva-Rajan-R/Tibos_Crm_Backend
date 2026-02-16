@@ -1,11 +1,10 @@
 from fastapi import FastAPI,Request
-from api.routes import auth,contact,customer,order,product,user,drop_downs,dashboard,opportunity,leads,twofactor,distributor,recyclebin
+from api.routes import auth,contact,customer,order,product,user,drop_downs,dashboard,opportunity,leads,twofactor,distributor,recyclebin,setting
 from fastapi.middleware.cors import CORSMiddleware
 from infras.primary_db.services.user_service import UserService,UserRoles
 from infras.primary_db.main import init_pg_db
 from infras.caching.main import check_redis_health,redis_client
 from sqlalchemy.dialects.postgresql import insert
-
 from infras.primary_db.models.ui_id import TablesUiLId
 from icecream import ic
 from infras.primary_db.main import AsyncLocalSession
@@ -14,6 +13,7 @@ from contextlib import asynccontextmanager
 import os
 from core.settings import SETTINGS,EnvironmentEnum
 from dotenv import load_dotenv
+from infras.primary_db.services.setting_service import SettingsService
 load_dotenv()
 
 # changing event loop for better permformance *It works only on (linux,macos)
@@ -36,8 +36,9 @@ async def api_lifespan(app:FastAPI):
         ic("🏎️ Executing API Lifespan... ")
         await init_pg_db()
         async with AsyncLocalSession() as session:
-            await UserService(session=session,user_role=UserRoles.SUPER_ADMIN,cur_user_id='').init_superadmin()
+            # await UserService(session=session,user_role=UserRoles.SUPER_ADMIN,cur_user_id='').init_superadmin()
             await session.execute(insert(TablesUiLId).values(id="1").on_conflict_do_nothing(index_elements=["id"]))
+            await SettingsService(session=session).init_settings()
             await session.commit()
         await check_redis_health()
         # await redis_client.flushall()
@@ -90,6 +91,7 @@ app.include_router(opportunity.router)
 app.include_router(drop_downs.router)
 app.include_router(dashboard.router)
 app.include_router(recyclebin.router)
+app.include_router(setting.router)
 
 #Middlewares
 app.add_middleware(
