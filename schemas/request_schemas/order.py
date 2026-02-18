@@ -1,6 +1,6 @@
 from pydantic import BaseModel,EmailStr
-from core.data_formats.typed_dicts.pg_dict import DeliveryInfo
-from core.data_formats.enums.pg_enums import PaymentStatus,InvoiceStatus,PurchaseTypes,RenewalTypes,DistributorType
+from core.data_formats.typed_dicts.order_typdict import LogisticsInfo,StatusInfo,DeliveryInfo
+from core.data_formats.enums.order_enums import InvoiceStatus,PaymentStatus,RenewalTypes,PurchaseTypes,DistributorType
 from typing import Optional,Union
 from datetime import date
 
@@ -9,18 +9,12 @@ class AddOrderSchema(BaseModel):
     product_id:str
     distributor_id:str
     quantity:int
-    discount:str
+    additional_discount:str
     unit_price:float
     delivery_info:DeliveryInfo
-    payment_status:PaymentStatus
-    invoice_status:InvoiceStatus
-    invoice_number:Optional[str]=None
-    invoice_date:Optional[date]=None
-    purchase_type:PurchaseTypes
-    renewal_type:RenewalTypes
-    bill_to:Optional[str]=None
+    status_info:StatusInfo
+    logistic_info:LogisticsInfo
     vendor_commision:Optional[str]=None
-    distributor_type:DistributorType
     emailto_send_id:Optional[str]=None
 
 
@@ -31,19 +25,11 @@ class UpdateOrderSchema(BaseModel):
     unit_price:Optional[float]=None
     distributor_id:Optional[str]=None
     quantity:Optional[int]=None
-    total_price:Optional[float]=None
-    discount:Optional[str]=None
-    final_price:Optional[float]=None
+    additional_discount:Optional[str]=None
     delivery_info:Optional[DeliveryInfo]=None
-    payment_status:Optional[PaymentStatus]=None
-    invoice_status:Optional[InvoiceStatus]=None
-    invoice_number:Optional[str]=None
-    invoice_date:Optional[date]=None
-    purchase_type:Optional[PurchaseTypes]=None
-    renewal_type:Optional[RenewalTypes]=None
-    bill_to:Optional[str]=None
+    status_info:Optional[StatusInfo]=None
+    logistic_info:Optional[LogisticsInfo]=None
     vendor_commision:Optional[str]=None
-    distributor_type:Optional[DistributorType]=None
     emailto_send_id:Optional[str]=None
 
 class RecoverOrderSchema(BaseModel):

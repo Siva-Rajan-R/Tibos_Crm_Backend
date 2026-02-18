@@ -3,7 +3,7 @@ from core.utils.uuid_generator import generate_uuid
 from sqlalchemy import select,delete,update,or_,cast,String,func,Float
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
-from core.data_formats.enums.common_enums import UserRoles
+from core.data_formats.enums.user_enums import UserRoles
 from core.decorators.error_handler_dec import catch_errors
 from schemas.db_schemas.product import AddProductDbSchema,UpdateProductDbSchema
 from schemas.request_schemas.product import AddProductSchema,UpdateProductSchema,RecoverProductSchema
@@ -12,7 +12,7 @@ from . import HTTPException,ErrorResponseTypDict,SuccessResponseTypDict,BaseResp
 from core.utils.excel_data_extractor import extract_excel_data
 from models.import_export_models.excel_headings_mapper import PRODUCTS_MAPPER
 from fastapi import UploadFile
-from core.data_formats.enums.common_enums import ImportExportTypeEnum
+from core.data_formats.enums.dd_enums import ImportExportTypeEnum
 
 
 class HandleProductsRequest:

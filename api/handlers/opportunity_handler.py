@@ -2,9 +2,10 @@ from infras.primary_db.services.opportunity_service import OpportunitiesService
 from sqlalchemy import select, delete, update,func,or_,String
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
-from core.data_formats.enums.common_enums import UserRoles
+from core.data_formats.enums.user_enums import UserRoles
 from typing import Optional
-from core.data_formats.enums.pg_enums import OpportunityStatus,LeadSource,LeadStatus,BillingType
+from core.data_formats.enums.lead_oppr_enums import OpportunityStatus,LeadSource,LeadStatus
+
 from schemas.db_schemas.opportunity import CreateOpportunityDbSchema,UpdateOpportunityDbSchema
 from schemas.request_schemas.opportunity import CreateOpportunitySchema,UpdateOpportunitySchema,RecoverOpportunitySchema
 from core.utils.uuid_generator import generate_uuid

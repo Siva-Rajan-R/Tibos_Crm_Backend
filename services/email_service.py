@@ -10,7 +10,7 @@ from infras.primary_db.main import AsyncLocalSession
 from infras.caching.models.auth_model import unlink_auth_forgot
 from core.settings import SETTINGS
 from schemas.request_schemas.setting import EmailSettingSchema
-from core.data_formats.enums.common_enums import SettingsEnum
+from core.data_formats.enums.dd_enums import SettingsEnum
 from security.symm_encryption import SymmetricEncryption
 
 
@@ -87,24 +87,21 @@ async def send_email(
         client_secret=None
         sender_email=None
 
-        if tenant_id is None or client_id is None or client_secret is None or sender_email is None:
-            async with AsyncLocalSession() as session:
-                emails=(await SettingsService(session=session).getby_name(name=SettingsEnum.EMAIL))['settings']
+        async with AsyncLocalSession() as session:
+            emails=(await SettingsService(session=session).getby_name(name=SettingsEnum.EMAIL))['settings']
             ic(emails)
-            
-            for key,values in emails[0]['datas'].items():
-                if values['email']==sender_email_id or key==sender_email_id:
-                    sender_email=values['email']
-                    client_id=values['client_id']
-                    client_secret=SymmetricEncryption(SECRET_KEY).decrypt_data(encrypted_data=values['client_secret'])
-                    tenant_id=values['tenant_id']
-                    break
 
-                if values['email']=="order@tibos.in":
-                    sender_email=values['email']
-                    client_id=values['client_id']
-                    client_secret=SymmetricEncryption(SECRET_KEY).decrypt_data(encrypted_data=values['client_secret'])
-                    tenant_id=values['tenant_id']
+            if sender_email_id and emails[sender_email_id]:
+                sender_email=emails[sender_email_id]['email']
+                client_id=emails[sender_email_id]['client_id']
+                client_secret=SymmetricEncryption(SECRET_KEY).decrypt_data(encrypted_data=emails[sender_email_id]['client_secret'])
+                tenant_id=emails[sender_email_id]['tenant_id']
+
+            if tenant_id is None or client_id is None or client_secret is None:
+                sender_email=emails['order@tibos.in']['email']
+                client_id=emails['order@tibos.in']['client_id']
+                client_secret=SymmetricEncryption(SECRET_KEY).decrypt_data(encrypted_data=emails['order@tibos.in']['client_secret'])
+                tenant_id=emails['order@tibos.in']['tenant_id']
 
 
         ic(client_id,client_secret,sender_email,tenant_id)

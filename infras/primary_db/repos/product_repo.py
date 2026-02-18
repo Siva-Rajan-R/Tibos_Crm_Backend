@@ -1,11 +1,11 @@
 from . import HTTPException,BaseRepoModel
-from ..models.product import Products,ProductTypes
+from ..models.product import Products
 from ..models.order import Orders
 from core.utils.uuid_generator import generate_uuid
 from sqlalchemy import select,delete,update,or_,cast,String,func,Float
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
-from core.data_formats.enums.common_enums import UserRoles
+from core.data_formats.enums.user_enums import UserRoles
 from core.decorators.db_session_handler_dec import start_db_transaction
 from schemas.db_schemas.product import AddProductDbSchema,UpdateProductDbSchema
 from math import ceil
@@ -107,6 +107,7 @@ class ProductsRepo(BaseRepoModel):
         search_term=f"%{query.lower()}%"
         date_expr=func.date(func.timezone("Asia/Kolkata",Products.created_at))
         deleted_at=func.date(func.timezone("Asia/Kolkata",Products.deleted_at))
+        cursor=0 if cursor==1 else cursor
         cols=[*self.products_cols]
         if include_deleted:
             cols.extend([Users.name.label('deleted_by'),deleted_at.label('deleted_at')])
@@ -137,7 +138,7 @@ class ProductsRepo(BaseRepoModel):
 
         total_products:int=0
         low_qty:int=0
-        if cursor == 1:
+        if cursor == 0:
             total_products=(await self.session.execute(
                 select(func.count(Products.id)).where(Products.is_deleted==False)
             )).scalar_one_or_none()

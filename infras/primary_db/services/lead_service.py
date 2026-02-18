@@ -5,8 +5,7 @@ from ..repos.lead_repo import LeadsRepo
 from sqlalchemy import select, delete, update, or_, func,String
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
-from core.data_formats.enums.common_enums import UserRoles
-from core.data_formats.enums.pg_enums import OpportunityStatus,LeadSource,LeadStatus
+from core.data_formats.enums.user_enums import UserRoles
 from math import ceil
 from datetime import datetime
 from typing import Optional
@@ -16,7 +15,7 @@ from core.decorators.error_handler_dec import catch_errors
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
 from ..models.ui_id import TablesUiLId
 from core.utils.ui_id_generator import generate_ui_id
-from core.constants import UI_ID_STARTING_DIGIT
+from core.constants import UI_ID_STARTING_DIGIT,LUI_ID_LEAD_PREFIX
 
 
 class LeadsService(BaseServiceModel):
@@ -35,7 +34,7 @@ class LeadsService(BaseServiceModel):
         
         lead_id:str=generate_uuid()
         lui_id:str=(await self.session.execute(select(TablesUiLId.lead_luiid))).scalar_one_or_none()
-        cur_uiid=generate_ui_id(prefix="LEAD",last_id=lui_id)
+        cur_uiid=generate_ui_id(prefix=LUI_ID_LEAD_PREFIX,last_id=lui_id)
         return await lead_obj.add(data=AddLeadDbSchema(**data.model_dump(),id=lead_id,ui_id=cur_uiid,lui_id=lui_id))
     
     @catch_errors

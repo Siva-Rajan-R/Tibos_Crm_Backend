@@ -6,7 +6,7 @@ from pydantic import EmailStr
 from core.utils.uuid_generator import generate_uuid
 from security.jwt_token import generate_jwt_token,ACCESS_JWT_KEY,REFRESH_JWT_KEY,JWT_ALG
 from icecream import ic
-from core.data_formats.enums.common_enums import UserRoles
+from core.data_formats.enums.user_enums import UserRoles
 import os,json
 from schemas.db_schemas.user import AddUserDbSchema,UpdateUserDbSchema
 from schemas.request_schemas.user import AddUserSchema,UpdateUserSchema,RecoverUserSchema,PasswordResetSchema

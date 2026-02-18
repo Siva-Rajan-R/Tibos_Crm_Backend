@@ -1,13 +1,13 @@
 from . import HTTPException,BaseRepoModel
 from ..models.distributor import Distributors
-from ..models.product import Products,ProductTypes
+from ..models.product import Products
 from core.utils.uuid_generator import generate_uuid
 from sqlalchemy import select,delete,update,or_,func,String
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
 from pydantic import EmailStr
 from typing import Optional,List
-from core.data_formats.enums.common_enums import UserRoles
+from core.data_formats.enums.user_enums import UserRoles
 from schemas.db_schemas.distributor import CreateDistriDbSchema,UpdateDistriDbSchema
 from core.decorators.db_session_handler_dec import start_db_transaction
 from math import ceil
@@ -91,6 +91,7 @@ class DistributorsRepo(BaseRepoModel):
         search_term=f"%{query.lower()}%"
         date_expr=func.date(func.timezone("Asia/Kolkata",Distributors.created_at))
         deleted_at=func.date(func.timezone("Asia/Kolkata",Distributors.deleted_at))
+        cursor=0 if cursor==1 else cursor
         cols=[*self.distri_cols]
         if include_deleted:
             cols.extend([Users.name.label('deleted_by'),deleted_at.label('deleted_at')])
@@ -115,7 +116,7 @@ class DistributorsRepo(BaseRepoModel):
         )).mappings().all()
 
         total_distributors:int=0
-        if cursor==1:
+        if cursor==0:
             total_distributors=(await self.session.execute(
                 select(func.count(Distributors.id)).where(Distributors.is_deleted==False)
             )).scalar_one_or_none()

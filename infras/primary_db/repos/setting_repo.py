@@ -9,7 +9,7 @@ from core.decorators.db_session_handler_dec import start_db_transaction
 from models.response_models.req_res_models import ErrorResponseTypDict
 from core.utils.uuid_generator import generate_uuid
 from schemas.request_schemas.setting import EmailSettingSchema
-from core.data_formats.enums.common_enums import SettingsEnum
+from core.data_formats.enums.dd_enums import SettingsEnum
 
 
 

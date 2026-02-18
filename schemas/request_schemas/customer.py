@@ -1,7 +1,7 @@
 from pydantic import BaseModel,EmailStr
 from typing import Optional,List,Union
-from core.data_formats.enums.pg_enums import CustomerIndustries,CustomerSectors
-from core.data_formats.typed_dicts.customer_dict import CustomerAddressTypDict
+from core.data_formats.enums.customer_enums import CustomerIndustries,CustomerSectors
+from core.data_formats.typed_dicts.customer_typdict import CustomerAddressTypDict
 
 class AddCustomerSchema(BaseModel):
     name:str

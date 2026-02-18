@@ -1,11 +1,11 @@
 from . import BaseServiceModel
-from ..models.product import Products,ProductTypes
+from ..models.product import Products
 from ..models.order import Orders
 from core.utils.uuid_generator import generate_uuid
 from sqlalchemy import select,delete,update,or_,cast,String,func,Float
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
-from core.data_formats.enums.common_enums import UserRoles
+from core.data_formats.enums.user_enums import UserRoles
 from core.decorators.error_handler_dec import catch_errors
 from ..repos.product_repo import ProductsRepo
 from schemas.db_schemas.product import AddProductDbSchema,UpdateProductDbSchema
@@ -15,7 +15,7 @@ from typing import Optional,List
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
 from ..models.ui_id import TablesUiLId
 from core.utils.ui_id_generator import generate_ui_id
-from core.constants import UI_ID_STARTING_DIGIT
+from core.constants import UI_ID_STARTING_DIGIT,LUI_ID_PRODUCT_PREFIX
 
 
 class ProductsService(BaseServiceModel):
@@ -30,7 +30,7 @@ class ProductsService(BaseServiceModel):
         #     return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Product",description="Product with the given part number already exists")
         prod_id:str=generate_uuid()
         lui_id:str=(await self.session.execute(select(TablesUiLId.product_luiid))).scalar_one_or_none()
-        cur_uiid=generate_ui_id(prefix="PROD",last_id=lui_id)
+        cur_uiid=generate_ui_id(prefix=LUI_ID_PRODUCT_PREFIX,last_id=lui_id)
         return await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(data=AddProductDbSchema(**data.model_dump(mode='json'),id=prod_id,ui_id=cur_uiid))
 
     @catch_errors
@@ -45,7 +45,7 @@ class ProductsService(BaseServiceModel):
             #     continue
 
             prod_id:str=generate_uuid()
-            cur_uiid=generate_ui_id(prefix="PROD",last_id=lui_id)
+            cur_uiid=generate_ui_id(prefix=LUI_ID_PRODUCT_PREFIX,last_id=lui_id)
             ic("Before increment : ",lui_id)
             lui_id=cur_uiid
             ic("After increment : ",lui_id)

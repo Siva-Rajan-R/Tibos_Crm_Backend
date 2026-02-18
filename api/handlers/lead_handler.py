@@ -2,8 +2,8 @@ from infras.primary_db.services.lead_service import LeadsService
 from sqlalchemy import select, delete, update, or_, func,String
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
-from core.data_formats.enums.common_enums import UserRoles
-from core.data_formats.enums.pg_enums import OpportunityStatus,LeadSource,LeadStatus
+from core.data_formats.enums.user_enums import UserRoles
+from core.data_formats.enums.lead_oppr_enums import OpportunityStatus,LeadSource,LeadStatus
 from math import ceil
 from datetime import datetime
 from typing import Optional

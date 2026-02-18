@@ -2,7 +2,7 @@ from sqlalchemy import String,Integer,Float,Boolean,Column,ForeignKey,ARRAY,BigI
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from ..main import PG_BASE
-from core.data_formats.enums.pg_enums import InvoiceStatus,PaymentStatus
+from .customer import Customers
 
 
 class Orders(PG_BASE):
@@ -14,21 +14,12 @@ class Orders(PG_BASE):
     distributor_id=Column(String,ForeignKey("distributors.id"),nullable=True)
     product_id=Column(String,ForeignKey("products.id",ondelete="CASCADE"))
     quantity=Column(Integer,nullable=False)
-    total_price=Column(Float,nullable=False)
-    discount=Column(String,nullable=False)
-    final_price=Column(Float,nullable=False)
-    delivery_info=Column(JSONB,nullable=False)
-    payment_status=Column(String,nullable=False)
-    invoice_status=Column(String,nullable=False)
-    invoice_number=Column(String,nullable=True)
-    invoice_date=Column(String,nullable=True)
-    purchase_type=Column(String,nullable=True)
-    renewal_type=Column(String,nullable=True)
     unit_price=Column(Float,nullable=True)
-    bill_to=Column(String,nullable=True)
+    delivery_info=Column(JSONB,nullable=False)
+    status_info=Column(JSONB,nullable=False)
+    logistic_info=Column(JSONB,nullable=False)
     vendor_commision=Column(String,nullable=True)
-    distributor_type=Column(String,nullable=True)
-
+    additional_discount=Column(String,nullable=False)
 
     customer=relationship("Customers",back_populates="order")
     product=relationship("Products",back_populates="order")

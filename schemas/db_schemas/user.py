@@ -1,5 +1,5 @@
 from pydantic import BaseModel,EmailStr
-from core.data_formats.enums.common_enums import UserRoles
+from core.data_formats.enums.user_enums import UserRoles
 from typing import Optional
 
 class AddUserDbSchema(BaseModel):

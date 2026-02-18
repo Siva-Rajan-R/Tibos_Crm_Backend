@@ -8,20 +8,18 @@ from core.utils.uuid_generator import generate_uuid
 from sqlalchemy import Numeric, select,delete,update,or_,func,String,cast,case,and_,Date,desc,text
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
-from core.data_formats.enums.common_enums import UserRoles
-from core.data_formats.enums.pg_enums import PaymentStatus,InvoiceStatus
-from core.data_formats.typed_dicts.pg_dict import DeliveryInfo
+from core.data_formats.enums.user_enums import UserRoles
+from core.data_formats.enums.order_enums import PaymentStatus,InvoiceStatus,PurchaseTypes
 from schemas.db_schemas.order import AddOrderDbSchema,UpdateOrderDbSchema
 from core.decorators.db_session_handler_dec import start_db_transaction
 from math import ceil
 from ..models.user import Users
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
-from core.data_formats.enums.filters_enum import OrdersFilters
 from core.utils.discount_validator import validate_discount
 from ..models.ui_id import TablesUiLId
 from schemas.request_schemas.order import OrderFilterSchema
-from core.data_formats.enums.pg_enums import PurchaseTypes
 from datetime import datetime,timedelta
+from ..calculations import distri_final_price,customer_final_price,profit_loss_price,customer_tot_price,distributor_tot_price,vendor_disc_price,distri_additi_price,distri_disc_price
 
 
 
@@ -33,17 +31,15 @@ class OrdersRepo(BaseRepoModel):
         self.orders_cols=(
             Orders.id,
             Orders.ui_id,
+            Orders.additional_discount,
             Orders.sequence_id,
             Orders.customer_id,
             Orders.product_id,
             Orders.distributor_id,
             Orders.quantity,
-            Orders.total_price,
-            Orders.discount,
-            Orders.final_price,
+            Orders.status_info,
             Orders.delivery_info,
-            Orders.payment_status,
-            Orders.invoice_status,
+            Orders.logistic_info,
             Products.name.label('product_name'),
             Products.product_type,
             Products.description,
@@ -52,14 +48,16 @@ class OrdersRepo(BaseRepoModel):
             Customers.mobile_number,
             Distributors.name.label('distributor_name'),
             Distributors.discount.label('distributor_discount'),
-            Orders.invoice_number,
-            Orders.invoice_date,
-            Orders.purchase_type,
-            Orders.renewal_type,
             Orders.unit_price,
-            Orders.bill_to,
             Orders.vendor_commision,
-            Orders.distributor_type
+            customer_final_price.label('customer_price'),
+            distri_final_price.label('distributor_price'),
+            profit_loss_price.label('profit_loss'),
+            customer_tot_price.label("customer_total_price"),
+            distributor_tot_price.label("distributor_total_price"),
+            vendor_disc_price.label("vendor_total_price"),
+            distri_disc_price.label("distri_discount_price"),
+            distri_additi_price.label("distri_additi_price")
         )
 
     async def is_order_exists(self,customer_id:str,product_id:str):
@@ -151,13 +149,13 @@ class OrdersRepo(BaseRepoModel):
         total_orders_condition=[]
         filters=[]
         filter_mapper={
-            'payment_status':Orders.payment_status,
-            'invoice_status':Orders.invoice_status,
-            'purchase_type':Orders.purchase_type,
-            'renewal_type':Orders.renewal_type,
-            'distributor_type':Orders.distributor_type
+            'payment_status':Orders.status_info['payment_status'].astext,
+            'invoice_status':Orders.status_info['invoice_status'].astext,
+            'purchase_type':Orders.logistic_info['purchase_type'].astext,
+            'renewal_type':Orders.logistic_info['renewal_type'].astext,
+            'distributor_type':Orders.logistic_info['distributor_type'].astext
         }
-
+        cursor=0 if cursor==1 else cursor
         search_term = f"%{query.lower()}%"
         # cursor = (offset - 1) * limit
 
@@ -174,15 +172,14 @@ class OrdersRepo(BaseRepoModel):
                 Customers.email.ilike(search_term),
                 Customers.mobile_number.ilike(search_term),
                 func.cast(Orders.created_at, String).ilike(search_term),
-                Orders.invoice_status.ilike(search_term),
-                Orders.payment_status.ilike(search_term),
-                Orders.invoice_number.ilike(search_term),
-                Orders.invoice_date.ilike(search_term),
-                Orders.purchase_type.ilike(search_term),
-                Orders.renewal_type.ilike(search_term),
+                Orders.status_info['invoice_status'].astext.ilike(search_term),
+                Orders.status_info['payment_status'].astext.ilike(search_term),
+                Orders.status_info['invoice_number'].astext.ilike(search_term),
+                Orders.logistic_info['purchase_type'].astext.ilike(search_term),
+                Orders.logistic_info['renewal_type'].astext.ilike(search_term),
                 Distributors.name.ilike(search_term),
-                Orders.bill_to.ilike(search_term),
-                Orders.distributor_type.ilike(search_term)
+                Orders.logistic_info['bill_to'].astext.ilike(search_term),
+                Orders.logistic_info['distributor_type'].astext.ilike(search_term)
             )
         )
 
@@ -232,36 +229,10 @@ class OrdersRepo(BaseRepoModel):
         pending_dues=0
         pending_invoice=0
         ic(cursor)
-        if cursor==1:
-            vendor_comm_amount = case(
-                # WHEN vendor_commision LIKE '%'
-                (
-                    Orders.vendor_commision.like('%\%%'),
-                    # percentage: (unit_price * quantity) * percent / 100
-                    (
-                        cast(func.coalesce(Orders.unit_price, 0), Numeric) *
-                        cast(func.coalesce(Orders.quantity, 0), Numeric)
-                    )
-                    *
-                    (
-                        cast(func.replace(Orders.vendor_commision, '%', ''), Numeric) / 100
-                    )
-                ),
-                # ELSE flat amount
-                else_=cast(func.coalesce(Orders.vendor_commision, '0'), Numeric)
-            )
-
-            profit_expr = (
-                (cast(func.coalesce(Orders.unit_price, 0), Numeric) *
-                cast(func.coalesce(Orders.quantity, 0), Numeric))
-                -
-                (vendor_comm_amount*cast(func.coalesce(Orders.quantity, 0), Numeric))
-                -
-                cast(func.coalesce(Orders.final_price, 0), Numeric)
-            )
+        if cursor==0:
             ic("iii")
             total_revenue=(await self.session.execute(
-                select(func.coalesce(func.sum(profit_expr), 0))
+                select(func.coalesce(func.sum(profit_loss_price), 0))
                 .join(Products, Products.id == Orders.product_id, isouter=True)
                 .join(Customers, Customers.id == Orders.customer_id, isouter=True)
                 .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
@@ -280,7 +251,7 @@ class OrdersRepo(BaseRepoModel):
             )).scalar_one_or_none()
 
             order_value=(await self.session.execute(
-                select(func.sum(Orders.unit_price*Orders.quantity))
+                select(func.sum(customer_final_price))
                 .join(Products, Products.id == Orders.product_id, isouter=True)
                 .join(Customers, Customers.id == Orders.customer_id, isouter=True)
                 .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
@@ -291,7 +262,7 @@ class OrdersRepo(BaseRepoModel):
             pending_invoice=(
                 await self.session.execute(
                     select(
-                        func.count().filter(Orders.invoice_status == InvoiceStatus.INCOMPLETED.value).label("pending_invoices")
+                        func.count().filter(Orders.status_info['invoice_status'].astext == InvoiceStatus.INCOMPLETED.value).label("pending_invoices")
                     )
                     .join(Products, Products.id == Orders.product_id, isouter=True)
                     .join(Customers, Customers.id == Orders.customer_id, isouter=True)
@@ -302,7 +273,7 @@ class OrdersRepo(BaseRepoModel):
             ).scalar_one_or_none()
             pending_dues=(
                 await self.session.execute(
-                    select(func.count().filter(Orders.payment_status == PaymentStatus.NOT_PAID.value).label("pending_dues"))
+                    select(func.count().filter(Orders.status_info['payment_status'].astext == PaymentStatus.NOT_PAID.value).label("pending_dues"))
                     .join(Products, Products.id == Orders.product_id, isouter=True)
                     .join(Customers, Customers.id == Orders.customer_id, isouter=True)
                     .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
@@ -348,16 +319,16 @@ class OrdersRepo(BaseRepoModel):
                     Customers.name.ilike(search_term),
                     Customers.email.ilike(search_term),
                     Customers.mobile_number.ilike(search_term),
-                    func.cast(Orders.created_at,String).ilike(search_term),
-                    Orders.invoice_status.ilike(search_term),
-                    Orders.payment_status.ilike(search_term),
-                    Orders.invoice_number.ilike(search_term),
-                    Orders.invoice_date.ilike(search_term),
-                    Orders.purchase_type.ilike(search_term),
-                    Orders.renewal_type.ilike(search_term),
+                    func.cast(Orders.created_at, String).ilike(search_term),
+                    Orders.status_info['invoice_status'].astext.ilike(search_term),
+                    Orders.status_info['payment_status'].astext.ilike(search_term),
+                    Orders.status_info['invoice_number'].astext.ilike(search_term),
+                    Orders.status_info['invoice_date'].astext.ilike(search_term),
+                    Orders.logistic_info['purchase_type'].astext.ilike(search_term),
+                    Orders.logistic_info['renewal_type'].astext.ilike(search_term),
                     Distributors.name.ilike(search_term),
-                    Orders.bill_to.ilike(search_term),
-                    Orders.distributor_type.ilike(search_term)
+                    Orders.logistic_info['bill_to'].astext.ilike(search_term),
+                    Orders.logistic_info['distributor_type'].astext.ilike(search_term)
                 ),
                 Orders.is_deleted==False
             )
@@ -372,7 +343,8 @@ class OrdersRepo(BaseRepoModel):
         queried_orders=(await self.session.execute(
             select(
                 *self.orders_cols,
-                date_expr.label("order_created_at")  
+                date_expr.label("order_created_at"), 
+                Customers.email.label('customer_email')
             )
             .join(Products,Products.id==Orders.product_id,isouter=True)
             .join(Customers,Customers.id==Orders.customer_id,isouter=True)
@@ -385,6 +357,7 @@ class OrdersRepo(BaseRepoModel):
     
     async def get_by_customer_id(self,customer_id:str,cursor:int,limit:int):
         date_expr=func.date(func.timezone("Asia/Kolkata",Orders.created_at))
+        cursor=0 if cursor==1 else cursor
         queried_orders=(await self.session.execute(
             select(
                 *self.orders_cols,
@@ -403,60 +376,50 @@ class OrdersRepo(BaseRepoModel):
         pending_dues=0
         pending_invoice=0
         ic(cursor)
-        if cursor==1:
-            vendor_comm_amount = case(
-                # WHEN vendor_commision LIKE '%'
-                (
-                    Orders.vendor_commision.like('%\%%'),
-                    # percentage: (unit_price * quantity) * percent / 100
-                    (
-                        cast(func.coalesce(Orders.unit_price, 0), Numeric) *
-                        cast(func.coalesce(Orders.quantity, 0), Numeric)
-                    )
-                    *
-                    (
-                        cast(func.replace(Orders.vendor_commision, '%', ''), Numeric) / 100
-                    )
-                ),
-                # ELSE flat amount
-                else_=cast(func.coalesce(Orders.vendor_commision, '0'), Numeric)
-            )
-
-            profit_expr = (
-                (cast(func.coalesce(Orders.unit_price, 0), Numeric) *
-                cast(func.coalesce(Orders.quantity, 0), Numeric))
-                -
-                (vendor_comm_amount*cast(func.coalesce(Orders.quantity, 0), Numeric))
-                -
-                cast(func.coalesce(Orders.final_price, 0), Numeric)
-            )
-            ic("iii")
+        if cursor==0:
             total_revenue=(await self.session.execute(
-                select(func.coalesce(func.sum(profit_expr), 0))
+                select(func.coalesce(func.sum(profit_loss_price), 0))
+                .join(Products,Products.id==Orders.product_id,isouter=True)
+                .join(Customers,Customers.id==Orders.customer_id,isouter=True)
+                .join(Distributors,Distributors.id==Orders.distributor_id,isouter=True)
                 .where(Orders.is_deleted==False,Orders.customer_id==customer_id)
             )).scalar()
             ic(total_revenue)
             
             total_orders=(await self.session.execute(
                 select(func.count(Orders.id))
+                .join(Products,Products.id==Orders.product_id,isouter=True)
+                .join(Customers,Customers.id==Orders.customer_id,isouter=True)
+                .join(Distributors,Distributors.id==Orders.distributor_id,isouter=True)
                 .where(Orders.is_deleted==False,Orders.customer_id==customer_id)
             )).scalar_one_or_none()
 
             order_value=(await self.session.execute(
-                select(func.sum(Orders.final_price)).where(Orders.is_deleted==False,Orders.customer_id==customer_id)
+                select(func.sum(customer_final_price))
+                .join(Products,Products.id==Orders.product_id,isouter=True)
+                .join(Customers,Customers.id==Orders.customer_id,isouter=True)
+                .join(Distributors,Distributors.id==Orders.distributor_id,isouter=True)
+                .where(Orders.is_deleted==False,Orders.customer_id==customer_id)
                 
             )).scalar()
 
             pending_invoice=(
                 await self.session.execute(
                     select(
-                        func.count().filter(Orders.invoice_status == InvoiceStatus.INCOMPLETED.value).label("pending_invoices")
-                    ).where(Orders.is_deleted==False,Orders.customer_id==customer_id)
+                        func.count().filter(Orders.status_info['invoice_status'].astext == InvoiceStatus.INCOMPLETED.value).label("pending_invoices")
+                    )
+                    .join(Products,Products.id==Orders.product_id,isouter=True)
+                    .join(Customers,Customers.id==Orders.customer_id,isouter=True)
+                    .join(Distributors,Distributors.id==Orders.distributor_id,isouter=True)
+                    .where(Orders.is_deleted==False,Orders.customer_id==customer_id)
                 )
             ).scalar_one_or_none()
             pending_dues=(
                 await self.session.execute(
-                    select(func.count().filter(Orders.payment_status == PaymentStatus.NOT_PAID.value).label("pending_dues"))
+                    select(func.count().filter(Orders.status_info['payment_status'].astext == PaymentStatus.NOT_PAID.value).label("pending_dues"))
+                    .join(Products,Products.id==Orders.product_id,isouter=True)
+                    .join(Customers,Customers.id==Orders.customer_id,isouter=True)
+                    .join(Distributors,Distributors.id==Orders.distributor_id,isouter=True)
                     .where(Orders.is_deleted==False,Orders.customer_id==customer_id)
                 )
             ).scalar_one_or_none()
@@ -477,17 +440,17 @@ class OrdersRepo(BaseRepoModel):
         }
     
 
-    async def get_last_order_date(self,customer_id:str,product_id:str):
+    async def get_last_order(self,customer_id:str,product_id:str):
         date_expr=cast(
             Orders.delivery_info['delivery_date'].astext,
             Date
         )
 
-        last_ord_date_stmt=(
+        last_ord_stmt=(
             select(
                 Orders.unit_price,
-                Orders.bill_to,
-                Orders.renewal_type,
+                Orders.status_info,
+                Orders.logistic_info,
                 Orders.delivery_info,
                 date_expr.label("last_date")
             )
@@ -495,14 +458,14 @@ class OrdersRepo(BaseRepoModel):
                 Orders.customer_id==customer_id,
                 Orders.product_id==product_id,
                 Orders.is_deleted==False,
-                Orders.purchase_type!=PurchaseTypes.EXISTING_ADD_ON.value
+                Orders.logistic_info['purchase_type'].astext!=PurchaseTypes.EXISTING_ADD_ON.value
             )
             .order_by(desc(date_expr))
             .limit(1)
         )
         
-        last_ord_date=(await self.session.execute(last_ord_date_stmt)).mappings().one_or_none()
-        return {'order_ldate':{**last_ord_date,'expiry_date':last_ord_date['last_date']+timedelta(days=364)}if last_ord_date else last_ord_date}
+        last_ord=(await self.session.execute(last_ord_stmt)).mappings().one_or_none()
+        return {'last_order':{**last_ord,'expiry_date':last_ord['last_date']+timedelta(days=364)}if last_ord else last_ord}
     
 
 

@@ -1,7 +1,7 @@
 from pydantic import BaseModel, EmailStr
 from typing import Optional
 from datetime import date
-from core.data_formats.enums.pg_enums import LeadSource, LeadStatus
+from core.data_formats.enums.lead_oppr_enums import LeadSource, LeadStatus
 
 
 class AddLeadDbSchema(BaseModel):

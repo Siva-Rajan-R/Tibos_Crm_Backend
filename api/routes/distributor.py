@@ -4,7 +4,7 @@ from infras.primary_db.main import get_pg_db_session,AsyncSession
 from api.dependencies.token_verification import verify_user
 from ..handlers.distributor_handler import HandleDistributorRequest
 from typing import Optional
-from core.data_formats.enums.common_enums import ImportExportTypeEnum
+from core.data_formats.enums.dd_enums import ImportExportTypeEnum
 
 
 router=APIRouter(

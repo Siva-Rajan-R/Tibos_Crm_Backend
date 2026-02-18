@@ -11,25 +11,17 @@ class Opportunities(PG_BASE):
     id = Column(String, primary_key=True)
     ui_id=Column(String,nullable=True)
     sequence_id=Column(Integer,Identity(always=True),nullable=False)
-    lead_id = Column(
-        String,
-        ForeignKey("leads.id", ondelete="CASCADE"),
-        nullable=False,
-        unique=False
-    )
-
+    lead_id = Column(String,ForeignKey("leads.id", ondelete="CASCADE"),nullable=False,unique=False)
     name = Column(String, nullable=False)
     product = Column(String, nullable=False)
-
     billing_type = Column(String, nullable=False)
-
     status = Column(String, nullable=False)
-
     deal_value = Column(Integer, nullable=False)
-
     description = Column(String,nullable=True)
-    deleted_by=Column(String,ForeignKey('users.id'))
+
     created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+    
+    deleted_by=Column(String,ForeignKey('users.id'))
     is_deleted=Column(Boolean,server_default=text("false"),nullable=False)
     deleted_at=Column(DateTime(timezone=True),nullable=True)
 

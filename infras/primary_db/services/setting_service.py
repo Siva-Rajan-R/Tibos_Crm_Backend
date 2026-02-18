@@ -10,7 +10,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from core.decorators.db_session_handler_dec import start_db_transaction
 from models.response_models.req_res_models import ErrorResponseTypDict
 from core.utils.uuid_generator import generate_uuid
-from core.data_formats.enums.common_enums import SettingsEnum
+from core.data_formats.enums.dd_enums import SettingsEnum
 
 SECRET_KEY="2j4ju7jzfnQVamDtZfgC1kbhdILKEGFAz5nRL3PdZ-M="
 
@@ -26,7 +26,7 @@ class SettingsService:
         data_toadd=data.model_dump(mode='json')
         data_toadd['client_secret']=SymmetricEncryption(secret_key=SECRET_KEY).encrypt_data(data=data_toadd['client_secret'])
         data_toadd['id']=generate_uuid()
-        data_toadd={data_toadd['id']:data_toadd}
+        data_toadd={data_toadd[data.email]:data_toadd}
         db_data=await SettingsRepo(session=self.session).create(data=SettingsDbSchema(name=SettingsEnum.EMAIL.value,datas=data_toadd))
         return db_data
     

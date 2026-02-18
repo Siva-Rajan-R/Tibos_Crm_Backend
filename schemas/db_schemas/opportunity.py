@@ -1,7 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional,Union
-from core.data_formats.enums.pg_enums import OpportunityStatus, BillingType
-
+from core.data_formats.enums.lead_oppr_enums import OpportunityStatus
+from core.data_formats.enums.order_enums import BillingType
 
 class CreateOpportunityDbSchema(BaseModel):
     lui_id:Optional[str]=None

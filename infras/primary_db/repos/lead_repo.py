@@ -4,8 +4,7 @@ from core.utils.uuid_generator import generate_uuid
 from sqlalchemy import select, delete, update, or_, func,String
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
-from core.data_formats.enums.common_enums import UserRoles
-from core.data_formats.enums.pg_enums import OpportunityStatus,LeadSource,LeadStatus
+from core.data_formats.enums.user_enums import UserRoles
 from math import ceil
 from datetime import datetime
 from typing import Optional
@@ -115,7 +114,7 @@ class LeadsRepo(BaseRepoModel):
 
     async def get(self, cursor: int = 1, limit: int = 10, query: str = "",include_deleted:bool=False):
         search = f"%{query.lower()}%"
-
+        cursor=0 if cursor==1 else cursor
         date_expr=func.date(func.timezone("Asia/Kolkata",Leads.created_at))
         follwup_expr=func.date(func.timezone("Asia/Kolkata",Leads.next_followup))
         lastcont_expr=func.date(func.timezone("Asia/Kolkata",Leads.last_contacted))
@@ -154,9 +153,10 @@ class LeadsRepo(BaseRepoModel):
             )
         ).mappings().all()
 
-        total = (
-            await self.session.execute(select(func.count(Leads.id)))
-        ).scalar_one()
+        if cursor==0:
+            total = (
+                await self.session.execute(select(func.count(Leads.id)))
+            ).scalar_one()
 
         return {
             "leads": leads,

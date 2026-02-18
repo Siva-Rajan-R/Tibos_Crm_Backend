@@ -1,4 +1,5 @@
-from ..models.user import UserRoles,Users
+from ..models.user import Users
+from core.data_formats.enums.user_enums import UserRoles
 from . import BaseRepoModel
 from sqlalchemy import select,update,delete,and_,or_,func
 from sqlalchemy.orm import aliased

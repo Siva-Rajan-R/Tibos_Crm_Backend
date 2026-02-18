@@ -1,11 +1,10 @@
 from fastapi import Depends,APIRouter,Query,Form,UploadFile,Query,File,Request,BackgroundTasks
 from schemas.request_schemas.order import AddOrderSchema,UpdateOrderSchema,RecoverOrderSchema
-from core.data_formats.enums.filters_enum import OrdersFilters
 from infras.primary_db.main import get_pg_db_session,AsyncSession
 from api.dependencies.token_verification import verify_user
 from ..handlers.order_handler import HandleOrdersRequest
 from typing import Optional,List
-from core.data_formats.enums.common_enums import ImportExportTypeEnum
+from core.data_formats.enums.dd_enums import ImportExportTypeEnum
 from schemas.request_schemas.order import OrderFilterSchema
 
 
@@ -17,10 +16,7 @@ router=APIRouter(
 
 
 @router.post('')
-async def add_order(data:AddOrderSchema,request:Request,bgt:BackgroundTasks,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
-    data.delivery_info['shipping_method']=data.delivery_info['shipping_method'].value
-    data.delivery_info['delivery_date']=str(data.delivery_info['delivery_date'])
-    data.delivery_info['requested_date']=str(data.delivery_info['requested_date'])
+async def add(data:AddOrderSchema,request:Request,bgt:BackgroundTasks,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleOrdersRequest(
         session=session,
         user_role=user['role'],
@@ -32,7 +28,7 @@ async def add_order(data:AddOrderSchema,request:Request,bgt:BackgroundTasks,user
     )
 
 @router.post('/bulk')
-async def add_order_bulk(user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session),type:ImportExportTypeEnum=Form(...),file:UploadFile=File(...)):
+async def add_bulk(user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session),type:ImportExportTypeEnum=Form(...),file:UploadFile=File(...)):
     return await HandleOrdersRequest(
         session=session,
         user_role=user['role'],
@@ -41,7 +37,7 @@ async def add_order_bulk(user:dict=Depends(verify_user),session:AsyncSession=Dep
 
 
 @router.put('')
-async def update_order(data:UpdateOrderSchema,request:Request,bgt:BackgroundTasks,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+async def update(data:UpdateOrderSchema,request:Request,bgt:BackgroundTasks,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleOrdersRequest(
         session=session,
         user_role=user['role'],
@@ -115,10 +111,10 @@ async def get_order_by_customer_id(customer_id:str,user:dict=Depends(verify_user
         cur_user_id=user['id']
     ).get_by_customer_id(customer_id=customer_id,cursor=cursor,limit=limit)
 
-@router.get('/date/last/{customer_id}/{product_id}')
+@router.get('/last/{customer_id}/{product_id}')
 async def get_last_order_date(customer_id:str,product_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleOrdersRequest(
         session=session,
         user_role=user['role'],
         cur_user_id=user['id']
-    ).get_last_order_date(customer_id=customer_id,product_id=product_id)
+    ).get_last_order(customer_id=customer_id,product_id=product_id)

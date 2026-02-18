@@ -4,9 +4,8 @@ from ..models.leads import Leads
 from sqlalchemy import select, delete, update,func,or_,String
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
-from core.data_formats.enums.common_enums import UserRoles
+from core.data_formats.enums.user_enums import UserRoles
 from typing import Optional
-from core.data_formats.enums.pg_enums import OpportunityStatus,LeadSource,LeadStatus,BillingType
 from schemas.db_schemas.opportunity import CreateOpportunityDbSchema,UpdateOpportunityDbSchema
 from core.utils.uuid_generator import generate_uuid
 from core.decorators.db_session_handler_dec import start_db_transaction
@@ -120,6 +119,7 @@ class OpportunitiesRepo(BaseRepoModel):
         date_expr=func.date(func.timezone("Asia/Kolkata",Opportunities.created_at))
         deleted_at=func.date(func.timezone("Asia/Kolkata",Opportunities.deleted_at))
         cols=[*self.oppr_cols]
+        cursor=0 if cursor==1 else cursor
         if include_deleted:
             cols.extend([Users.name.label('deleted_by'),deleted_at.label('deleted_at')])
         result = await self.session.execute(
@@ -163,11 +163,12 @@ class OpportunitiesRepo(BaseRepoModel):
 
         opportunities = result.mappings().all()
 
-        total = (
-            await self.session.execute(
-                select(func.count(Opportunities.id))
-            )
-        ).scalar_one()
+        if cursor==0:
+            total = (
+                await self.session.execute(
+                    select(func.count(Opportunities.id))
+                )
+            ).scalar_one()
 
         return {
             "opportunities": opportunities,

@@ -11,7 +11,9 @@ class Distributors(PG_BASE):
     sequence_id=Column(BigInteger,Identity(always=True),nullable=False)
     name=Column(String,nullable=False)
     discount=Column(String,nullable=False)
+
     created_at=Column(TIMESTAMP(timezone=True),server_default=func.now())
+    
     is_deleted=Column(Boolean,server_default=text("false"),nullable=False)
     deleted_by=Column(String,ForeignKey('users.id'))
     deleted_at=Column(DateTime(timezone=True),nullable=True)

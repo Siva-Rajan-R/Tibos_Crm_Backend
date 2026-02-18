@@ -6,7 +6,7 @@ from core.utils.uuid_generator import generate_uuid
 from sqlalchemy import select,delete,update,or_,func,String
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
-from core.data_formats.enums.common_enums import UserRoles
+from core.data_formats.enums.user_enums import UserRoles
 from pydantic import EmailStr
 from typing import Optional,List
 from math import ceil
@@ -117,6 +117,7 @@ class ContactsRepo(BaseRepoModel):
 
     async def get(self,cursor:int,limit:int,query:str='',include_deleted:bool=False):
         search_term=f"%{query.lower()}%"
+        cursor=0 if cursor==1 else cursor
         date_expr=func.date(func.timezone("Asia/Kolkata",Contacts.created_at))
         deleted_at=func.date(func.timezone("Asia/Kolkata",Contacts.deleted_at))
         cols=[
@@ -151,7 +152,7 @@ class ContactsRepo(BaseRepoModel):
         )).mappings().all()
 
         total_contacts:int=0
-        if cursor==1:
+        if cursor==0:
             total_contacts=(await self.session.execute(
                 select(func.count(Contacts.id)).where(Contacts.is_deleted==False)
             )).scalar_one_or_none()
@@ -190,6 +191,7 @@ class ContactsRepo(BaseRepoModel):
         
     async def get_by_id(self,contact_id:str):
         date_expr=func.date(func.timezone("Asia/Kolkata",Contacts.created_at))
+        
         queried_contacts=(await self.session.execute(
             select(
                 *self.contact_cols,
@@ -203,6 +205,7 @@ class ContactsRepo(BaseRepoModel):
     
     async def get_by_customer_id(self,customer_id:str,cursor:int,limit:int):
         date_expr=func.date(func.timezone("Asia/Kolkata",Contacts.created_at))
+        cursor=0 if cursor==1 else cursor
         queried_contacts=(await self.session.execute(
             select(
                 *self.contact_cols,
@@ -210,7 +213,7 @@ class ContactsRepo(BaseRepoModel):
             )
             .join(Customers,Customers.id==Contacts.customer_id,isouter=True)
             .where(
-                customer_id==Contacts.customer_id,
+                Contacts.customer_id==customer_id,
                 Contacts.sequence_id>cursor,
                 Contacts.is_deleted==False
             )
@@ -218,7 +221,7 @@ class ContactsRepo(BaseRepoModel):
         )).mappings().all()
 
         total_contacts:int=0
-        if cursor==1:
+        if cursor==0:
             total_contacts=(await self.session.execute(
                 select(func.count(Contacts.id))
                 .where(customer_id==Contacts.customer_id)

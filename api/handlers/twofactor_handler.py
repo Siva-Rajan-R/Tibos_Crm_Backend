@@ -2,7 +2,7 @@ from infras.primary_db.services.user_service import UserService
 from infras.primary_db.repos.user_repo import UserRepo
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
-from core.data_formats.enums.common_enums import UserRoles
+from core.data_formats.enums.user_enums import UserRoles
 from pydantic import EmailStr
 from core.decorators.error_handler_dec import catch_errors
 from . import HTTPException,ErrorResponseTypDict,SuccessResponseTypDict,BaseResponseTypDict

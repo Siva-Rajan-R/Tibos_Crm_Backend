@@ -8,7 +8,7 @@ from core.utils.uuid_generator import generate_uuid
 from sqlalchemy import select,delete,update,or_,func,String
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
-from core.data_formats.enums.common_enums import UserRoles
+from core.data_formats.enums.user_enums import UserRoles
 from pydantic import EmailStr
 from typing import Optional,List
 from math import ceil
@@ -19,7 +19,7 @@ from ..repos.contact_repo import ContactsRepo
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
 from ..models.ui_id import TablesUiLId
 from core.utils.ui_id_generator import generate_ui_id
-from core.constants import UI_ID_STARTING_DIGIT
+from core.constants import UI_ID_STARTING_DIGIT,LUI_ID_CONTACT_PREFIX
 
 
 
@@ -30,27 +30,13 @@ class ContactsService(BaseServiceModel):
         self.user_role=user_role
         self.cur_user_id=cur_user_id
 
-
-        
-
     @catch_errors
     async def add(self,data:AddContactSchema):
-        """using this method we can add the contacts to the db"""
-        # check the give customer id is already exists on the Customers db
-        # then check the email or number that matches to the customer_id that matches to the contact db
-
-        
         contact_obj=ContactsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id)
-        # if (await contact_obj.is_contact_exists(email=data.email,mobile_number=data.mobile_number,customer_id=data.customer_id)):
-        #     return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Contact",description="Contact with the given email or mobile number already exists for the customer")
-        
-        # is_cust_exists=await CustomersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(customer_id=data.customer_id)
-        # if not is_cust_exists['customer'] or len(is_cust_exists['customer'])<1:
-        #     return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Contact",description="Customer with the given id does not exist")
         
         contact_id=generate_uuid(data=data.name)
         lui_id:str=(await self.session.execute(select(TablesUiLId.contact_luiid))).scalar_one_or_none()
-        cur_uiid=generate_ui_id(prefix="CONTC",last_id=lui_id)
+        cur_uiid=generate_ui_id(prefix=LUI_ID_CONTACT_PREFIX,last_id=lui_id)
 
         return await contact_obj.add(data=AddContactDbSchema(**data.model_dump(mode='json'),id=contact_id,ui_id=cur_uiid,lui_id=lui_id))
 
@@ -63,23 +49,14 @@ class ContactsService(BaseServiceModel):
         lui_id:str=(await self.session.execute(select(TablesUiLId.contact_luiid))).scalar_one_or_none()
         for data in datas:
             is_cust_exists=await CustomersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(customer_id=data['customer_id'])
-            # if not is_cust_exists['customer'] or len(is_cust_exists['customer'])<1:
-            #     skipped_items.append(data)
-            #     continue
 
             data['customer_id']=is_cust_exists['customer']['id']
-
-            # if (await contact_obj.is_contact_exists(email=data['email'],mobile_number=data['mobile_number'],customer_id=data['customer_id'])):
-            #     skipped_items.append(data)
-            #     continue
-            
             contact_id:str=generate_uuid()
             
-            cur_uiid=generate_ui_id(prefix="CONTC",last_id=lui_id)
-            ic("Before increment : ",lui_id)
+            cur_uiid=generate_ui_id(prefix=LUI_ID_CONTACT_PREFIX,last_id=lui_id)
             lui_id=cur_uiid
-            ic("After increment : ",lui_id)
             datas_toadd.append(Contacts(**data, id=contact_id,ui_id=cur_uiid))
+            
         ic(skipped_items,datas_toadd)
         return await contact_obj.add_bulk(datas=datas_toadd,lui_id=lui_id)
        

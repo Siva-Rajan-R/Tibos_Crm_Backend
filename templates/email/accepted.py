@@ -1,5 +1,5 @@
 from pydantic import EmailStr
-from core.data_formats.enums.common_enums import UserRoles
+from core.data_formats.enums.user_enums import UserRoles
 
 def get_accepted_email_content(user_name:str,user_email:EmailStr,user_role:UserRoles,dashboard_link:str,profile_pic_link:str) -> str:
     return f"""<!DOCTYPE html>

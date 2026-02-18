@@ -3,7 +3,7 @@ from core.utils.uuid_generator import generate_uuid
 from sqlalchemy import select,delete,update,or_,func,String
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
-from core.data_formats.enums.common_enums import UserRoles
+from core.data_formats.enums.user_enums import UserRoles
 from pydantic import EmailStr
 from typing import Optional,List
 from core.decorators.error_handler_dec import catch_errors
@@ -12,7 +12,7 @@ from schemas.request_schemas.contact import AddContactSchema,UpdateContactSchema
 from . import HTTPException,ErrorResponseTypDict,SuccessResponseTypDict,BaseResponseTypDict
 from core.utils.mob_no_validator import mobile_number_validator
 from models.import_export_models.excel_headings_mapper import CONTACTS_MAPPER
-from core.data_formats.enums.common_enums import ImportExportTypeEnum
+from core.data_formats.enums.dd_enums import ImportExportTypeEnum
 from fastapi import UploadFile
 from core.utils.excel_data_extractor import extract_excel_data
 

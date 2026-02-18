@@ -8,7 +8,7 @@ from templates.email.accepted import get_login_credential_email_content
 from templates.email.forgot import get_forgot_password_email_content,get_password_reset_success_email
 from infras.primary_db.repos.auth_repo import AuthRepo
 from security.jwt_token import generate_jwt_token,ACCESS_JWT_KEY,REFRESH_JWT_KEY,JWT_ALG
-from core.data_formats.enums.common_enums import UserRoles
+from core.data_formats.enums.user_enums import UserRoles
 from api.dependencies.token_verification import verify_user
 from core.utils.uuid_generator import generate_uuid
 from infras.caching.models.auth_model import get_auth_revoke,set_auth_revoke,unlink_auth_revoke,unlink_auth_forgot,get_auth_forgot,set_auth_forgot

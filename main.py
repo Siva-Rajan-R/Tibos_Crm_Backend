@@ -14,6 +14,7 @@ import os
 from core.settings import SETTINGS,EnvironmentEnum
 from dotenv import load_dotenv
 from infras.primary_db.services.setting_service import SettingsService
+from infras.primary_db.repos.dropdown_repo import DropDownRepo
 load_dotenv()
 
 # changing event loop for better permformance *It works only on (linux,macos)
@@ -35,11 +36,12 @@ async def api_lifespan(app:FastAPI):
     try:
         ic("🏎️ Executing API Lifespan... ")
         await init_pg_db()
-        async with AsyncLocalSession() as session:
-            # await UserService(session=session,user_role=UserRoles.SUPER_ADMIN,cur_user_id='').init_superadmin()
-            await session.execute(insert(TablesUiLId).values(id="1").on_conflict_do_nothing(index_elements=["id"]))
-            await SettingsService(session=session).init_settings()
-            await session.commit()
+        # async with AsyncLocalSession() as session:
+        #     # await UserService(session=session,user_role=UserRoles.SUPER_ADMIN,cur_user_id='').init_superadmin()
+        #     # await session.execute(insert(TablesUiLId).values(id="1").on_conflict_do_nothing(index_elements=["id"]))
+        #     # await SettingsService(session=session).init_settings()
+        #     # await DropDownRepo(session=session).init_dd()
+        #     await session.commit()
         await check_redis_health()
         # await redis_client.flushall()
         yield

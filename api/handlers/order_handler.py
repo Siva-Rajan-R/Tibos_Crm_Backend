@@ -3,17 +3,16 @@ from sqlalchemy import select,delete,update,or_,func,String
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
 from fastapi import Request,BackgroundTasks
-from core.data_formats.enums.common_enums import UserRoles
-from core.data_formats.enums.pg_enums import PaymentStatus,InvoiceStatus
-from core.data_formats.typed_dicts.pg_dict import DeliveryInfo
+from core.data_formats.enums.user_enums import UserRoles
+from core.data_formats.enums.order_enums import PaymentStatus,InvoiceStatus
+from core.data_formats.typed_dicts.order_typdict import DeliveryInfo
 from schemas.db_schemas.order import AddOrderDbSchema,UpdateOrderDbSchema
 from schemas.request_schemas.order import AddOrderSchema,UpdateOrderSchema,RecoverOrderSchema
 from core.decorators.error_handler_dec import catch_errors
 from math import ceil
 from . import HTTPException,ErrorResponseTypDict,SuccessResponseTypDict,BaseResponseTypDict
 from core.utils.discount_validator import validate_discount
-from core.data_formats.enums.filters_enum import OrdersFilters
-from core.data_formats.enums.common_enums import ImportExportTypeEnum
+from core.data_formats.enums.dd_enums import ImportExportTypeEnum,SettingsEnum
 from core.utils.excel_data_extractor import extract_excel_data
 from models.import_export_models.excel_headings_mapper import ORDERS_MAPPER
 from fastapi import UploadFile
@@ -21,7 +20,6 @@ from schemas.request_schemas.order import OrderFilterSchema
 from services.email_service import send_email
 from templates.email.order import get_crm_order_email_content
 from infras.primary_db.services.setting_service import SettingsService
-from core.data_formats.enums.common_enums import SettingsEnum
 
 class HandleOrdersRequest:
     def __init__(self,session:AsyncSession,user_role:UserRoles,cur_user_id:str):
@@ -29,23 +27,12 @@ class HandleOrdersRequest:
         self.user_role=user_role
         self.cur_user_id=cur_user_id
 
-        # if isinstance(self.user_role,UserRoles):
-        #     self.user_role=self.user_role.value
-
-        # if self.user_role==UserRoles.USER.value:
-        #     raise HTTPException(
-        #         status_code=401,
-        #         detail=ErrorResponseTypDict(
-        #             msg="Error : ",
-        #             description="Insufficient permission",
-        #             status_code=401,
-        #             success=False
-        #         ).model_dump(mode='json')
-        #     )
-
     @catch_errors
     async def add(self,data:AddOrderSchema,request:Request,bgt:BackgroundTasks):
-        if data.invoice_status.value==InvoiceStatus.COMPLETED.value and ((not data.invoice_number or len(data.invoice_number)<1 or (not data.invoice_date))):
+        invoice_no=data.status_info.get('invoice_number')
+        invoice_date=data.status_info.get('invoice_date')
+        invoice_sts=data.status_info.get('invoice_status')
+        if invoice_sts.value==InvoiceStatus.COMPLETED.value and ((not invoice_no or len(invoice_no)<1 or (not invoice_date))):
             raise HTTPException(
                 status_code=400,
                 detail=ErrorResponseTypDict(
@@ -56,14 +43,14 @@ class HandleOrdersRequest:
                 ).model_dump(mode='json')
             )
 
-        if data.discount and validate_discount(value=data.discount) is None:
+        if data.additional_discount and validate_discount(value=data.additional_discount) is None:
             raise HTTPException(
                 status_code=400,
                 detail=ErrorResponseTypDict(
                     status_code=400,
                     success=False,
                     msg="Error : Creating Order",
-                    description="Invalid discount format"
+                    description="Invalid addtional discount format"
                 ).model_dump(mode='json')
             )
         
@@ -140,7 +127,10 @@ class HandleOrdersRequest:
     
     @catch_errors
     async def update(self,data:UpdateOrderSchema,request:Request,bgt:BackgroundTasks):
-        if data.invoice_status.value==InvoiceStatus.COMPLETED.value and ((not data.invoice_number or len(data.invoice_number)<1 or (not data.invoice_date))):
+        invoice_no=data.status_info.get('invoice_number')
+        invoice_date=data.status_info.get('invoice_date')
+        invoice_sts=data.status_info.get('invoice_status')
+        if invoice_sts.value==InvoiceStatus.COMPLETED.value and ((not invoice_no or len(invoice_no)<1 or (not invoice_date))):
             raise HTTPException(
                 status_code=400,
                 detail=ErrorResponseTypDict(
@@ -151,14 +141,14 @@ class HandleOrdersRequest:
                 ).model_dump(mode='json')
             )
         
-        if data.discount and validate_discount(value=data.discount) is None:
+        if data.additional_discount and validate_discount(value=data.additional_discount) is None:
             raise HTTPException(
                 status_code=400,
                 detail=ErrorResponseTypDict(
                     status_code=400,
                     success=False,
                     msg="Error : Creating Order",
-                    description="Invalid discount format"
+                    description="Invalid additional discount format"
                 ).model_dump(mode='json')
             )
         
@@ -274,5 +264,5 @@ class HandleOrdersRequest:
 
 
     @catch_errors
-    async def get_last_order_date(self,customer_id:str,product_id:str):
-        return await OrdersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_last_order_date(customer_id=customer_id,product_id=product_id)
+    async def get_last_order(self,customer_id:str,product_id:str):
+        return await OrdersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_last_order(customer_id=customer_id,product_id=product_id)

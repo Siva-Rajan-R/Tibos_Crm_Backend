@@ -1,5 +1,5 @@
 from pydantic import BaseModel,EmailStr
-from core.data_formats.enums.pg_enums import ProductTypes
+from core.data_formats.enums.product_enums import ProductTypes
 from typing import Optional,Literal,Union
 from fastapi import UploadFile,File
 

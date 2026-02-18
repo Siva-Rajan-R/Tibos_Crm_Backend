@@ -1,6 +1,7 @@
 from pydantic import BaseModel
 from typing import Optional
-from core.data_formats.enums.pg_enums import OpportunityStatus, BillingType
+from core.data_formats.enums.lead_oppr_enums import OpportunityStatus
+from core.data_formats.enums.order_enums import BillingType
 
 
 class CreateOpportunitySchema(BaseModel):

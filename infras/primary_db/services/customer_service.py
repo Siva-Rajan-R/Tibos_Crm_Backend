@@ -1,12 +1,12 @@
 from . import BaseServiceModel
-from ..models.customer import Customers,CustomerIndustries,CustomerSectors
+from ..models.customer import Customers
 from ..repos.customer_repo import CustomersRepo
 from core.utils.uuid_generator import generate_uuid
 from ..models.order import Orders
 from sqlalchemy import select,delete,update,or_,func,String
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
-from core.data_formats.enums.common_enums import UserRoles
+from core.data_formats.enums.user_enums import UserRoles
 from pydantic import EmailStr
 from typing import Optional,List
 from schemas.db_schemas.customer import AddCustomerDbSchema,UpdateCustomerDbSchema
@@ -16,7 +16,7 @@ from math import ceil
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
 from ..models.ui_id import TablesUiLId
 from core.utils.ui_id_generator import generate_ui_id
-from core.constants import UI_ID_STARTING_DIGIT
+from core.constants import UI_ID_STARTING_DIGIT,LUI_ID_CUSTOMER_PREFIX
 
 
 
@@ -36,7 +36,7 @@ class CustomersService(BaseServiceModel):
         
         customer_id:str=generate_uuid()
         lui_id:str=(await self.session.execute(select(TablesUiLId.customer_luiid))).scalar_one_or_none()
-        cur_uiid=generate_ui_id(prefix="CUST",last_id=lui_id)
+        cur_uiid=generate_ui_id(prefix=LUI_ID_CUSTOMER_PREFIX,last_id=lui_id)
         data_toadd=data.model_dump(mode='json')
         data_toadd['email']=','.join(data_toadd['emails'])
         del data_toadd['emails']
@@ -58,7 +58,7 @@ class CustomersService(BaseServiceModel):
             #     continue
 
             customer_id:str=generate_uuid()
-            cur_uiid=generate_ui_id(prefix="CUST",last_id=lui_id)
+            cur_uiid=generate_ui_id(prefix=LUI_ID_CUSTOMER_PREFIX,last_id=lui_id)
             ic("Before increment : ",lui_id)
             lui_id=cur_uiid
             ic("After increment : ",lui_id)
@@ -99,7 +99,7 @@ class CustomersService(BaseServiceModel):
     async def delete(self,customer_id:str,soft_delete:bool=True):
         return await CustomersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete(customer_id=customer_id,soft_delete=soft_delete)
     
-    @catch_errors  
+    @catch_errors
     async def recover(self,customer_id:str):
         return await CustomersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).recover(customer_id=customer_id)
 

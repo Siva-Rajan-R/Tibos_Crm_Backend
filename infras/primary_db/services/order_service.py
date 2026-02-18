@@ -10,25 +10,24 @@ from ..repos.order_repo import OrdersRepo
 from sqlalchemy import select,delete,update,or_,func,String
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
-from core.data_formats.enums.common_enums import UserRoles
-from core.data_formats.enums.pg_enums import PaymentStatus,InvoiceStatus
-from core.data_formats.typed_dicts.pg_dict import DeliveryInfo
+from core.data_formats.enums.user_enums import UserRoles
+from core.data_formats.enums.order_enums import PurchaseTypes
+from core.data_formats.typed_dicts.order_typdict import DeliveryInfo
 from schemas.db_schemas.order import AddOrderDbSchema,UpdateOrderDbSchema
 from schemas.request_schemas.order import AddOrderSchema,UpdateOrderSchema
 from core.decorators.error_handler_dec import catch_errors
 from math import ceil
 from typing import Optional,List
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
-from core.data_formats.enums.filters_enum import OrdersFilters
 from ..models.ui_id import TablesUiLId
 from core.utils.ui_id_generator import generate_ui_id
-from core.constants import UI_ID_STARTING_DIGIT
+from core.constants import UI_ID_STARTING_DIGIT,LUI_ID_ORDER_PREFIX
 from core.utils.discount_validator import parse_discount
-from core.data_formats.typed_dicts.pg_dict import DeliveryInfo
+
 import pandas as pd
 from schemas.request_schemas.order import OrderFilterSchema
-from core.utils.calculations import get_distributor_amount,get_remaining_days
-from core.data_formats.enums.pg_enums import PurchaseTypes
+from core.utils.calculations import get_distributor_price,get_remaining_days
+from core.data_formats.typed_dicts.order_typdict import DeliveryInfo,StatusInfo,LogisticsInfo
 
 
 
@@ -57,28 +56,27 @@ class OrdersService(BaseServiceModel):
         distri_exists=await DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(distributor_id=data.distributor_id)
         if not distri_exists or len(distri_exists)<1:
             return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Order",description="Distributor with the given id does not exist")
-        
-        total_price=data.quantity*prod_exists['product']['price']
-        distri_amt=total_price-parse_discount(distri_exists['distributors']['discount'],total_price)
-        distri_dic_final_price=distri_amt
-        final_price=(distri_dic_final_price-parse_discount(data.discount,distri_dic_final_price))
+
+        data_toadd=data.model_dump(mode='json')
+        if data.logistic_info.get('purchase_type').value==PurchaseTypes.EXISTING_ADD_ON.value:
+            last_order=await order_obj.get_last_order(customer_id=cust_exists['customer']['id'],product_id=prod_exists['product']['id'])
+            last_ord_expiry_date=last_order.get('last_order')['expiry_date']
+            data_toadd['logistic_info']['last_ord_expiry_date']=last_ord_expiry_date
+
         order_id:str=generate_uuid()
-        if data.purchase_type.value==PurchaseTypes.EXISTING_ADD_ON.value:
-            lorder_date=(await self.get_last_order_date(customer_id=data.customer_id,product_id=data.product_id))['order_ldate']['expiry_date']
-            remaining_days=get_remaining_days(from_date=lorder_date,to_date=data.delivery_info.get("delivery_date"))
-            final_price=total_price/365*remaining_days
+
         lui_id:str=(await self.session.execute(select(TablesUiLId.order_luiid))).scalar_one_or_none()
-        cur_uiid=generate_ui_id(prefix="ORD",last_id=lui_id)
-        return await order_obj.add(data=AddOrderDbSchema(**data.model_dump(mode='json'),id=order_id,ui_id=cur_uiid,final_price=final_price,total_price=total_price))
-        # need to implement invoice generation process + email sending
+        cur_uiid=generate_ui_id(prefix=LUI_ID_ORDER_PREFIX,last_id=lui_id)
+        return await order_obj.add(data=AddOrderDbSchema(**data_toadd,id=order_id,ui_id=cur_uiid))
     
     @catch_errors
     async def add_bulk(self,datas:List[dict]):
         skipped_items=[]
-        
         datas_toadd=[]
+
         orders_obj=OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id)
         lui_id:str=(await self.session.execute(select(TablesUiLId.order_luiid))).scalar_one_or_none()
+
         for data in datas:
             
             cust_exists=await CustomersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(customer_id=data['customer_id'])
@@ -96,6 +94,10 @@ class OrdersService(BaseServiceModel):
                 skipped_items.append(data)
                 continue
             
+            last_ord_expiry_date=None
+            if data['purchase_type']==PurchaseTypes.EXISTING_ADD_ON.value:
+                last_order=await orders_obj.get_last_order(customer_id=cust_exists['customer']['id'],product_id=prod_exists['product']['id'])
+                last_ord_expiry_date=last_order.get('last_order')['expiry_date']
 
             data['customer_id']=cust_exists['customer']['id']
             data['distributor_id']=distri_exists['distributors']['id']
@@ -108,28 +110,27 @@ class OrdersService(BaseServiceModel):
                 payment_terms=data['payment_terms']
             )
 
-            data['invoice_date']=pd.Timestamp(data['invoice_date']).strftime("%Y-%m-%d")
+            data['status_info']=StatusInfo(
+                payment_status=data['payment_status'],
+                invoice_status=data['invoice_status'],
+                invoice_number=data['invoice_number'],
+                invoice_date=pd.Timestamp(data['invoice_date']).strftime("%Y-%m-%d")
+            )
 
-            del data['requested_date']
-            del data['delivery_date']
-            del data['shipping_method']
-            del data['payment_terms']
+            data['logistic_info']=LogisticsInfo(
+                purchase_type=data['purchase_type'],
+                renewal_type=data['renewal_type'],
+                bill_to=data['bill_to'],
+                distributor_type=data['distributor_type'],
+                last_ord_expiry_date=last_ord_expiry_date
+            )
 
-            ic(data)
-            total_price=data['quantity']*prod_exists['product']['price']
-            data['discount']=str(data['discount']*100)+"%"
-            data['vendor_commision']=str(data['vendor_commision'])
-            ic(total_price)
-            distri_dic_final_price=(total_price-parse_discount(distri_exists['distributors']['discount'],total_price))
-            ic(distri_dic_final_price)
-            final_price=(distri_dic_final_price-parse_discount(data['discount'],distri_dic_final_price))
-            ic(final_price)
             order_id:str=generate_uuid()
-            
-            cur_uiid=generate_ui_id(prefix="ORD",last_id=lui_id)
+            cur_uiid=generate_ui_id(prefix=LUI_ID_ORDER_PREFIX,last_id=lui_id)
             lui_id=cur_uiid
-            ic(data)
-            datas_toadd.append(Orders(**data, id=order_id,ui_id=cur_uiid,final_price=final_price,total_price=total_price))
+
+            formatted_schema=AddOrderDbSchema(**data,id=order_id,ui_id=cur_uiid).model_dump(mode='json',exclude_unset=True,exclude_none=True)
+            datas_toadd.append(Orders(**formatted_schema))
                 
         ic(skipped_items,datas_toadd)
         return await orders_obj.add_bulk(datas=datas_toadd,lui_id=lui_id)
@@ -141,6 +142,8 @@ class OrdersService(BaseServiceModel):
         if not data_toupdate or len(data_toupdate)<1:
             return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Order",description="No valid fields to update provided")
         
+        order_obj=OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id)
+
         cust_exists=await CustomersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(customer_id=data.customer_id)
         if not cust_exists or len(cust_exists)<1:
             return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Order",description="Customer with the given id does not exist")
@@ -152,23 +155,15 @@ class OrdersService(BaseServiceModel):
         distri_exists=await DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(distributor_id=data.distributor_id)
         if not distri_exists or len(distri_exists)<1:
             return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Order",description="Distributor with the given id does not exist")
-        
 
-        total_price=data.quantity*prod_exists['product']['price']
-        distri_amt=total_price-parse_discount(distri_exists['distributors']['discount'],total_price)
-        
-        del data_toupdate['total_price']
-        ic(data_toupdate)
-        distri_dic_final_price=distri_amt
-        final_price=(distri_dic_final_price-parse_discount(data.discount,distri_dic_final_price))
-        if data.purchase_type.value==PurchaseTypes.EXISTING_ADD_ON.value:
-            lorder_date=(await self.get_last_order_date(customer_id=data.customer_id,product_id=data.product_id))['order_ldate']['expiry_date']
-            remaining_days=get_remaining_days(from_date=lorder_date,to_date=data.delivery_info.get("delivery_date"))
-            final_price=total_price/365*remaining_days
-        del data_toupdate['final_price']
-        return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateOrderDbSchema(**data_toupdate,total_price=total_price,final_price=final_price))
-        
-        # need to implement invoice generation process + email sending
+        if data.logistic_info.get('purchase_type').value==PurchaseTypes.EXISTING_ADD_ON.value:
+            last_order=await order_obj.get_last_order(customer_id=cust_exists['customer']['id'],product_id=prod_exists['product']['id'])
+            last_ord_expiry_date=last_order.get('last_order')['expiry_date']
+            ic(last_ord_expiry_date)
+            data_toupdate['logistic_info']['last_ord_expiry_date']=last_ord_expiry_date
+
+        return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateOrderDbSchema(**data_toupdate))
+
 
     @catch_errors    
     async def delete(self,order_id:str,customer_id:str,soft_delete:bool=True):
@@ -195,8 +190,8 @@ class OrdersService(BaseServiceModel):
         return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_customer_id(customer_id=customer_id,cursor=cursor,limit=limit)
     
     @catch_errors
-    async def get_last_order_date(self,customer_id:str,product_id:str):
-        return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_last_order_date(customer_id=customer_id,product_id=product_id)
+    async def get_last_order(self,customer_id:str,product_id:str):
+        return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_last_order(customer_id=customer_id,product_id=product_id)
 
 
 

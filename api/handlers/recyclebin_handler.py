@@ -1,6 +1,6 @@
 from infras.primary_db.services import customer_service,contact_service,user_service,product_service,lead_service,opportunity_service,distri_service,order_service
 from sqlalchemy.ext.asyncio import AsyncSession
-from core.data_formats.enums.common_enums import UserRoles
+from core.data_formats.enums.user_enums import UserRoles
 from schemas.request_schemas.order import OrderFilterSchema
 class HandleRecycleBinRequests:
     def __init__(self,session:AsyncSession):

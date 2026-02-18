@@ -1,5 +1,6 @@
-from ..models.user import UserRoles,Users
+from ..models.user import Users
 from . import BaseServiceModel
+from core.data_formats.enums.user_enums import UserRoles
 from sqlalchemy import select,update,delete,and_,or_,func
 from sqlalchemy.ext.asyncio import AsyncSession
 from pydantic import EmailStr
@@ -17,7 +18,7 @@ from secrets import token_urlsafe
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
 from ..models.ui_id import TablesUiLId
 from core.utils.ui_id_generator import generate_ui_id
-from core.constants import UI_ID_STARTING_DIGIT
+from core.constants import UI_ID_STARTING_DIGIT,LUI_ID_USER_PREFIX
 
 
 DEFAULT_SUPERADMIN_INFO=json.loads(os.getenv('DEFAULT_SUPERADMIN_INFO'))
@@ -39,7 +40,7 @@ class UserService(BaseServiceModel):
                 ic("✅ Default Super-Admin Already Exists")
                 return
             lui_id:str=(await self.session.execute(select(TablesUiLId.user_luiid))).scalar_one_or_none()
-            cur_uiid=generate_ui_id(prefix="USR",last_id=lui_id)
+            cur_uiid=generate_ui_id(prefix=LUI_ID_USER_PREFIX,last_id=lui_id)
             await UserRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(
                 data=AddUserDbSchema(
                     id=generate_uuid(),
@@ -63,7 +64,7 @@ class UserService(BaseServiceModel):
 
         user_id:str=generate_uuid()
         lui_id:str=(await self.session.execute(select(TablesUiLId.user_luiid))).scalar_one_or_none()
-        cur_uiid=generate_ui_id(prefix="USR",last_id=lui_id)
+        cur_uiid=generate_ui_id(prefix=LUI_ID_USER_PREFIX,last_id=lui_id)
         pwd=token_urlsafe(16)
         hashed_pwd=hash_data(data=pwd)
         await UserRepo(session=self.session,user_role=self.user_role,cur_user_id='').add(data=AddUserDbSchema(**data.model_dump(mode='json'),id=user_id,password=hashed_pwd,ui_id=cur_uiid,lui_id=lui_id))

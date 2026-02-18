@@ -6,9 +6,8 @@ from ..models.leads import Leads
 from sqlalchemy import select, delete, update,func,or_,String
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
-from core.data_formats.enums.common_enums import UserRoles
+from core.data_formats.enums.user_enums import UserRoles
 from typing import Optional
-from core.data_formats.enums.pg_enums import OpportunityStatus,LeadSource,LeadStatus,BillingType
 from schemas.db_schemas.opportunity import CreateOpportunityDbSchema,UpdateOpportunityDbSchema
 from schemas.request_schemas.opportunity import CreateOpportunitySchema,UpdateOpportunitySchema
 from core.utils.uuid_generator import generate_uuid
@@ -18,7 +17,7 @@ from math import ceil
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
 from ..models.ui_id import TablesUiLId
 from core.utils.ui_id_generator import generate_ui_id
-from core.constants import UI_ID_STARTING_DIGIT
+from core.constants import UI_ID_STARTING_DIGIT,LUI_ID_OPPOR_PREFIX
 
 
 class OpportunitiesService(BaseServiceModel):
@@ -43,7 +42,7 @@ class OpportunitiesService(BaseServiceModel):
         
         oppr_id:str=generate_uuid()
         lui_id:str=(await self.session.execute(select(TablesUiLId.oppor_luiid))).scalar_one_or_none()
-        cur_uiid=generate_ui_id(prefix="OPPR",last_id=lui_id,lui_id=lui_id)
+        cur_uiid=generate_ui_id(prefix=LUI_ID_OPPOR_PREFIX,last_id=lui_id,lui_id=lui_id)
         return await OpportunitiesRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(data=CreateOpportunityDbSchema(**data.model_dump(mode='json'),id=oppr_id,ui_id=cur_uiid))
 
 

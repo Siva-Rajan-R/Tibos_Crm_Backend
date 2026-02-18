@@ -2,8 +2,6 @@ from sqlalchemy import String,Integer,Float,Boolean,Column,ForeignKey,ARRAY,BigI
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import relationship
 from ..main import PG_BASE
-from core.data_formats.enums.pg_enums import CustomerIndustries,CustomerSectors
-from core.data_formats.typed_dicts.customer_dict import CustomerAddressTypDict
 
 
 class Customers(PG_BASE):
@@ -22,12 +20,12 @@ class Customers(PG_BASE):
     address=Column(JSONB,nullable=True)
     owner=Column(String,nullable=True)
     tenant_id=Column(String,nullable=True)
-    is_deleted=Column(Boolean,server_default=text("false"),nullable=False)
 
+    created_at=Column(TIMESTAMP(timezone=True),server_default=func.now())
+
+    is_deleted=Column(Boolean,server_default=text("false"),nullable=False)
+    deleted_by=Column(String,ForeignKey('users.id'))
+    deleted_at=Column(DateTime(timezone=True),nullable=True)
 
     contact=relationship("Contacts",back_populates="customer",cascade="all, delete-orphan")
     order=relationship("Orders",back_populates="customer")
-
-    created_at=Column(TIMESTAMP(timezone=True),server_default=func.now())
-    deleted_by=Column(String,ForeignKey('users.id'))
-    deleted_at=Column(DateTime(timezone=True),nullable=True)

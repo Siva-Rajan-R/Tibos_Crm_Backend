@@ -12,9 +12,11 @@ class Contacts(PG_BASE):
     name=Column(String,nullable=False)
     mobile_number=Column(String,nullable=False)
     email=Column(String,nullable=False)
-    is_deleted=Column(Boolean,server_default=text("false"),nullable=False)
-    deleted_by=Column(String,ForeignKey('users.id'))
-    customer=relationship("Customers",back_populates="contact")
 
     created_at=Column(TIMESTAMP(timezone=True),server_default=func.now())
+
+    is_deleted=Column(Boolean,server_default=text("false"),nullable=False)
+    deleted_by=Column(String,ForeignKey('users.id'))
     deleted_at=Column(DateTime(timezone=True),nullable=True)
+
+    customer=relationship("Customers",back_populates="contact")

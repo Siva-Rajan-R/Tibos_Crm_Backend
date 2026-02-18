@@ -1,11 +1,11 @@
 from . import HTTPException,BaseRepoModel
-from ..models.customer import Customers,CustomerIndustries,CustomerSectors
+from ..models.customer import Customers
 from core.utils.uuid_generator import generate_uuid
 from ..models.order import Orders
 from sqlalchemy import select,delete,update,or_,func,String
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
-from core.data_formats.enums.common_enums import UserRoles
+from core.data_formats.enums.user_enums import UserRoles
 from pydantic import EmailStr
 from typing import Optional,List
 from schemas.db_schemas.customer import AddCustomerDbSchema,UpdateCustomerDbSchema
@@ -122,6 +122,7 @@ class CustomersRepo(BaseRepoModel):
 
     async def get(self,cursor:int=1,limit:int=10,query:str='',include_deleted:bool=False):
         search_term=f"%{query.lower()}%"
+        cursor=0 if cursor==1 else cursor
         date_expr=func.date(func.timezone("Asia/Kolkata",Customers.created_at))
         deleted_at=func.date(func.timezone("Asia/Kolkata",Customers.deleted_at))
         cols=[*self.customer_cols]
@@ -154,7 +155,7 @@ class CustomersRepo(BaseRepoModel):
         )).mappings().all()
 
         total_customers:int=0
-        if cursor==1:
+        if cursor==0:
             total_customers=(await self.session.execute(
                 select(func.count(Customers.id)).where(Customers.is_deleted==False)
             )).scalar_one_or_none()

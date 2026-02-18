@@ -4,7 +4,7 @@ from fastapi.security import HTTPBearer,HTTPAuthorizationCredentials
 from security.jwt_token import decode_jwt_token,ACCESS_JWT_KEY,REFRESH_JWT_KEY,JWT_ALG
 from ..handlers.user_handler import HandleUserRequest
 from infras.primary_db.repos.user_repo import UserRepo
-from core.data_formats.enums.common_enums import UserRoles
+from core.data_formats.enums.user_enums import UserRoles
 from icecream import ic
 from infras.caching.models.auth_model import get_auth_revoke,set_auth_revoke,unlink_auth_revoke,unlink_auth_forgot,get_auth_forgot,set_auth_forgot
 from core.constants import ROLES_ALLOWED
@@ -13,7 +13,6 @@ from models.response_models.req_res_models import ErrorResponseTypDict,BaseRespo
 bearer=HTTPBearer()
 
 async def verify_user(request:Request,credentials:HTTPAuthorizationCredentials=Depends(bearer),session:AsyncSession=Depends(get_pg_db_session)):
-    ip=request.client.host
     bearer_token=credentials.credentials
     ic(f"credentials : {bearer_token}")
     
@@ -75,10 +74,6 @@ async def check_permission(request:Request,role:str):
     prefix=request.url.path.split('/')[1]
     method=request.method.upper()
     ic(prefix,method)
-    # If the roles_allowed is empty set means all the methods and routes are allowed for that role
-    # if the roles_allowed is None means none of  methods and routes are allowed
-    # if the roles_allowed is does not exists for the given route prefix means all the routes and methods are not allowed
-    # if the roles_allowed is exists and the prefix is exists means we need to findout the incoming method is alowed are not
 
     if ROLES_ALLOWED[role]=={}:
         return True
@@ -97,7 +92,7 @@ async def check_permission(request:Request,role:str):
     ic(ROLES_ALLOWED[role][prefix]-{method})
     cur_role_len=len(ROLES_ALLOWED[role][prefix])
     temp_role_len=len(ROLES_ALLOWED[role][prefix]-{method})
-    ROLES_ALLOWED
+
     if cur_role_len!=temp_role_len:
         return True
     

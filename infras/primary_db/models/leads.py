@@ -12,27 +12,19 @@ class Leads(PG_BASE):
     name = Column(String, nullable=False)
     email = Column(String,nullable=False)
     phone = Column(String, nullable=False)
-
     source = Column(String, nullable=False)
-    status = Column(
-        String,
-        nullable=False,
-    )
-
+    status = Column(String,nullable=False)
     assigned_to = Column(String, nullable=True)
+    description = Column(String,nullable=True)
 
-    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
     last_contacted = Column(TIMESTAMP(timezone=True))
     next_followup = Column(TIMESTAMP(timezone=True))
 
-    description = Column(String,nullable=True)
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+
     is_deleted=Column(Boolean,server_default=text("false"),nullable=False)
     deleted_by=Column(String,ForeignKey('users.id'))
     deleted_at=Column(DateTime(timezone=True),nullable=True)
 
     # relationship
-    opportunity = relationship(
-        "Opportunities",
-        back_populates="lead",
-        uselist=False
-    )
+    opportunity = relationship("Opportunities",back_populates="lead",uselist=False)
