@@ -14,7 +14,7 @@ from . import HTTPException,ErrorResponseTypDict,SuccessResponseTypDict,BaseResp
 from core.utils.discount_validator import validate_discount
 from core.data_formats.enums.dd_enums import ImportExportTypeEnum,SettingsEnum
 from core.utils.excel_data_extractor import extract_excel_data
-from models.import_export_models.excel_headings_mapper import ORDERS_MAPPER
+from models.import_export_models.imports.excel_headings_mapper import ORDERS_MAPPER
 from fastapi import UploadFile
 from schemas.request_schemas.order import OrderFilterSchema
 from services.email_service import send_email

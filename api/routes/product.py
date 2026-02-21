@@ -1,10 +1,13 @@
-from fastapi import Depends,APIRouter,Query,File,UploadFile,Form
+from fastapi import Depends,APIRouter,Query,File,UploadFile,Form,BackgroundTasks,HTTPException
 from schemas.request_schemas.product import AddProductSchema,UpdateProductSchema,RecoverProductSchema
 from infras.primary_db.main import get_pg_db_session,AsyncSession
 from api.dependencies.token_verification import verify_user
 from ..handlers.product_handler import HandleProductsRequest
 from typing import Optional,Literal
 from core.data_formats.enums.dd_enums import ImportExportTypeEnum
+from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict
+from core.utils.export_func import create_product_excel_export
+from core.data_formats.enums.user_enums import UserRoles
 
 router=APIRouter(
     tags=['Product Crud'],
@@ -67,6 +70,21 @@ async def recover_product(data:RecoverProductSchema,user:dict=Depends(verify_use
         data=data
     )
 
+@router.get('/export')
+async def export(bgt:BackgroundTasks,user:dict=Depends(verify_user)):
+    if user['role']!=UserRoles.SUPER_ADMIN.value:
+        raise HTTPException(
+            status_code=401,
+            detail="Insufficient Permission"
+        )
+    bgt.add_task(create_product_excel_export,emails_tosend=[user['email']])
+    return SuccessResponseTypDict(
+        detail=BaseResponseTypDict(
+            msg="Excel sheet generation started, It will be sended to ur email",
+            status_code=200,
+            success=True
+        )
+    )
 
 @router.get('')
 async def get_all_product(q:str=Query(''),cursor:Optional[int]=Query(1),limit:Optional[int]=Query(10),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):

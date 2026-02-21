@@ -1,10 +1,13 @@
-from fastapi import Depends,APIRouter,Query,File,UploadFile,Form
+from fastapi import Depends,APIRouter,Query,File,UploadFile,Form,BackgroundTasks,HTTPException
 from schemas.request_schemas.distributor import CreateDistriSchema,UpdateDistriSchema,RecoverDistriSchema
 from infras.primary_db.main import get_pg_db_session,AsyncSession
 from api.dependencies.token_verification import verify_user
 from ..handlers.distributor_handler import HandleDistributorRequest
 from typing import Optional
 from core.data_formats.enums.dd_enums import ImportExportTypeEnum
+from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict
+from core.utils.export_func import create_distri_excel_export
+from core.data_formats.enums.user_enums import UserRoles
 
 
 router=APIRouter(
@@ -40,6 +43,22 @@ async def update_distributor(data:UpdateDistriSchema,user:dict=Depends(verify_us
         cur_user_id=user['id']
     ).update(
         data=data
+    )
+
+@router.get('/export')
+async def export(bgt:BackgroundTasks,user:dict=Depends(verify_user)):
+    if user['role']!=UserRoles.SUPER_ADMIN.value:
+        raise HTTPException(
+            status_code=401,
+            detail="Insufficient Permission"
+        )
+    bgt.add_task(create_distri_excel_export,emails_tosend=[user['email']])
+    return SuccessResponseTypDict(
+        detail=BaseResponseTypDict(
+            msg="Excel sheet generation started, It will be sended to ur email",
+            status_code=200,
+            success=True
+        )
     )
 
 

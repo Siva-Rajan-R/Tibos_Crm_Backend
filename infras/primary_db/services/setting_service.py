@@ -24,9 +24,10 @@ class SettingsService:
 
     async def email_create(self,data:EmailSettingSchema):
         data_toadd=data.model_dump(mode='json')
+        print(data_toadd)
         data_toadd['client_secret']=SymmetricEncryption(secret_key=SECRET_KEY).encrypt_data(data=data_toadd['client_secret'])
         data_toadd['id']=generate_uuid()
-        data_toadd={data_toadd[data.email]:data_toadd}
+        data_toadd={data.email:data_toadd}
         db_data=await SettingsRepo(session=self.session).create(data=SettingsDbSchema(name=SettingsEnum.EMAIL.value,datas=data_toadd))
         return db_data
     

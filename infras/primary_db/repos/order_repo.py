@@ -19,7 +19,8 @@ from core.utils.discount_validator import validate_discount
 from ..models.ui_id import TablesUiLId
 from schemas.request_schemas.order import OrderFilterSchema
 from datetime import datetime,timedelta
-from ..calculations import distri_final_price,customer_final_price,profit_loss_price,customer_tot_price,distributor_tot_price,vendor_disc_price,distri_additi_price,distri_disc_price
+from core.constants import DEFAULT_ADDON_YEAR
+from ..calculations import distri_final_price,customer_final_price,profit_loss_price,customer_tot_price,distributor_tot_price,vendor_disc_price,distri_additi_price,distri_disc_price,remaining_days,last_order_delivery_date,expiry_date
 
 
 
@@ -57,7 +58,11 @@ class OrdersRepo(BaseRepoModel):
             distributor_tot_price.label("distributor_total_price"),
             vendor_disc_price.label("vendor_total_price"),
             distri_disc_price.label("distri_discount_price"),
-            distri_additi_price.label("distri_additi_price")
+            distri_additi_price.label("distri_additi_price"),
+            remaining_days.label("remaining_days"),
+            last_order_delivery_date.label("last_order_date"),
+            func.date(expiry_date).label("last_order_expiry_date")
+
         )
 
     async def is_order_exists(self,customer_id:str,product_id:str):
@@ -465,7 +470,7 @@ class OrdersRepo(BaseRepoModel):
         )
         
         last_ord=(await self.session.execute(last_ord_stmt)).mappings().one_or_none()
-        return {'last_order':{**last_ord,'expiry_date':last_ord['last_date']+timedelta(days=364)}if last_ord else last_ord}
+        return {'last_order':{**last_ord,'expiry_date':last_ord['last_date']+timedelta(days=DEFAULT_ADDON_YEAR+1)}if last_ord else last_ord}
     
 
 

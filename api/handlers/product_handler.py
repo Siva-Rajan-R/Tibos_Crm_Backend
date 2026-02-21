@@ -10,7 +10,7 @@ from schemas.request_schemas.product import AddProductSchema,UpdateProductSchema
 from math import ceil
 from . import HTTPException,ErrorResponseTypDict,SuccessResponseTypDict,BaseResponseTypDict
 from core.utils.excel_data_extractor import extract_excel_data
-from models.import_export_models.excel_headings_mapper import PRODUCTS_MAPPER
+from models.import_export_models.imports.excel_headings_mapper import PRODUCTS_MAPPER
 from fastapi import UploadFile
 from core.data_formats.enums.dd_enums import ImportExportTypeEnum
 

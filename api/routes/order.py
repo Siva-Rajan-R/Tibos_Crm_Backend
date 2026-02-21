@@ -1,4 +1,4 @@
-from fastapi import Depends,APIRouter,Query,Form,UploadFile,Query,File,Request,BackgroundTasks
+from fastapi import Depends,APIRouter,Query,Form,UploadFile,Query,File,Request,BackgroundTasks,HTTPException
 from schemas.request_schemas.order import AddOrderSchema,UpdateOrderSchema,RecoverOrderSchema
 from infras.primary_db.main import get_pg_db_session,AsyncSession
 from api.dependencies.token_verification import verify_user
@@ -6,6 +6,9 @@ from ..handlers.order_handler import HandleOrdersRequest
 from typing import Optional,List
 from core.data_formats.enums.dd_enums import ImportExportTypeEnum
 from schemas.request_schemas.order import OrderFilterSchema
+from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict
+from core.utils.export_func import create_order_excel_export
+from core.data_formats.enums.user_enums import UserRoles
 
 
 
@@ -74,6 +77,21 @@ async def recover_order(data:RecoverOrderSchema,user:dict=Depends(verify_user),s
         data=data
     )
 
+@router.get('/export')
+async def export(bgt:BackgroundTasks,user:dict=Depends(verify_user)):
+    if user['role']!=UserRoles.SUPER_ADMIN.value:
+        raise HTTPException(
+            status_code=401,
+            detail="Insufficient Permission"
+        )
+    bgt.add_task(create_order_excel_export,emails_tosend=[user['email']])
+    return SuccessResponseTypDict(
+        detail=BaseResponseTypDict(
+            msg="Excel sheet generation started, It will be sended to ur email",
+            status_code=200,
+            success=True
+        )
+    )
 
 @router.post('/get')
 async def get_all_order(filters:OrderFilterSchema,q:str=Query(''),cursor:Optional[int]=Query(1),limit:Optional[int]=Query(10),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):

@@ -1,10 +1,13 @@
-from fastapi import Depends,APIRouter,Query,File,UploadFile,Form
+from fastapi import Depends,APIRouter,Query,File,UploadFile,Form,BackgroundTasks,HTTPException
 from schemas.request_schemas.customer import AddCustomerSchema,UpdateCustomerSchema,RecoverCustomerSchema
 from infras.primary_db.main import get_pg_db_session,AsyncSession
 from api.dependencies.token_verification import verify_user
 from ..handlers.customer_handler import HandleCustomersRequest
 from typing import Optional
 from core.data_formats.enums.dd_enums import ImportExportTypeEnum
+from core.utils.export_func import create_customer_excel_export
+from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict
+from core.data_formats.enums.user_enums import UserRoles
 
 
 router=APIRouter(
@@ -54,6 +57,21 @@ async def delete_customer(customer_id:str,user:dict=Depends(verify_user),soft_de
     )
 
 
+@router.get('/export')
+async def export(bgt:BackgroundTasks,user:dict=Depends(verify_user)):
+    if user['role']!=UserRoles.SUPER_ADMIN.value:
+        raise HTTPException(
+            status_code=401,
+            detail="Insufficient Permission"
+        )
+    bgt.add_task(create_customer_excel_export,emails_tosend=[user['email']])
+    return SuccessResponseTypDict(
+        detail=BaseResponseTypDict(
+            msg="Excel sheet generation started, It will be sended to ur email",
+            status_code=200,
+            success=True
+        )
+    )
 
 
 @router.put('/recover')

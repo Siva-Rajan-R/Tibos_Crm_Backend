@@ -1,10 +1,13 @@
-from fastapi import Depends,APIRouter,Query,File,UploadFile,Form
+from fastapi import Depends,APIRouter,Query,File,UploadFile,Form,BackgroundTasks,HTTPException
 from schemas.request_schemas.contact import AddContactSchema,UpdateContactSchema,RecoverContactSchema
 from infras.primary_db.main import get_pg_db_session,AsyncSession
 from api.dependencies.token_verification import verify_user
 from ..handlers.contact_handler import HandleContactsRequest
 from typing import Optional,Literal
 from core.data_formats.enums.dd_enums import ImportExportTypeEnum
+from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict
+from core.utils.export_func import create_contact_excel_export
+from core.data_formats.enums.user_enums import UserRoles
 
 
 router=APIRouter(
@@ -67,6 +70,22 @@ async def recover_contact(data:RecoverContactSchema,user:dict=Depends(verify_use
         data=data
     )
 
+
+@router.get('/export')
+async def export(bgt:BackgroundTasks,user:dict=Depends(verify_user)):
+    if user['role']!=UserRoles.SUPER_ADMIN.value:
+        raise HTTPException(
+            status_code=401,
+            detail="Insufficient Permission"
+        )
+    bgt.add_task(create_contact_excel_export,emails_tosend=[user['email']])
+    return SuccessResponseTypDict(
+        detail=BaseResponseTypDict(
+            msg="Excel sheet generation started, It will be sended to ur email",
+            status_code=200,
+            success=True
+        )
+    )
 
 
 @router.get('')

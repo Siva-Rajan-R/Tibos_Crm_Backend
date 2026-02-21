@@ -26,10 +26,7 @@ def verfiy_hashed(plain_data:str,hashed_data:str)->bool:
     
     except VerifyMismatchError:
         ic(f"invalid hash || plain data")
-        raise HTTPException(
-            status_code=401,
-            detail=f"invalid hash || plain hash"
-        )
+        return False
     
     except Exception as e:
         ic(f"something went wrong while verifying hash {e}")

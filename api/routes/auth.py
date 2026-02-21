@@ -42,7 +42,11 @@ async def auth_user(data:AuthSchema,request:Request,session=Depends(get_pg_db_se
             detail="invalid User"
         )
     
-    verfiy_hashed(plain_data=data.password,hashed_data=user['password'])
+    if not verfiy_hashed(plain_data=data.password,hashed_data=user['password']):
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid password"
+        )
     
     access_token=generate_jwt_token(data={'data':{'email':user['email'],'role':user['role'],'id':user['id'],'token_version':user['token_version']}},secret=ACCESS_JWT_KEY,alg=JWT_ALG,exp_day=7)
     refresh_token=generate_jwt_token(data={'data':{'email':user['email'],'role':user['role'],'id':user['id'],'token_version':user['token_version']}},secret=REFRESH_JWT_KEY,alg=JWT_ALG,exp_day=7)
@@ -86,7 +90,8 @@ async def forgot_password(data:AuthForgotEmailSchema,bgt:BackgroundTasks,request
             subject="Tibos CRM — Reset Your Password",
             is_html=True,
             body=email_content,
-            client_ip=str(request.client.host)
+            client_ip=str(request.client.host),
+            sender_email_id='crm@tibos.in'
         )
 
         await set_auth_forgot(ip=request.client.host,data={'auth_id':auth_id,'ip':request.client.host,'id':user['id'],'email':user['email'],'name':user['name']})

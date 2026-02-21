@@ -12,6 +12,7 @@ from core.settings import SETTINGS
 from schemas.request_schemas.setting import EmailSettingSchema
 from core.data_formats.enums.dd_enums import SettingsEnum
 from security.symm_encryption import SymmetricEncryption
+from core.utils.msgraph_attachments import build_graph_attachments
 
 
 SMTP_SERVER = SETTINGS.SMTP_SERVER
@@ -74,46 +75,45 @@ def get_graph_token(tenant_id:str,client_id:str,client_secret:str):
 
 
 async def send_email(
+    *,
     client_ip: str,
     reciver_emails: List[EmailStr],
     subject: str,
     body: str,
     is_html: bool = False,
-    sender_email_id:Optional[str]=None
+    sender_email_id: Optional[str] = None,
+    attachments: Optional[List[str]] = None,  # ⭐ NEW
 ):
     try:
-        tenant_id=None,
-        client_id=None,
-        client_secret=None
-        sender_email=None
+        tenant_id = None
+        client_id = None
+        client_secret = None
+        sender_email = None
+        ic(reciver_emails)
 
         async with AsyncLocalSession() as session:
-            emails=(await SettingsService(session=session).getby_name(name=SettingsEnum.EMAIL))['settings']
+            emails = (
+                await SettingsService(session=session)
+                .getby_name(name=SettingsEnum.EMAIL)
+            )["settings"][0]
             ic(emails)
+            if sender_email_id and sender_email_id in emails['datas']:
+                cfg = emails['datas'][sender_email_id]
+            else:
+                cfg = emails['datas']["order@tibos.in"]
+            ic(cfg)
+            sender_email = cfg["email"]
+            client_id = cfg["client_id"]
+            client_secret = SymmetricEncryption(SECRET_KEY).decrypt_data(
+                encrypted_data=cfg["client_secret"]
+            )
+            tenant_id = cfg["tenant_id"]
 
-            if sender_email_id and emails[sender_email_id]:
-                sender_email=emails[sender_email_id]['email']
-                client_id=emails[sender_email_id]['client_id']
-                client_secret=SymmetricEncryption(SECRET_KEY).decrypt_data(encrypted_data=emails[sender_email_id]['client_secret'])
-                tenant_id=emails[sender_email_id]['tenant_id']
-
-            if tenant_id is None or client_id is None or client_secret is None:
-                sender_email=emails['order@tibos.in']['email']
-                client_id=emails['order@tibos.in']['client_id']
-                client_secret=SymmetricEncryption(SECRET_KEY).decrypt_data(encrypted_data=emails['order@tibos.in']['client_secret'])
-                tenant_id=emails['order@tibos.in']['tenant_id']
-
-
-        ic(client_id,client_secret,sender_email,tenant_id)
-
-        token = get_graph_token(tenant_id=tenant_id,client_id=client_id,client_secret=client_secret)
-
-        url = f"https://graph.microsoft.com/v1.0/users/{sender_email}/sendMail"
-
-        headers = {
-            "Authorization": f"Bearer {token}",
-            "Content-Type": "application/json",
-        }
+        token = get_graph_token(
+            tenant_id=tenant_id,
+            client_id=client_id,
+            client_secret=client_secret,
+        )
 
         payload = {
             "message": {
@@ -130,13 +130,24 @@ async def send_email(
             "saveToSentItems": True,
         }
 
+        # 🔥 ATTACHMENT LOGIC
+        if attachments:
+            payload["message"]["attachments"] = build_graph_attachments(attachments)
+
+        url = f"https://graph.microsoft.com/v1.0/users/{sender_email}/sendMail"
+
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        }
+
         res = requests.post(url, headers=headers, json=payload)
-        ic(res.status_code,res.text)
+
         if res.status_code != 202:
             raise Exception(f"Mail failed: {res.status_code} {res.text}")
 
         return True
-    
+
     except Exception as e:
         ic("Error sending email:", e)
         await unlink_auth_forgot(ip=client_ip)
@@ -150,11 +161,12 @@ if __name__ == "__main__":
         send_email(
             client_ip="127.0.0.1",
             reciver_emails=[
-                "aarthig0707@gmail.com",
                 "siva967763@gmail.com"
             ],
             subject="This is From Tibos CRM",
             body="<h1>Testing Gmail SMTP 🚀</h1><p>No panic 😂</p>",
             is_html=True,
+            attachments=['accounts.xlsx']
         )
     )
+

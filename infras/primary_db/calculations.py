@@ -1,14 +1,57 @@
 from .models.order import Orders
 from .models.product import Products
 from .models.distributor import Distributors
-from sqlalchemy import func,case,cast,Date,Numeric
+from sqlalchemy import func,case,cast,Date,Numeric,select
 from core.data_formats.enums.order_enums import PurchaseTypes
 from core.utils.calculations import get_customer_addon_price,get_distri_addon_price,get_customer_price,get_distributor_price,get_profit_loss_price,get_remaining_days,get_total_price
 from datetime import timedelta,datetime
 from core.constants import DEFAULT_ADDON_YEAR
+from sqlalchemy.orm import aliased
+
+PrevOrder = aliased(Orders)
 
 customer_tot_price=func.coalesce(Orders.unit_price*Orders.quantity,0)
 distributor_tot_price=func.coalesce(Products.price*Orders.quantity,0)
+last_order_delivery_date = (
+    select(
+        cast(PrevOrder.delivery_info['delivery_date'].astext, Date)
+    )
+    .where(
+        PrevOrder.customer_id == Orders.customer_id,
+        PrevOrder.product_id == Orders.product_id,
+        PrevOrder.is_deleted == False,
+        PrevOrder.logistic_info['purchase_type'].astext != PurchaseTypes.EXISTING_ADD_ON.value
+    )
+    .order_by(
+        cast(PrevOrder.delivery_info['delivery_date'].astext, Date).desc()
+    )
+    .limit(1)
+    .scalar_subquery()
+)
+
+cur_order_delivery_date = cast(
+    Orders.delivery_info['delivery_date'].astext,
+    Date
+)
+
+expiry_date = last_order_delivery_date + func.make_interval(
+    0,  # years
+    0,  # months
+    0,  # weeks
+    DEFAULT_ADDON_YEAR + 1,  # days
+    0,  # hours
+    0,  # minutes
+    0   # seconds
+)
+
+
+remaining_days = func.greatest(
+    func.extract(
+        "day",
+        expiry_date - cur_order_delivery_date
+    ),
+    0
+)
 
 distri_disc_price=case(
     (
@@ -46,7 +89,8 @@ distri_final_price=case(
         Orders.logistic_info['purchase_type'].astext==PurchaseTypes.EXISTING_ADD_ON.value,
         func.round((distri_additi_price/DEFAULT_ADDON_YEAR)
         *
-        (cast(Orders.logistic_info['last_ord_expiry_date'].astext,Date)-cast(Orders.delivery_info['delivery_date'].astext,Date)))
+        remaining_days
+        )
     ),
     else_=(func.round(distri_additi_price))
 
@@ -59,7 +103,7 @@ customer_final_price=case(
         func.round(
            (Orders.unit_price/DEFAULT_ADDON_YEAR)
             *
-            (cast(Orders.logistic_info['last_ord_expiry_date'].astext,Date)-cast(Orders.delivery_info['delivery_date'].astext,Date))
+            remaining_days
             *
             Orders.quantity 
         )

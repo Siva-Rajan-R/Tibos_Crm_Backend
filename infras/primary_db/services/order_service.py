@@ -30,6 +30,22 @@ from core.utils.calculations import get_distributor_price,get_remaining_days
 from core.data_formats.typed_dicts.order_typdict import DeliveryInfo,StatusInfo,LogisticsInfo
 
 
+def safe_date(value, fmt="%Y-%m-%d"):
+    if value is None:
+        return None
+
+    if isinstance(value, str):
+        value = value.strip()
+        if value == "":
+            return None
+
+    try:
+        ts = pd.to_datetime(value, errors="coerce")
+        if pd.isna(ts):
+            return None
+        return ts.strftime(fmt)
+    except Exception:
+        return None
 
 class OrdersService(BaseServiceModel):
     def __init__(self,session:AsyncSession,user_role:UserRoles,cur_user_id:str):
@@ -58,10 +74,6 @@ class OrdersService(BaseServiceModel):
             return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Order",description="Distributor with the given id does not exist")
 
         data_toadd=data.model_dump(mode='json')
-        if data.logistic_info.get('purchase_type').value==PurchaseTypes.EXISTING_ADD_ON.value:
-            last_order=await order_obj.get_last_order(customer_id=cust_exists['customer']['id'],product_id=prod_exists['product']['id'])
-            last_ord_expiry_date=last_order.get('last_order')['expiry_date']
-            data_toadd['logistic_info']['last_ord_expiry_date']=last_ord_expiry_date
 
         order_id:str=generate_uuid()
 
@@ -93,19 +105,16 @@ class OrdersService(BaseServiceModel):
             if not distri_exists['distributors'] or len(distri_exists['distributors'])<1:
                 skipped_items.append(data)
                 continue
-            
-            last_ord_expiry_date=None
-            if data['purchase_type']==PurchaseTypes.EXISTING_ADD_ON.value:
-                last_order=await orders_obj.get_last_order(customer_id=cust_exists['customer']['id'],product_id=prod_exists['product']['id'])
-                last_ord_expiry_date=last_order.get('last_order')['expiry_date']
 
             data['customer_id']=cust_exists['customer']['id']
             data['distributor_id']=distri_exists['distributors']['id']
             data['product_id']=prod_exists['product']['id']
+
+            data['vendor_commision']=str(data['vendor_commision'])
             
             data['delivery_info']=DeliveryInfo(
-                requested_date=pd.Timestamp(data['requested_date']).strftime("%Y-%m-%d"),
-                delivery_date=pd.Timestamp(data['delivery_date']).strftime("%Y-%m-%d"),
+                requested_date=safe_date(data['requested_date']),
+                delivery_date=safe_date(data['delivery_date']),
                 shipping_method=data['shipping_method'],
                 payment_terms=data['payment_terms']
             )
@@ -113,18 +122,27 @@ class OrdersService(BaseServiceModel):
             data['status_info']=StatusInfo(
                 payment_status=data['payment_status'],
                 invoice_status=data['invoice_status'],
-                invoice_number=data['invoice_number'],
-                invoice_date=pd.Timestamp(data['invoice_date']).strftime("%Y-%m-%d")
             )
+            invoice_number = data.get("invoice_number")
+            if pd.isna(invoice_number) or invoice_number == "":
+                invoice_number = None
+            else:
+                invoice_number = str(invoice_number)
+            if invoice_number:
+                data['status_info']['invoice_number']=invoice_number
+            
+            invoice_date=safe_date(data['invoice_date'])
+            if invoice_date:
+                data['status_info']['invoice_date']=invoice_date
 
             data['logistic_info']=LogisticsInfo(
                 purchase_type=data['purchase_type'],
                 renewal_type=data['renewal_type'],
                 bill_to=data['bill_to'],
-                distributor_type=data['distributor_type'],
-                last_ord_expiry_date=last_ord_expiry_date
+                distributor_type=data['distributor_type']
             )
-
+            
+            data['additional_discount']=data['discount']
             order_id:str=generate_uuid()
             cur_uiid=generate_ui_id(prefix=LUI_ID_ORDER_PREFIX,last_id=lui_id)
             lui_id=cur_uiid
@@ -156,11 +174,6 @@ class OrdersService(BaseServiceModel):
         if not distri_exists or len(distri_exists)<1:
             return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Order",description="Distributor with the given id does not exist")
 
-        if data.logistic_info.get('purchase_type').value==PurchaseTypes.EXISTING_ADD_ON.value:
-            last_order=await order_obj.get_last_order(customer_id=cust_exists['customer']['id'],product_id=prod_exists['product']['id'])
-            last_ord_expiry_date=last_order.get('last_order')['expiry_date']
-            ic(last_ord_expiry_date)
-            data_toupdate['logistic_info']['last_ord_expiry_date']=last_ord_expiry_date
 
         return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateOrderDbSchema(**data_toupdate))
 

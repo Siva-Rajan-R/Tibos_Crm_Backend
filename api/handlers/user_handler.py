@@ -74,7 +74,8 @@ class HandleUserRequest:
             subject="Welcome To Tibos CRM — Here Are Your Login Details",
             is_html=True,
             body=email_content,
-            client_ip=self.request.client.host.__str__()
+            client_ip=self.request.client.host.__str__(),
+            sender_email_id="crm@tibos.in"
             
         )
 
