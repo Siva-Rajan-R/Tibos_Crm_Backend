@@ -34,6 +34,8 @@ class TibosCrmSettings(BaseSettings):
     REDIS_URL:str
     PG_DB_URL:str
 
+    AZURE_STORAGE_CONNECTION_STRING:str
+
     model_config={
         'case_sensitive':False
     }

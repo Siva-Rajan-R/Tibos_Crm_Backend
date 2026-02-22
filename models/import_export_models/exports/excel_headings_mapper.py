@@ -2,15 +2,18 @@ from icecream import ic
 
 
 PRODUCTS_MAPPER={
+    'ui_id':'id',
     'quantity': 'qty',
     'description': 'product_description',
     'name': 'product_name',
     'part_number': 'part_number',
     'price': 'product_price',
-    'product_type': 'product_type'
+    'product_type': 'product_type',
+    'product_created_at':'product_created_at'
 }
 
 ACCOUNTS_MAPPER={
+    'ui_id':'id',
     'address': 'address',
     'city': 'city',
     'emails': 'email',
@@ -24,33 +27,52 @@ ACCOUNTS_MAPPER={
     'sector': 'sector',
     'state': 'state',
     'tenant_id': 'tenant_id',
-    'website_url': 'website_url'
+    'website_url': 'website_url',
+    'customer_created_at':'customer_created_at'
 }
 
 
 CONTACTS_MAPPER={
+    'ui_id':'id',
     'customer_id': 'account_id',
+    'customer_name':'customer_name',
     'contact_email': 'email',
     'contact_mobile': 'mobile_number',
-    'contact_name': 'name'
+    'contact_name': 'name',
+    'contact_created_at':'contact_created_at'
 }
 
 
 DISTRI_MAPPER={
+    'ui_id':'id',
     'name':'name',
-    'discount':'discount'
+    'discount':'discount',
+    'created_at':'distributor_created_at'
 }
 
 ORDERS_MAPPER={
+    'ui_id':'id',
     'customer_id': 'customer_id',
+    'customer_name':'customer_name',
     'product_id': 'product_id',
+    'product_name':'product_name',
     'distributor_id': 'distributor_id',
+    'distributor_name':'distributor_name',
+    'distributor_discount':'distributor_discount',
     'additional_discount': 'additional_discount',
     'unit_price': 'per_unit_price',
     'vendor_commision': 'vendor_commision',
     'quantity': 'quantity',
-
+    'profit_loss':'revenue',
+    'distributor_total_price':'list_distributor_price',
+    'distributor_price':'net_distributor_price',
+    'customer_price':'customer_price',
+    'vendor_total_price':'vendor_total_price',
     'distributor_type': 'product_rebate_type',
+    'last_order_date':'last_order_activation_date',
+    'last_order_expiry_date':'last_order_expiry_date',
+    'order_created_at':'order_created_at',
+
     'invoice_date': 'invoice_date',
     'invoice_number': 'invoice_number',
     'invoice_status': 'invoice_status',
@@ -65,7 +87,7 @@ ORDERS_MAPPER={
 }
 
 
-final_dict={}
-for key,val in ORDERS_MAPPER.items():
-    final_dict[val]=key
-ic(final_dict)
+# final_dict={}
+# for key,val in ORDERS_MAPPER.items():
+#     final_dict[val]=key
+# ic(final_dict)

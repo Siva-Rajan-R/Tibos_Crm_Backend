@@ -25,3 +25,5 @@ qrcode
 pandas
 openpyxl
 requests
+azure-storage-blob
+arq

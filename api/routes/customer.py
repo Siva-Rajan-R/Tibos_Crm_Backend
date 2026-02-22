@@ -5,10 +5,13 @@ from api.dependencies.token_verification import verify_user
 from ..handlers.customer_handler import HandleCustomersRequest
 from typing import Optional
 from core.data_formats.enums.dd_enums import ImportExportTypeEnum
-from core.utils.export_func import create_customer_excel_export
+from core.utils.export_func import create_excel_export
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict
 from core.data_formats.enums.user_enums import UserRoles
-
+from models.import_export_models.exports.excel_headings_mapper import ACCOUNTS_MAPPER
+from schemas.request_schemas.export import ExportFields
+from infras.primary_db.repos.customer_repo import CustomersRepo
+from tasks.arq_tasks.enqueues.report import enqueue_excel_report_job
 
 router=APIRouter(
     tags=['Customer Crud'],
@@ -57,20 +60,51 @@ async def delete_customer(customer_id:str,user:dict=Depends(verify_user),soft_de
     )
 
 
-@router.get('/export')
-async def export(bgt:BackgroundTasks,user:dict=Depends(verify_user)):
+@router.post('/export')
+async def export(data:ExportFields,bgt:BackgroundTasks,user:dict=Depends(verify_user)):
     if user['role']!=UserRoles.SUPER_ADMIN.value:
         raise HTTPException(
             status_code=401,
             detail="Insufficient Permission"
         )
-    bgt.add_task(create_customer_excel_export,emails_tosend=[user['email']])
+
+    await enqueue_excel_report_job(
+        emails_tosend=[user['email']],
+        custom_fields=data.fields,
+        mapper=ACCOUNTS_MAPPER,
+        data_cls=CustomersRepo,
+        data_key='customers',
+        converter_name='accounts',
+        sheet_name="Accounts",
+        file_name='TibosCrmAccountsExport.xlsx',
+        report_name="Tibos CRM Accounts Report"
+    )
+
     return SuccessResponseTypDict(
         detail=BaseResponseTypDict(
             msg="Excel sheet generation started, It will be sended to ur email",
             status_code=200,
             success=True
         )
+    )
+
+
+@router.get('/export/fields')
+async def export(bgt:BackgroundTasks,user:dict=Depends(verify_user)):
+
+    if user['role']!=UserRoles.SUPER_ADMIN.value:
+        raise HTTPException(
+            status_code=401,
+            detail="Insufficient Permission"
+        )
+    fields=list(ACCOUNTS_MAPPER.values())
+    return SuccessResponseTypDict(
+        detail=BaseResponseTypDict(
+            msg="Export Fields fetched successfully",
+            status_code=200,
+            success=True
+        ),
+        data=fields
     )
 
 

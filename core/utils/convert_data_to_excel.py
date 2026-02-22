@@ -7,29 +7,26 @@ def account_data_converter(data:dict):
     for key,value in temp_data['address'].items():
         temp_data[key]=value
     temp_data['emails']=', '.join(temp_data['emails'])
+    temp_data['customer_created_at']=str(temp_data['customer_created_at'])
     ic("final_temp_data => ",temp_data)
     return temp_data
-
 
 def contact_data_converter(data:dict):
     ic(data)
     temp_data=dict(data)
+    temp_data['contact_created_at']=str(temp_data['contact_created_at'])
     return temp_data
 
 def product_data_converter(data:dict):
     ic(data)
     temp_data=dict(data)
+    temp_data['product_created_at']=str(temp_data['product_created_at'])
     return temp_data
-
-def product_data_converter(data:dict):
-    ic(data)
-    temp_data=dict(data)
-    return temp_data
-
 
 def distributor_data_converter(data:dict):
     ic(data)
     temp_data=dict(data)
+    temp_data['created_at']=str(temp_data['created_at'])
     return temp_data
 
 def order_data_converter(data:dict):
@@ -48,6 +45,10 @@ def order_data_converter(data:dict):
         temp_data['invoice_date']=''
     if 'invoice_number' not in temp_data:
         temp_data['invoice_number']=''
+    
+    temp_data['last_order_date']=str(temp_data['last_order_date'])
+    temp_data['order_created_at']=str(temp_data['order_created_at'])
+    temp_data['last_order_expiry_date']=str(temp_data['last_order_expiry_date'])
 
     del temp_data['delivery_info']
     del temp_data['status_info']

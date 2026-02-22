@@ -6,8 +6,12 @@ from ..handlers.distributor_handler import HandleDistributorRequest
 from typing import Optional
 from core.data_formats.enums.dd_enums import ImportExportTypeEnum
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict
-from core.utils.export_func import create_distri_excel_export
+from core.utils.export_func import create_excel_export
+from infras.primary_db.repos.distri_repo import DistributorsRepo
 from core.data_formats.enums.user_enums import UserRoles
+from models.import_export_models.exports.excel_headings_mapper import DISTRI_MAPPER
+from schemas.request_schemas.export import ExportFields
+from tasks.arq_tasks.enqueues.report import enqueue_excel_report_job
 
 
 router=APIRouter(
@@ -45,20 +49,51 @@ async def update_distributor(data:UpdateDistriSchema,user:dict=Depends(verify_us
         data=data
     )
 
-@router.get('/export')
-async def export(bgt:BackgroundTasks,user:dict=Depends(verify_user)):
+@router.post('/export')
+async def export(data:ExportFields,bgt:BackgroundTasks,user:dict=Depends(verify_user)):
     if user['role']!=UserRoles.SUPER_ADMIN.value:
         raise HTTPException(
             status_code=401,
             detail="Insufficient Permission"
         )
-    bgt.add_task(create_distri_excel_export,emails_tosend=[user['email']])
+    
+    await enqueue_excel_report_job(
+        emails_tosend=[user['email']],
+        custom_fields=data.fields,
+        mapper=DISTRI_MAPPER,
+        data_cls=DistributorsRepo,
+        data_key='distributors',
+        converter_name='distributors',
+        sheet_name="Distributors",
+        file_name='TibosCrmDistributorsExport.xlsx',
+        report_name="Tibos CRM Distributors Report"
+    )
+
     return SuccessResponseTypDict(
         detail=BaseResponseTypDict(
             msg="Excel sheet generation started, It will be sended to ur email",
             status_code=200,
             success=True
         )
+    )
+
+
+@router.get('/export/fields')
+async def export(bgt:BackgroundTasks,user:dict=Depends(verify_user)):
+
+    if user['role']!=UserRoles.SUPER_ADMIN.value:
+        raise HTTPException(
+            status_code=401,
+            detail="Insufficient Permission"
+        )
+    fields=list(DISTRI_MAPPER.values())
+    return SuccessResponseTypDict(
+        detail=BaseResponseTypDict(
+            msg="Export Fields fetched successfully",
+            status_code=200,
+            success=True
+        ),
+        data=fields
     )
 
 

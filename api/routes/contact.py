@@ -6,8 +6,12 @@ from ..handlers.contact_handler import HandleContactsRequest
 from typing import Optional,Literal
 from core.data_formats.enums.dd_enums import ImportExportTypeEnum
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict
-from core.utils.export_func import create_contact_excel_export
+from core.utils.export_func import create_excel_export
 from core.data_formats.enums.user_enums import UserRoles
+from models.import_export_models.exports.excel_headings_mapper import CONTACTS_MAPPER
+from schemas.request_schemas.export import ExportFields
+from infras.primary_db.repos.contact_repo import ContactsRepo
+from tasks.arq_tasks.enqueues.report import enqueue_excel_report_job
 
 
 router=APIRouter(
@@ -71,20 +75,51 @@ async def recover_contact(data:RecoverContactSchema,user:dict=Depends(verify_use
     )
 
 
-@router.get('/export')
-async def export(bgt:BackgroundTasks,user:dict=Depends(verify_user)):
+@router.post('/export')
+async def export(data:ExportFields,bgt:BackgroundTasks,user:dict=Depends(verify_user)):
     if user['role']!=UserRoles.SUPER_ADMIN.value:
         raise HTTPException(
             status_code=401,
             detail="Insufficient Permission"
         )
-    bgt.add_task(create_contact_excel_export,emails_tosend=[user['email']])
+    
+
+    await enqueue_excel_report_job(
+        emails_tosend=[user['email']],
+        custom_fields=data.fields,
+        mapper=CONTACTS_MAPPER,
+        data_cls=ContactsRepo,
+        data_key='contacts',
+        converter_name='contacts',
+        sheet_name="Contacts",
+        file_name='TibosCrmContactsExport.xlsx',
+        report_name="Tibos CRM Contacts Report"
+    )
+
     return SuccessResponseTypDict(
         detail=BaseResponseTypDict(
             msg="Excel sheet generation started, It will be sended to ur email",
             status_code=200,
             success=True
         )
+    )
+
+@router.get('/export/fields')
+async def export(bgt:BackgroundTasks,user:dict=Depends(verify_user)):
+
+    if user['role']!=UserRoles.SUPER_ADMIN.value:
+        raise HTTPException(
+            status_code=401,
+            detail="Insufficient Permission"
+        )
+    fields=list(CONTACTS_MAPPER.values())
+    return SuccessResponseTypDict(
+        detail=BaseResponseTypDict(
+            msg="Export Fields fetched successfully",
+            status_code=200,
+            success=True
+        ),
+        data=fields
     )
 
 

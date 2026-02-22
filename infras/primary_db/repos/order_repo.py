@@ -20,6 +20,7 @@ from ..models.ui_id import TablesUiLId
 from schemas.request_schemas.order import OrderFilterSchema
 from datetime import datetime,timedelta
 from core.constants import DEFAULT_ADDON_YEAR
+from typing import Optional
 from ..calculations import distri_final_price,customer_final_price,profit_loss_price,customer_tot_price,distributor_tot_price,vendor_disc_price,distri_additi_price,distri_disc_price,remaining_days,last_order_delivery_date,expiry_date
 
 
@@ -144,7 +145,7 @@ class OrdersRepo(BaseRepoModel):
 
     async def get(
         self,
-        filter: OrderFilterSchema,
+        filter: Optional[OrderFilterSchema]=OrderFilterSchema(),
         cursor: int = 1,
         limit: int = 10,
         query: str = '',

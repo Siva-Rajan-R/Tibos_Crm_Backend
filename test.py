@@ -1,6 +1,7 @@
-a=['siva','jeeva']
+from datetime import datetime
 
-print(', '.join(a))
+
+print()
 
 
 

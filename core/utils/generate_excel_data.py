@@ -6,14 +6,21 @@ from pathlib import Path
 from icecream import ic
 
 
-def generate_excel(file_path:str,datas:list,sheet_name:str,handwritten:bool=False):
+def init_excel(sheet_name: str):
     wb = Workbook(write_only=True)
     ws = wb.create_sheet(sheet_name)
+    return wb, ws
+
+
+def append_excel_rows(ws, datas: list, write_header: bool):
+    if not datas:
+        return
 
     df = pd.DataFrame(datas)
 
-    for r in dataframe_to_rows(df, index=False, header=not handwritten):
-        ws.append(r)
-
-    ic("Excel file creted successfully")
-    wb.save(file_path)
+    for row in dataframe_to_rows(
+        df,
+        index=False,
+        header=write_header
+    ):
+        ws.append(row)
