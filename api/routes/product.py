@@ -12,6 +12,7 @@ from models.import_export_models.exports.excel_headings_mapper import PRODUCTS_M
 from schemas.request_schemas.export import ExportFields
 from infras.primary_db.repos.product_repo import ProductsRepo
 from tasks.arq_tasks.enqueues.report import enqueue_excel_report_job
+from pydantic import EmailStr
 
 router=APIRouter(
     tags=['Product Crud'],
@@ -81,8 +82,16 @@ async def export(data:ExportFields,bgt:BackgroundTasks,user:dict=Depends(verify_
             status_code=401,
             detail="Insufficient Permission"
         )
+    
+    user_email:EmailStr=user['email']
+    if user_email.split('@')[-1].lower()!='tibos.in':
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid User for export, Please login with your organization mail"
+        )
+    
     await enqueue_excel_report_job(
-        emails_tosend=[user['email']],
+        emails_tosend=[user_email],
         custom_fields=data.fields,
         mapper=PRODUCTS_MAPPER,
         data_cls=ProductsRepo,
