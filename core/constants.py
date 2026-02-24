@@ -16,12 +16,14 @@ DEFAULT_ADDON_YEAR=365
 ROLES_ALLOWED:Dict[str,Dict[str,set|None]]={
     UserRoles.ADMIN.value:{
         'user':None,
-        'recyclebin':None
+        'recyclebin':None,
+        'settings':None
     },
     UserRoles.SUPER_ADMIN.value:{},
     UserRoles.USER.value:{
         'user':None,
         'recyclebin':None,
+        'settings':None,
         'product':{'GET'},
         'contact':{'GET'},
         'customer':{'GET'},

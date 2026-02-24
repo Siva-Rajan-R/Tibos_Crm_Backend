@@ -149,7 +149,8 @@ class CustomersRepo(BaseRepoModel):
                     Customers.sector.ilike(search_term),
                     Customers.gst_number.ilike(search_term),
                     Customers.owner.ilike(search_term),
-                    Customers.tenant_id.ilike(search_term)
+                    Customers.tenant_id.ilike(search_term),
+                    Customers.secondary_domain.ilike(search_term)
                 ),
                 Customers.sequence_id>cursor,
                 Customers.is_deleted==include_deleted
@@ -162,10 +163,20 @@ class CustomersRepo(BaseRepoModel):
                 select(func.count(Customers.id)).where(Customers.is_deleted==False)
             )).scalar_one_or_none()
 
+            total_active_customer=(await self.session.execute(
+                select(func.count(Customers.id))
+                .where(Customers.is_active==True,Customers.is_deleted==False)
+            )).scalar_one_or_none()
+
+            total_inactive_customer=abs(total_customers-total_active_customer)
+
         return {
             'customers':queried_customers,
             'total_customers':total_customers,
+            'total_active_customers':total_active_customer,
+            'total_inactive_customers':total_inactive_customer,
             'total_pages':ceil(total_customers/limit),
+
             'next_cursor':queried_customers[-1]['sequence_id'] if len(queried_customers)>1 else None
         }
         
@@ -189,7 +200,8 @@ class CustomersRepo(BaseRepoModel):
                     Customers.sector.ilike(search_term),
                     Customers.gst_number.ilike(search_term),
                     Customers.owner.ilike(search_term),
-                    Customers.tenant_id.ilike(search_term)
+                    Customers.tenant_id.ilike(search_term),
+                    Customers.secondary_domain.ilike(search_term)
                 ),
                 Customers.is_deleted==False
             )
