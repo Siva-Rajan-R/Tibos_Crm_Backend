@@ -18,12 +18,14 @@ class AddCustomerDbSchema(BaseModel):
     address:CustomerAddressTypDict
     owner:str
     tenant_id:str
+    secondary_domain:Optional[str]=None
+    is_active:bool
 
 class UpdateCustomerDbSchema(BaseModel):
     customer_id:str
     name:Optional[str]=None
     mobile_number:Optional[str]=None
-    email:str
+    email:Optional[str]=None
     website_url:Optional[str]=None
     no_of_employee:Optional[int]=None
     gst_number:Optional[str]=None
@@ -32,3 +34,5 @@ class UpdateCustomerDbSchema(BaseModel):
     address:Optional[CustomerAddressTypDict]=None
     owner:Optional[str]=None
     tenant_id:Optional[str]=None
+    secondary_domain:Optional[str]=None
+    is_active:Optional[bool]=None

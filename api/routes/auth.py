@@ -55,7 +55,8 @@ async def auth_user(data:AuthSchema,request:Request,session=Depends(get_pg_db_se
         'access_token':access_token,
         'refresh_token':refresh_token,
         'user_name':user['name'],
-        'user_role':user['role']
+        'user_role':user['role'],
+        'user_email':user['email']
     }
 
 

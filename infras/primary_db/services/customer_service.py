@@ -88,8 +88,10 @@ class CustomersService(BaseServiceModel):
     @catch_errors  
     async def update(self,data:UpdateCustomerSchema):
         data_toupdate=data.model_dump(mode='json',exclude_none=True,exclude_unset=True)
-        data_toupdate['email']=','.join(data_toupdate['emails'])
-        del data_toupdate['emails']
+        if 'emails' in data_toupdate:
+            data_toupdate['email']=','.join(data_toupdate['emails'])
+            del data_toupdate['emails']
+            
         if not data_toupdate or len(data_toupdate)<1:
             return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Customer",description="No valid fields to update provided")
         

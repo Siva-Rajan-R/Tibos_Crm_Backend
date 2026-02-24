@@ -19,7 +19,9 @@ class Customers(PG_BASE):
     sector=Column(String,nullable=False)
     address=Column(JSONB,nullable=True)
     owner=Column(String,nullable=True)
+    is_active=Column(Boolean,default=True,server_default=text("true"))
     tenant_id=Column(String,nullable=True)
+    secondary_domain=Column(String,nullable=True)
 
     created_at=Column(TIMESTAMP(timezone=True),server_default=func.now())
 

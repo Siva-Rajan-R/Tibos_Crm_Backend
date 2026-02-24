@@ -15,6 +15,8 @@ class AddCustomerSchema(BaseModel):
     address:CustomerAddressTypDict
     owner:str
     tenant_id:str
+    secondary_domain:Optional[str]=None
+    is_active:bool
 
 class UpdateCustomerSchema(BaseModel):
     customer_id:str
@@ -29,6 +31,8 @@ class UpdateCustomerSchema(BaseModel):
     address:Optional[CustomerAddressTypDict]=None
     owner:Optional[str]=None
     tenant_id:Optional[str]=None
-
+    secondary_domain:Optional[str]=None
+    is_active:Optional[bool]=None
+    
 class RecoverCustomerSchema(BaseModel):
     customer_id:str

@@ -36,7 +36,9 @@ class CustomersRepo(BaseRepoModel):
             Customers.sector,
             Customers.address,
             Customers.owner,
-            Customers.tenant_id
+            Customers.tenant_id,
+            Customers.is_active,
+            Customers.secondary_domain
         )
 
     async def is_customer_exists(self,email:EmailStr,mobile_number:str):
