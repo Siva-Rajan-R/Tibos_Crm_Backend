@@ -12,6 +12,7 @@ PrevOrder = aliased(Orders)
 
 customer_tot_price=func.coalesce(Orders.unit_price*Orders.quantity,0)
 distributor_tot_price=func.coalesce(Products.price*Orders.quantity,0)
+distri_discount=(select(Distributors.discounts[Orders.discount_id]).where(Distributors.id==Orders.distributor_id).correlate_except(Distributors)).scalar_subquery()
 last_order_delivery_date = (
     select(
         cast(PrevOrder.delivery_info['delivery_date'].astext, Date)
@@ -55,16 +56,16 @@ remaining_days = func.greatest(
 
 distri_disc_price=case(
     (
-        Distributors.discount.ilike("%\%%"),
+        distri_discount['discount'].astext.ilike("%\%%"),
         func.round(   
             distributor_tot_price
             -
-            ((cast(func.coalesce(func.replace(Distributors.discount,'%',''),'0'),Numeric)/100)
+            ((cast(func.coalesce(func.replace(distri_discount['discount'].astext,'%',''),'0'),Numeric)/100)
             *
             distributor_tot_price)
         )
     ),
-    else_=(func.round(distributor_tot_price-cast(func.coalesce(Distributors.discount,'0'),Numeric)))
+    else_=(func.round(distributor_tot_price-cast(func.coalesce(distri_discount['discount'].astext,'0'),Numeric)))
 )
 
 distri_additi_price=case(

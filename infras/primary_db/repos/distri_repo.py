@@ -26,7 +26,7 @@ class DistributorsRepo(BaseRepoModel):
             Distributors.id,
             Distributors.ui_id,
             Distributors.name,
-            Distributors.discount
+            Distributors.discounts
         )
 
         
@@ -135,7 +135,7 @@ class DistributorsRepo(BaseRepoModel):
             select(
                 Distributors.id,
                 Distributors.name,
-                Distributors.discount
+                Distributors.discounts
             ).where(
                 or_(
                     Distributors.id.ilike(search_term),
@@ -158,7 +158,7 @@ class DistributorsRepo(BaseRepoModel):
                 *self.distri_cols,
                 date_expr.label("created_at")
             )
-            .where(or_(Distributors.id==distributor_id,Distributors.ui_id==distributor_id),Distributors.is_deleted==False)
+            .where(or_(Distributors.id==distributor_id,Distributors.ui_id==distributor_id,Distributors.name==distributor_id),Distributors.is_deleted==False)
         )).mappings().one_or_none()
         
         return {'distributors':queried_distributors}

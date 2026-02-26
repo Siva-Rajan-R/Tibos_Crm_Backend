@@ -9,8 +9,8 @@ class Distributors(PG_BASE):
     id=Column(String,primary_key=True)
     ui_id=Column(String,nullable=True)
     sequence_id=Column(BigInteger,Identity(always=True),nullable=False)
-    name=Column(String,nullable=False)
-    discount=Column(String,nullable=False)
+    name=Column(String,nullable=False,unique=True)
+    discounts=Column(JSONB,nullable=False)
 
     created_at=Column(TIMESTAMP(timezone=True),server_default=func.now())
     

@@ -20,6 +20,8 @@ from ..models.ui_id import TablesUiLId
 from core.utils.ui_id_generator import generate_ui_id
 from core.constants import UI_ID_STARTING_DIGIT,LUI_ID_DISTRI_PREFIX
 from schemas.request_schemas.order import OrderFilterSchema
+from core.data_formats.enums.order_enums import DistributorType
+from core.utils.discount_validator import validate_discount
 
 
 class DistributorService(BaseServiceModel):
@@ -31,11 +33,31 @@ class DistributorService(BaseServiceModel):
        
     @catch_errors
     async def add(self,data:CreateDistriSchema):
-        
-        distri_id:str=generate_uuid()
+        filterd_set=set()
+        for i in data.discounts:
+            discount=validate_discount(i.get('discount'))
+            ic(discount)
+            if discount is None:
+                break
+            filterd_set.add(f"{i.get('rebate_type').value}-{discount}")
+            ic(filterd_set)
+
+        if len(filterd_set)!=len(data.discounts):
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Distributor",description="Multiple same discount format was found")
+        final_discounts={}
+        for discount in data.discounts:
+            discount_id:str=generate_uuid()
+            final_discounts[discount_id]={**discount,'id':discount_id}
+
         lui_id:str=(await self.session.execute(select(TablesUiLId.distri_luiid))).scalar_one_or_none()
+        distri_obj=DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id)
+        distri_id:str=generate_uuid()
         cur_uiid=generate_ui_id(prefix=LUI_ID_DISTRI_PREFIX,last_id=lui_id)
-        return await DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(data=CreateDistriDbSchema(**data.model_dump(mode='json'),id=distri_id,ui_id=cur_uiid,lui_id=lui_id))
+        data_toadd=data.model_dump(mode='json')
+        data_toadd['name']=data_toadd['name'].upper()
+        data_toadd['discounts']=final_discounts
+
+        return await distri_obj.add(data=CreateDistriDbSchema(**data_toadd,id=distri_id,lui_id=lui_id,ui_id=cur_uiid))
 
     @catch_errors
     async def add_bulk(self,datas:List[dict]):
@@ -50,7 +72,7 @@ class DistributorService(BaseServiceModel):
             ic("Before increment : ",lui_id)
             lui_id=cur_uiid
             ic("After increment : ",lui_id)
-            data['discount']=str(data['discount']*100)+"%"
+            data['discount']=str(data['discount'])
             datas_toadd.append(Distributors(**data, id=distri_id,ui_id=cur_uiid))
                 
         ic(skipped_items,datas_toadd)
@@ -58,12 +80,34 @@ class DistributorService(BaseServiceModel):
         
     @catch_errors  
     async def update(self,data:UpdateDistriSchema):
-        data_toupdate=data.model_dump(mode='json',exclude_none=True,exclude_unset=True)
+        filterd_set=set()
+        for i in data.discounts:
+            discount=validate_discount(i.get('discount'))
+            if discount is None:
+                break
+            filterd_set.add(f"{i.get('rebate_type').value}-{discount}")
+            
+        if len(filterd_set)!=len(data.discounts):
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Distributor",description="Multiple same discount format was found")
+        
+        final_discounts={}
+        for discount in data.discounts:
+            discount_id:str=generate_uuid()
+            if 'id' not in discount:
+                final_discounts[discount_id]={**discount,'id':discount_id}
 
+        data_toupdate=data.model_dump(mode='json',exclude_none=True,exclude_unset=True)
+        distri_obj=DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id)
         if not data_toupdate or len(data_toupdate)<1:
             return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Distributor",description="No valid fields to update provided")
         
-        return await DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateDistriDbSchema(**data_toupdate))
+        data_toupdate['name']=data_toupdate['name'].upper()
+        data_toupdate['discounts']=final_discounts
+
+        if not (await distri_obj.get_by_id(distributor_id=data_toupdate['name']))['distributors']:
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Distributor",description="Distributor name already exists")
+        
+        return await distri_obj.update(data=UpdateDistriDbSchema(**data_toupdate))
         
     @catch_errors
     async def delete(self,distributor_id:str,soft_delete:bool=True):

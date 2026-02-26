@@ -12,6 +12,7 @@ class Orders(PG_BASE):
     sequence_id=Column(Integer,Identity(always=True),nullable=False)
     customer_id=Column(String,ForeignKey("customers.id"))
     distributor_id=Column(String,ForeignKey("distributors.id"),nullable=True)
+    discount_id=Column(String,nullable=False)
     product_id=Column(String,ForeignKey("products.id",ondelete="CASCADE"))
     quantity=Column(Integer,nullable=False)
     unit_price=Column(Float,nullable=True)

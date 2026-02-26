@@ -47,6 +47,8 @@ DISTRI_MAPPER={
     'ui_id':'id',
     'name':'name',
     'discount':'discount',
+    'rebate_type':'rebate_type',
+    'minimum_thershold':'minimum_thershold',
     'created_at':'distributor_created_at'
 }
 
@@ -58,6 +60,7 @@ ORDERS_MAPPER={
     'product_name':'product_name',
     'distributor_id': 'distributor_id',
     'distributor_name':'distributor_name',
+    'discount_id':'discount_id',
     'distributor_discount':'distributor_discount',
     'additional_discount': 'additional_discount',
     'unit_price': 'per_unit_price',

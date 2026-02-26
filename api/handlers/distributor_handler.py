@@ -41,16 +41,6 @@ class HandleDistributorRequest:
        
     @catch_errors
     async def add(self,data:CreateDistriSchema):
-        if validate_discount(data.discount) is None:
-            raise HTTPException(
-                status_code=400,
-                detail=ErrorResponseTypDict(
-                    status_code=400,
-                    description="Invalid Data format for discount",
-                    msg="Error : Adding Distributor",
-                    success=False
-                ).model_dump(mode='json')
-            )
 
         res = await DistributorService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(data=data)
         if not res or isinstance(res,ErrorResponseTypDict):
@@ -76,6 +66,15 @@ class HandleDistributorRequest:
     
     @catch_errors
     async def add_bulk(self,type:ImportExportTypeEnum,file:UploadFile):
+        raise HTTPException(
+            detail=ErrorResponseTypDict(
+                status_code=502,
+                success=False,
+                msg="Adding bulk distributor",
+                description="Distirbutor bulk upload, Currently unavailable"
+            ).model_dump(mode='json'),
+            status_code=502
+        )
         if type.value==ImportExportTypeEnum.EXCEL.value:
             datas_toadd=extract_excel_data(excel_file=file.file,headings_mapper=DISTRI_MAPPER)
             if not datas_toadd or len(datas_toadd)<=0:
@@ -114,17 +113,6 @@ class HandleDistributorRequest:
         
     @catch_errors  
     async def update(self,data:UpdateDistriSchema):
-        if validate_discount(data.discount) is None:
-            raise HTTPException(
-                status_code=400,
-                detail=ErrorResponseTypDict(
-                    status_code=400,
-                    description="Invalid Data format for discount",
-                    msg="Error : Adding Distributor",
-                    success=False
-                ).model_dump(mode='json')
-            )
-        
         res=await DistributorService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=data)
         if not res or isinstance(res,ErrorResponseTypDict):
             detail:ErrorResponseTypDict=ErrorResponseTypDict(
@@ -149,6 +137,7 @@ class HandleDistributorRequest:
         
     @catch_errors
     async def delete(self,distributor_id:str,soft_delete:bool=True):
+        ic("kklokkokoikoikk")
         res=await DistributorService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete(distributor_id=distributor_id,soft_delete=soft_delete)
         if not res or isinstance(res,ErrorResponseTypDict):
             detail:ErrorResponseTypDict=ErrorResponseTypDict(

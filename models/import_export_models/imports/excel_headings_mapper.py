@@ -47,7 +47,9 @@ CONTACTS_MAPPER={
 
 DISTRI_MAPPER={
     'name':'name',
-    'discount':'discount'
+    'discount':'discount',
+    'rebate_type':'rebate_type',
+    'minimum_thershold':'minimum_thershold'
 }
 
 ORDERS_MAPPER={

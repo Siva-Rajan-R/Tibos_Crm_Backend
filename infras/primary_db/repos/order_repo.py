@@ -21,7 +21,7 @@ from schemas.request_schemas.order import OrderFilterSchema
 from datetime import datetime,timedelta
 from core.constants import DEFAULT_ADDON_YEAR
 from typing import Optional
-from ..calculations import distri_final_price,customer_final_price,profit_loss_price,customer_tot_price,distributor_tot_price,vendor_disc_price,distri_additi_price,distri_disc_price,remaining_days,last_order_delivery_date,expiry_date
+from ..calculations import distri_final_price,customer_final_price,profit_loss_price,customer_tot_price,distributor_tot_price,vendor_disc_price,distri_additi_price,distri_disc_price,remaining_days,last_order_delivery_date,expiry_date,distri_discount
 
 
 
@@ -38,6 +38,7 @@ class OrdersRepo(BaseRepoModel):
             Orders.customer_id,
             Orders.product_id,
             Orders.distributor_id,
+            Orders.discount_id,
             Orders.quantity,
             Orders.status_info,
             Orders.delivery_info,
@@ -49,7 +50,7 @@ class OrdersRepo(BaseRepoModel):
             Customers.name.label('customer_name'),
             Customers.mobile_number,
             Distributors.name.label('distributor_name'),
-            Distributors.discount.label('distributor_discount'),
+            distri_discount.label('distributor_discount'),
             Orders.unit_price,
             Orders.vendor_commision,
             customer_final_price.label('customer_price'),

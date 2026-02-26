@@ -46,6 +46,27 @@ def safe_date(value, fmt="%Y-%m-%d"):
         return ts.strftime(fmt)
     except Exception:
         return None
+    
+def get_best_discount_id(discounts, distributor_type, product_price, quantity):
+    order_amount = product_price * quantity
+
+    # filter discounts by rebate type and threshold
+    valid_discounts = [
+        d for d in discounts
+        if d["rebate_type"] == distributor_type
+        and order_amount >= d["minimum_thershold"]
+    ]
+
+    if not valid_discounts:
+        return None  # no applicable discount
+
+    # pick the discount with highest minimum_threshold
+    best_discount = max(
+        valid_discounts,
+        key=lambda d: d["minimum_thershold"]
+    )
+
+    return best_discount["id"]
 
 class OrdersService(BaseServiceModel):
     def __init__(self,session:AsyncSession,user_role:UserRoles,cur_user_id:str):
@@ -105,7 +126,19 @@ class OrdersService(BaseServiceModel):
             if not distri_exists['distributors'] or len(distri_exists['distributors'])<1:
                 skipped_items.append(data)
                 continue
+            ic("Hii da mapla")
+            ic(distri_exists['distributors']['discounts'],distri_exists['distributors']['discounts'].values(),data['distributor_type'].upper(),prod_exists['product']['price'],data['quantity'])
+            discount_id:str=get_best_discount_id(
+                discounts=distri_exists['distributors']['discounts'].values(),
+                distributor_type=data['distributor_type'].upper(),
+                product_price=prod_exists['product']['price'],
+                quantity=data['quantity']
+            )
 
+            if discount_id is None:
+                continue
+
+            data['discount_id']=discount_id
             data['customer_id']=cust_exists['customer']['id']
             data['distributor_id']=distri_exists['distributors']['id']
             data['product_id']=prod_exists['product']['id']

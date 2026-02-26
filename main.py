@@ -37,8 +37,8 @@ async def api_lifespan(app:FastAPI):
         ic("🏎️ Executing API Lifespan... ")
         await init_pg_db()
         # async with AsyncLocalSession() as session:
-        #     # await UserService(session=session,user_role=UserRoles.SUPER_ADMIN,cur_user_id='').init_superadmin()
-        #     # await session.execute(insert(TablesUiLId).values(id="1").on_conflict_do_nothing(index_elements=["id"]))
+        #     await UserService(session=session,user_role=UserRoles.SUPER_ADMIN,cur_user_id='').init_superadmin()
+        #     await session.execute(insert(TablesUiLId).values(id="1").on_conflict_do_nothing(index_elements=["id"]))
         #     # await SettingsService(session=session).init_settings()
         #     # await DropDownRepo(session=session).init_dd()
         #     await session.commit()
