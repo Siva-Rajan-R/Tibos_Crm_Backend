@@ -158,6 +158,8 @@ class CustomersRepo(BaseRepoModel):
         )).mappings().all()
 
         total_customers:int=0
+        total_active_customer:int=0
+        total_inactive_customer:int=0
         if cursor==0:
             total_customers=(await self.session.execute(
                 select(func.count(Customers.id)).where(Customers.is_deleted==False)
