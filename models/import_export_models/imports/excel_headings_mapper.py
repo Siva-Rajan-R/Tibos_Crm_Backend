@@ -56,6 +56,7 @@ ORDERS_MAPPER={
     'customer_id':'customer_id',
     'product_id':'product_id',
     'distributor_id':'distributor_id',
+    'discount_id':'discount_id',
     'quantity':'quantity',
     'additional_discount':'discount',
     'per_unit_price':'unit_price',

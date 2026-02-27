@@ -128,17 +128,11 @@ class OrdersService(BaseServiceModel):
                 continue
             ic("Hii da mapla")
             ic(distri_exists['distributors']['discounts'],distri_exists['distributors']['discounts'].values(),data['distributor_type'].upper(),prod_exists['product']['price'],data['quantity'])
-            discount_id:str=get_best_discount_id(
-                discounts=distri_exists['distributors']['discounts'].values(),
-                distributor_type=data['distributor_type'].upper(),
-                product_price=prod_exists['product']['price'],
-                quantity=data['quantity']
-            )
-
-            if discount_id is None:
+            discount_exists:dict=distri_exists['distributors']['discounts'].get(data['discount_id'],None)
+            ic(discount_exists)
+            if discount_exists is None:
                 continue
 
-            data['discount_id']=discount_id
             data['customer_id']=cust_exists['customer']['id']
             data['distributor_id']=distri_exists['distributors']['id']
             data['product_id']=prod_exists['product']['id']
