@@ -22,7 +22,7 @@ from models.response_models.req_res_models import SuccessResponseTypDict,BaseRes
 from ..models.ui_id import TablesUiLId
 from core.utils.ui_id_generator import generate_ui_id
 from core.constants import UI_ID_STARTING_DIGIT,LUI_ID_ORDER_PREFIX
-from core.utils.discount_validator import parse_discount
+from core.utils.discount_validator import parse_discount,validate_discount
 
 import pandas as pd
 from schemas.request_schemas.order import OrderFilterSchema
@@ -126,13 +126,24 @@ class OrdersService(BaseServiceModel):
             if not distri_exists['distributors'] or len(distri_exists['distributors'])<1:
                 skipped_items.append(data)
                 continue
-            ic("Hii da mapla")
+            # ic("Hii da mapla")
             ic(distri_exists['distributors']['discounts'],distri_exists['distributors']['discounts'].values(),data['distributor_type'].upper(),prod_exists['product']['price'],data['quantity'])
-            discount_exists:dict=distri_exists['distributors']['discounts'].get(data['discount_id'],None)
-            ic(discount_exists)
-            if discount_exists is None:
+            discounts:dict=distri_exists['distributors']['discounts']
+            # ic(discounts)
+            discount_id=None
+            for discount in discounts.values():
+                converted_discount=f"{int(data['distributor_discount']*100)}%"
+                existing_discount=f"{int(validate_discount(discount['discount']))}%"
+                ic(converted_discount,existing_discount)
+                if discount['rebate_type'].upper()==data['distributor_type'].upper() and discount['discount']==converted_discount:
+                    ic(True)
+                    discount_id=discount['id']
+                    break
+
+            if discount_id is None:
                 continue
 
+            data['discount_id']=discount_id
             data['customer_id']=cust_exists['customer']['id']
             data['distributor_id']=distri_exists['distributors']['id']
             data['product_id']=prod_exists['product']['id']
@@ -177,7 +188,8 @@ class OrdersService(BaseServiceModel):
             formatted_schema=AddOrderDbSchema(**data,id=order_id,ui_id=cur_uiid).model_dump(mode='json',exclude_unset=True,exclude_none=True)
             datas_toadd.append(Orders(**formatted_schema))
                 
-        ic(skipped_items,datas_toadd)
+        ic(datas_toadd)
+        ic(skipped_items)
         return await orders_obj.add_bulk(datas=datas_toadd,lui_id=lui_id)
     
 
