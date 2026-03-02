@@ -8,6 +8,7 @@ from core.utils.uuid_generator import generate_uuid
 from sqlalchemy import Numeric, select,delete,update,or_,func,String,cast,case,and_,Date,desc,text
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
+from sqlalchemy import literal,true
 from core.data_formats.enums.user_enums import UserRoles
 from core.data_formats.enums.order_enums import PaymentStatus,InvoiceStatus,PurchaseTypes
 from schemas.db_schemas.order import AddOrderDbSchema,UpdateOrderDbSchema
@@ -20,7 +21,8 @@ from ..models.ui_id import TablesUiLId
 from schemas.request_schemas.order import OrderFilterSchema
 from datetime import datetime,timedelta
 from core.constants import DEFAULT_ADDON_YEAR
-from typing import Optional
+from typing import Optional,Literal
+from core.data_formats.enums.order_enums import OrderFilterDateByEnum
 from ..calculations import distri_final_price,customer_final_price,profit_loss_price,customer_tot_price,distributor_tot_price,vendor_disc_price,distri_additi_price,distri_disc_price,remaining_days,last_order_delivery_date,expiry_date,distri_discount
 
 
@@ -152,6 +154,7 @@ class OrdersRepo(BaseRepoModel):
         query: str = '',
         include_deleted: bool = False,
     ):
+        
         conditions = []
         total_orders_condition=[]
         filters=[]
@@ -178,7 +181,6 @@ class OrdersRepo(BaseRepoModel):
                 Customers.name.ilike(search_term),
                 Customers.email.ilike(search_term),
                 Customers.mobile_number.ilike(search_term),
-                func.cast(Orders.created_at, String).ilike(search_term),
                 Orders.status_info['invoice_status'].astext.ilike(search_term),
                 Orders.status_info['payment_status'].astext.ilike(search_term),
                 Orders.status_info['invoice_number'].astext.ilike(search_term),
@@ -205,12 +207,12 @@ class OrdersRepo(BaseRepoModel):
 
     
         for key,value in filter.model_dump(mode='json').items():
-            if value is not None:
+            if value is not None and key!="date_filter":
                 filters.append(filter_mapper[key]==value)
+        
 
         ic(filters)
-        queried_orders = (
-            await self.session.execute(
+        orders_toquery = (
                 select(
                     *cols,
                     date_expr.label("order_created_at")
@@ -226,10 +228,39 @@ class OrdersRepo(BaseRepoModel):
                 )
                 .limit(limit)
                 .order_by(Orders.sequence_id.asc())
+
+        )
+
+        ic(filter.date_filter)
+        date_by = filter.date_filter.get("by").value if filter.date_filter.get("by") else None
+        date_tofilter = None
+
+        if date_by == OrderFilterDateByEnum.REQUESTED_DATE.value:
+            date_tofilter = cast(Orders.delivery_info["requested_date"].astext,Date)
+        elif date_by == OrderFilterDateByEnum.ACTIVATION_DATE.value:
+            date_tofilter = cast(Orders.delivery_info["delivery_date"].astext,Date)
+            ic("iam in activation date ",date_tofilter)
+        elif date_by == OrderFilterDateByEnum.CREATED_DATE.value:
+            date_tofilter = cast(Orders.created_at,Date)
+        ic(date_tofilter)
+        date_filter_condition=None
+        if date_tofilter is not None:
+            final_date = cast(date_tofilter, Date)
+            from_date = filter.date_filter.get("from_date")
+            to_date = filter.date_filter.get("to_date")
+            ic(from_date,to_date,final_date)
+            orders_toquery = orders_toquery.where(
+                and_(
+                    final_date >= from_date,
+                    final_date <= to_date
+                )
             )
-        ).mappings().all()
 
-
+            date_filter_condition=and_(
+                final_date >= from_date,
+                final_date <= to_date
+            )
+        queried_orders=(await self.session.execute(orders_toquery)).mappings().all()
         total_orders:int=0
         total_revenue=0
         order_value=0
@@ -245,6 +276,7 @@ class OrdersRepo(BaseRepoModel):
                 .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
                 .join(Users, Users.id == Orders.deleted_by, isouter=True)
                 .where(*conditions,*filters,Orders.is_deleted==False)
+                .where(date_filter_condition if date_filter_condition is not None else true())
             )).scalar()
             ic(total_revenue)
             
@@ -255,6 +287,7 @@ class OrdersRepo(BaseRepoModel):
                 .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
                 .join(Users, Users.id == Orders.deleted_by, isouter=True)
                 .where(*conditions,*filters,Orders.is_deleted==False,*total_orders_condition)
+                .where(date_filter_condition if date_filter_condition is not None else true())
             )).scalar_one_or_none()
 
             order_value=(await self.session.execute(
@@ -264,6 +297,7 @@ class OrdersRepo(BaseRepoModel):
                 .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
                 .join(Users, Users.id == Orders.deleted_by, isouter=True)
                 .where(*conditions,*filters,Orders.is_deleted==False)
+                .where(date_filter_condition if date_filter_condition is not None else true())
             )).scalar()
 
             pending_invoice=(
@@ -276,6 +310,7 @@ class OrdersRepo(BaseRepoModel):
                     .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
                     .join(Users, Users.id == Orders.deleted_by, isouter=True)
                     .where(*conditions,*filters,Orders.is_deleted==False)
+                    .where(date_filter_condition if date_filter_condition is not None else true())
                 )
             ).scalar_one_or_none()
             pending_dues=(
@@ -286,12 +321,12 @@ class OrdersRepo(BaseRepoModel):
                     .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
                     .join(Users, Users.id == Orders.deleted_by, isouter=True)
                     .where(*conditions,*filters,Orders.is_deleted==False)
+                    .where(date_filter_condition if date_filter_condition is not None else true())
                 )
             ).scalar_one_or_none()
 
         ic(total_orders,limit,total_revenue,order_value)
         ic("Hi",func.round(order_value,0))
-        ic(queried_orders)
 
         return {
             'orders':queried_orders,

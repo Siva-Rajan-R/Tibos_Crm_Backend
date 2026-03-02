@@ -49,7 +49,7 @@ class HandleDashboardRequest:
     async def get_dashboard(self,from_date:Optional[date]=None,to_date:Optional[date]=None,timezone: Optional[str]="Asia/Kolkata"):
         # day_expr = func.date(func.timezone(timezone, Orders.delivery_info['requested_date']))
         day_expr = cast(
-        Orders.delivery_info["requested_date"].astext,
+        Orders.delivery_info["delivery_date"].astext,
         Date
     ).label("day")
         

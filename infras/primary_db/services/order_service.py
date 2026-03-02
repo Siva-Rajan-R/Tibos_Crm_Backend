@@ -28,7 +28,32 @@ import pandas as pd
 from schemas.request_schemas.order import OrderFilterSchema
 from core.utils.calculations import get_distributor_price,get_remaining_days
 from core.data_formats.typed_dicts.order_typdict import DeliveryInfo,StatusInfo,LogisticsInfo
+import json
+from datetime import datetime
+from pathlib import Path
 
+
+
+
+def write_skipped_items_to_txt(skipped_items: list, prefix: str = "skipped_orders"):
+    if not skipped_items:
+        return None
+
+    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+    filename = f"{prefix}_{timestamp}.txt"
+
+    output_dir = Path("skipped_reports")
+    output_dir.mkdir(exist_ok=True)
+
+    file_path = output_dir / filename
+
+    with open(file_path, "w", encoding="utf-8") as f:
+        for idx, item in enumerate(skipped_items, start=1):
+            f.write(f"--- Skipped Item {idx} ---\n")
+            f.write(json.dumps(item, indent=2, default=str))
+            f.write("\n\n")
+
+    return str(file_path)
 
 def safe_date(value, fmt="%Y-%m-%d"):
     if value is None:
@@ -182,8 +207,11 @@ class OrdersService(BaseServiceModel):
 
             formatted_schema=AddOrderDbSchema(**data,id=order_id,ui_id=cur_uiid).model_dump(mode='json',exclude_unset=True,exclude_none=True)
             datas_toadd.append(Orders(**formatted_schema))
-                
+
+        skipped_file_path = write_skipped_items_to_txt(skipped_items)
+
         ic(skipped_items,datas_toadd)
+        ic("Skipped file path",skipped_file_path)
         return await orders_obj.add_bulk(datas=datas_toadd,lui_id=lui_id)
     
 

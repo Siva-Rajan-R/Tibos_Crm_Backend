@@ -49,3 +49,8 @@ class PurchaseTypes(Enum):
 class DistributorType(Enum):
     REBATE="REBATE"
     NON_REBATE="NON-REBATE"
+
+class OrderFilterDateByEnum(Enum):
+    ACTIVATION_DATE="ACTIVATION_DATE"
+    REQUESTED_DATE="REQUESTED_DATE"
+    CREATED_DATE="CREATED_DATE"

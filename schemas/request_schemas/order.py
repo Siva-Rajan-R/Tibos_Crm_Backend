@@ -3,6 +3,7 @@ from core.data_formats.typed_dicts.order_typdict import LogisticsInfo,StatusInfo
 from core.data_formats.enums.order_enums import InvoiceStatus,PaymentStatus,RenewalTypes,PurchaseTypes,DistributorType
 from typing import Optional,Union
 from datetime import date
+from core.data_formats.typed_dicts.order_typdict import OrderDateFilterTypDict
 
 class AddOrderSchema(BaseModel):
     customer_id:str
@@ -39,9 +40,11 @@ class RecoverOrderSchema(BaseModel):
     customer_id:str
 
 
+
 class OrderFilterSchema(BaseModel):
     payment_status:Optional[Union[PaymentStatus,None]]=None
     invoice_status:Optional[Union[InvoiceStatus,None]]=None
     purchase_type:Optional[Union[PurchaseTypes,None]]=None
     renewal_type:Optional[Union[RenewalTypes,None]]=None
     distributor_type:Optional[Union[DistributorType,None]]=None
+    date_filter:Optional[OrderDateFilterTypDict]=OrderDateFilterTypDict()

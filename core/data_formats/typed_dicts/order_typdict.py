@@ -2,6 +2,7 @@ from typing import TypedDict,Optional,NotRequired
 from datetime import date
 from ..enums.order_enums import ShippingMethods,PaymentStatus,PurchaseTypes,InvoiceStatus,DistributorType,PaymentTermsEnum,RenewalTypes
 from ..enums.product_enums import ProductTypes
+from ..enums.order_enums import OrderFilterDateByEnum
 
 class DeliveryInfo(TypedDict):
     requested_date:date
@@ -21,3 +22,8 @@ class LogisticsInfo(TypedDict):
     renewal_type:RenewalTypes
     bill_to:NotRequired[str]
     distributor_type:DistributorType
+
+class OrderDateFilterTypDict(TypedDict):
+    from_date:date
+    to_date:date
+    by:OrderFilterDateByEnum
