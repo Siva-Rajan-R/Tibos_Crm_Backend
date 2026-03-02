@@ -8,8 +8,8 @@ def extract_excel_data(excel_file,headings_mapper:dict):
     ex_data=pd.read_excel(excel_file)
     df=pd.DataFrame(data=ex_data)
     converted_data=df.to_dict('records')
-    ic(len(headings_mapper.keys()),len(converted_data[0].keys()))
     ic(converted_data[0])
+    ic(len(converted_data[0]),len(headings_mapper))
     if len(headings_mapper.keys())!=len(converted_data[0].keys()):
         print("Insufficient headings")
         return False
@@ -68,3 +68,4 @@ if __name__=="__main__":
     # }
 
     # print(extract_excel_data(excel_file=excel_file,headings_mapper=headings_mapper))
+print(float(4.40))

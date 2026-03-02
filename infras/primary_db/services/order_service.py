@@ -18,11 +18,12 @@ from schemas.request_schemas.order import AddOrderSchema,UpdateOrderSchema
 from core.decorators.error_handler_dec import catch_errors
 from math import ceil
 from typing import Optional,List
+from decimal import Decimal, ROUND_HALF_UP
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
 from ..models.ui_id import TablesUiLId
 from core.utils.ui_id_generator import generate_ui_id
 from core.constants import UI_ID_STARTING_DIGIT,LUI_ID_ORDER_PREFIX
-from core.utils.discount_validator import parse_discount
+from core.utils.discount_validator import parse_discount,validate_discount
 
 import pandas as pd
 from schemas.request_schemas.order import OrderFilterSchema
@@ -33,24 +34,71 @@ from datetime import datetime
 from pathlib import Path
 
 
+def normalize_percent(value) -> Decimal:
+    """
+    Accepts:
+      - '0.044'
+      - '4.4%'
+      - 0.044
+      - 4.4
+    Returns:
+      Decimal('4.40')
+    """
+    if value is None:
+        return None
+
+    value = str(value).strip()
+
+    if value.endswith('%'):
+        return Decimal(value.replace('%', '')).quantize(Decimal('0.01'))
+
+    d = Decimal(value)
+
+    # if <= 1 assume fraction (0.044 → 4.4)
+    if d <= 1:
+        d = d * 100
+
+    return d.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
+
+def make_json_safe(obj):
+    if isinstance(obj, dict):
+        return {k: make_json_safe(v) for k, v in obj.items()}
+
+    if isinstance(obj, (list, tuple, set)):
+        return [make_json_safe(v) for v in obj]
+
+    if hasattr(obj, "model_dump"):
+        return make_json_safe(obj.model_dump())
+
+    from datetime import datetime, date
+    if isinstance(obj, (datetime, date)):
+        return obj.isoformat()
+
+    try:
+        import pandas as pd
+        if isinstance(obj, pd.Timestamp):
+            return obj.isoformat()
+    except Exception:
+        pass
+
+    return str(obj)
 
 
-def write_skipped_items_to_txt(skipped_items: list, prefix: str = "skipped_orders"):
+def write_skipped_items_to_txt(skipped_items: list, prefix="skipped_orders"):
     if not skipped_items:
         return None
 
-    timestamp = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-    filename = f"{prefix}_{timestamp}.txt"
-
+    ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
     output_dir = Path("skipped_reports")
     output_dir.mkdir(exist_ok=True)
 
-    file_path = output_dir / filename
+    file_path = output_dir / f"{prefix}_{ts}.txt"
 
     with open(file_path, "w", encoding="utf-8") as f:
         for idx, item in enumerate(skipped_items, start=1):
             f.write(f"--- Skipped Item {idx} ---\n")
-            f.write(json.dumps(item, indent=2, default=str))
+            safe_item = make_json_safe(item)
+            f.write(json.dumps(safe_item, indent=2))
             f.write("\n\n")
 
     return str(file_path)
@@ -151,16 +199,33 @@ class OrdersService(BaseServiceModel):
             if not distri_exists['distributors'] or len(distri_exists['distributors'])<1:
                 skipped_items.append(data)
                 continue
-            ic("Hii da mapla")
+            # ic("Hii da mapla")
             ic(distri_exists['distributors']['discounts'],distri_exists['distributors']['discounts'].values(),data['distributor_type'].upper(),prod_exists['product']['price'],data['quantity'])
-            discount_id:str=get_best_discount_id(
-                discounts=distri_exists['distributors']['discounts'].values(),
-                distributor_type=data['distributor_type'].upper(),
-                product_price=prod_exists['product']['price'],
-                quantity=data['quantity']
-            )
+            discounts:dict=distri_exists['distributors']['discounts']
+            # ic(discounts)
+            discount_id=None
+            converted_discounts=[]
+            existing_discounts=[]
+            
+            converted_discount_val = normalize_percent(data['distributor_discount'])
+            for discount in discounts.values():
+                existing_discount_val = normalize_percent(discount['discount'])
+                
+                converted_discounts.append(f"{converted_discount_val}%")
+                existing_discounts.append(f"{existing_discount_val}%")
 
+                ic(converted_discount_val, existing_discount_val)
+
+                if (
+                    discount['rebate_type'].upper() == data['distributor_type'].upper()
+                    and converted_discount_val == existing_discount_val
+                ):
+                    discount_id = discount['id']
+                    break
+            data['converted_discounts']=converted_discounts
+            data['existing_discounts']=existing_discounts
             if discount_id is None:
+                skipped_items.append(data)
                 continue
 
             data['discount_id']=discount_id
@@ -204,13 +269,15 @@ class OrdersService(BaseServiceModel):
             order_id:str=generate_uuid()
             cur_uiid=generate_ui_id(prefix=LUI_ID_ORDER_PREFIX,last_id=lui_id)
             lui_id=cur_uiid
-
+            del data['existing_discounts']
+            del data['converted_discounts']
             formatted_schema=AddOrderDbSchema(**data,id=order_id,ui_id=cur_uiid).model_dump(mode='json',exclude_unset=True,exclude_none=True)
             datas_toadd.append(Orders(**formatted_schema))
 
         skipped_file_path = write_skipped_items_to_txt(skipped_items)
 
-        ic(skipped_items,datas_toadd)
+        ic("skipped_items_count", len(skipped_items))
+        ic("orders_to_insert_count", len(datas_toadd))
         ic("Skipped file path",skipped_file_path)
         return await orders_obj.add_bulk(datas=datas_toadd,lui_id=lui_id)
     
