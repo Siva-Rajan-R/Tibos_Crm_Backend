@@ -1,4 +1,4 @@
-from typing import TypedDict,Optional,NotRequired
+from typing import TypedDict,Optional,NotRequired,List,Union
 from datetime import date
 from ..enums.order_enums import ShippingMethods,PaymentStatus,PurchaseTypes,InvoiceStatus,DistributorType,PaymentTermsEnum,RenewalTypes
 from ..enums.product_enums import ProductTypes
@@ -11,10 +11,11 @@ class DeliveryInfo(TypedDict):
     payment_terms:PaymentTermsEnum
 
 class StatusInfo(TypedDict):
-    payment_status:PaymentStatus
+    payment_status:NotRequired[Union[str,None,PaymentStatus]]=None
     invoice_status:InvoiceStatus
-    invoice_number:NotRequired[str]
-    invoice_date:NotRequired[date]
+    invoice_number:NotRequired[Union[str,None]]=None
+    invoice_date:NotRequired[Union[date,None]]=None
+    paid_amount:NotRequired[Union[int,None]]=None
 
 class LogisticsInfo(TypedDict):
     purchase_type:PurchaseTypes

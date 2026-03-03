@@ -1,6 +1,6 @@
 from pydantic import BaseModel,EmailStr
 from core.data_formats.typed_dicts.order_typdict import LogisticsInfo,StatusInfo,DeliveryInfo
-from typing import Optional
+from typing import Optional,List
 from datetime import date
 
 class AddOrderDbSchema(BaseModel):
@@ -15,7 +15,7 @@ class AddOrderDbSchema(BaseModel):
     additional_discount:str
     unit_price:float
     delivery_info:DeliveryInfo
-    status_info:StatusInfo
+    status_info:List[StatusInfo]
     logistic_info:LogisticsInfo
     vendor_commision:Optional[str]=None
 
@@ -29,6 +29,6 @@ class UpdateOrderDbSchema(BaseModel):
     additional_discount:Optional[str]=None
     unit_price:Optional[float]=None
     delivery_info:Optional[DeliveryInfo]=None
-    status_info:Optional[StatusInfo]=None
+    status_info:Optional[List[StatusInfo]]=None
     logistic_info:Optional[LogisticsInfo]=None
     vendor_commision:Optional[str]=None

@@ -1,5 +1,5 @@
 from . import BaseServiceModel
-from ..models.order import Orders
+from ..models.order import Orders,OrdersPaymentInvoiceInfo
 from ..models.product import Products
 from ..models.customer import Customers
 from ..repos.product_repo import ProductsRepo
@@ -24,6 +24,8 @@ from ..models.ui_id import TablesUiLId
 from core.utils.ui_id_generator import generate_ui_id
 from core.constants import UI_ID_STARTING_DIGIT,LUI_ID_ORDER_PREFIX
 from core.utils.discount_validator import parse_discount,validate_discount
+from core.data_formats.enums.order_enums import RenewalTypes
+from core.utils.calculations import get_customer_price
 
 import pandas as pd
 from schemas.request_schemas.order import OrderFilterSchema
@@ -179,6 +181,7 @@ class OrdersService(BaseServiceModel):
     async def add_bulk(self,datas:List[dict]):
         skipped_items=[]
         datas_toadd=[]
+        status_infotoadd=[]
 
         orders_obj=OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id)
         lui_id:str=(await self.session.execute(select(TablesUiLId.order_luiid))).scalar_one_or_none()
@@ -242,6 +245,7 @@ class OrdersService(BaseServiceModel):
                 payment_terms=data['payment_terms']
             )
 
+
             data['status_info']=StatusInfo(
                 payment_status=data['payment_status'],
                 invoice_status=data['invoice_status'],
@@ -257,6 +261,10 @@ class OrdersService(BaseServiceModel):
             invoice_date=safe_date(data['invoice_date'])
             if invoice_date:
                 data['status_info']['invoice_date']=invoice_date
+            
+            paid_amount=get_customer_price(customer_price=data['unit_price'],qty=data['quantity']).get('with_gst')
+            ic(paid_amount)
+            data['status_info']['paid_amount']=int(paid_amount)
 
             data['logistic_info']=LogisticsInfo(
                 purchase_type=data['purchase_type'],
@@ -264,6 +272,8 @@ class OrdersService(BaseServiceModel):
                 bill_to=data['bill_to'],
                 distributor_type=data['distributor_type']
             )
+
+            
             
             data['additional_discount']=str(data['discount'])
             order_id:str=generate_uuid()
@@ -271,15 +281,21 @@ class OrdersService(BaseServiceModel):
             lui_id=cur_uiid
             del data['existing_discounts']
             del data['converted_discounts']
-            formatted_schema=AddOrderDbSchema(**data,id=order_id,ui_id=cur_uiid).model_dump(mode='json',exclude_unset=True,exclude_none=True)
-            datas_toadd.append(Orders(**formatted_schema))
+
+            status_infotoadd.append(OrdersPaymentInvoiceInfo(**data['status_info'],order_id=order_id))
+            data['status_info']=[data['status_info']]
+            formatted_schema=AddOrderDbSchema(**data,id=order_id,ui_id=cur_uiid).model_dump(mode='json',exclude_unset=True,exclude_none=True,exclude=['status_info'])
+            ic(data['logistic_info']['renewal_type'])
+            if data['logistic_info']['renewal_type']==RenewalTypes.YEARLY_YEARLY_BILL.value:
+                datas_toadd.append(Orders(**formatted_schema))
+
 
         skipped_file_path = write_skipped_items_to_txt(skipped_items)
 
         ic("skipped_items_count", len(skipped_items))
         ic("orders_to_insert_count", len(datas_toadd))
         ic("Skipped file path",skipped_file_path)
-        return await orders_obj.add_bulk(datas=datas_toadd,lui_id=lui_id)
+        return await orders_obj.add_bulk(datas=datas_toadd,lui_id=lui_id,status_datas=status_infotoadd)
     
 
     @catch_errors

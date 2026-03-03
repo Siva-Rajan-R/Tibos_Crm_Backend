@@ -21,7 +21,8 @@ ACCOUNTS_MAPPER={
     "state":"state",
     "pincode":"pincode",
     "owner": 'owner',
-    "tenant_id": 'tenant_id'   
+    "tenant_id": 'tenant_id',
+    'secondary_domain': 'secondary_domain'
 }
 
 # ACCOUNTS_MAPPER={

@@ -29,19 +29,19 @@ class HandleOrdersRequest:
 
     @catch_errors
     async def add(self,data:AddOrderSchema,request:Request,bgt:BackgroundTasks):
-        invoice_no=data.status_info.get('invoice_number')
-        invoice_date=data.status_info.get('invoice_date')
-        invoice_sts=data.status_info.get('invoice_status')
-        if invoice_sts.value==InvoiceStatus.COMPLETED.value and ((not invoice_no or len(invoice_no)<1 or (not invoice_date))):
-            raise HTTPException(
-                status_code=400,
-                detail=ErrorResponseTypDict(
-                    status_code=400,
-                    success=False,
-                    msg="Error : Creading Order",
-                    description="Enter a vaid Inovice number or Date"
-                ).model_dump(mode='json')
-            )
+        # invoice_no=data.status_info.get('invoice_number')
+        # invoice_date=data.status_info.get('invoice_date')
+        # invoice_sts=data.status_info.get('invoice_status')
+        # if invoice_sts.value==InvoiceStatus.COMPLETED.value and ((not invoice_no or len(invoice_no)<1 or (not invoice_date))):
+        #     raise HTTPException(
+        #         status_code=400,
+        #         detail=ErrorResponseTypDict(
+        #             status_code=400,
+        #             success=False,
+        #             msg="Error : Creading Order",
+        #             description="Enter a vaid Inovice number or Date"
+        #         ).model_dump(mode='json')
+        #     )
 
         if data.additional_discount and validate_discount(value=data.additional_discount) is None:
             raise HTTPException(
@@ -127,19 +127,19 @@ class HandleOrdersRequest:
     
     @catch_errors
     async def update(self,data:UpdateOrderSchema,request:Request,bgt:BackgroundTasks):
-        invoice_no=data.status_info.get('invoice_number')
-        invoice_date=data.status_info.get('invoice_date')
-        invoice_sts=data.status_info.get('invoice_status')
-        if invoice_sts.value==InvoiceStatus.COMPLETED.value and ((not invoice_no or len(invoice_no)<1 or (not invoice_date))):
-            raise HTTPException(
-                status_code=400,
-                detail=ErrorResponseTypDict(
-                    status_code=400,
-                    success=False,
-                    msg="Error : Creading Order",
-                    description="Enter a vaid Inovice number or Date"
-                ).model_dump(mode='json')
-            )
+        # invoice_no=data.status_info.get('invoice_number')
+        # invoice_date=data.status_info.get('invoice_date')
+        # invoice_sts=data.status_info.get('invoice_status')
+        # if invoice_sts.value==InvoiceStatus.COMPLETED.value and ((not invoice_no or len(invoice_no)<1 or (not invoice_date))):
+        #     raise HTTPException(
+        #         status_code=400,
+        #         detail=ErrorResponseTypDict(
+        #             status_code=400,
+        #             success=False,
+        #             msg="Error : Creading Order",
+        #             description="Enter a vaid Inovice number or Date"
+        #         ).model_dump(mode='json')
+        #     )
         
         if data.additional_discount and validate_discount(value=data.additional_discount) is None:
             raise HTTPException(

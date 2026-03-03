@@ -1,7 +1,7 @@
 from pydantic import BaseModel,EmailStr
 from core.data_formats.typed_dicts.order_typdict import LogisticsInfo,StatusInfo,DeliveryInfo
 from core.data_formats.enums.order_enums import InvoiceStatus,PaymentStatus,RenewalTypes,PurchaseTypes,DistributorType
-from typing import Optional,Union
+from typing import Optional,Union,List
 from datetime import date
 from core.data_formats.typed_dicts.order_typdict import OrderDateFilterTypDict
 
@@ -14,7 +14,7 @@ class AddOrderSchema(BaseModel):
     additional_discount:str
     unit_price:float
     delivery_info:DeliveryInfo
-    status_info:StatusInfo
+    status_info:List[StatusInfo]
     logistic_info:LogisticsInfo
     vendor_commision:Optional[str]=None
     emailto_send_id:Optional[str]=None
@@ -30,7 +30,7 @@ class UpdateOrderSchema(BaseModel):
     quantity:Optional[int]=None
     additional_discount:Optional[str]=None
     delivery_info:Optional[DeliveryInfo]=None
-    status_info:Optional[StatusInfo]=None
+    status_info:Optional[List[StatusInfo]]=None
     logistic_info:Optional[LogisticsInfo]=None
     vendor_commision:Optional[str]=None
     emailto_send_id:Optional[str]=None

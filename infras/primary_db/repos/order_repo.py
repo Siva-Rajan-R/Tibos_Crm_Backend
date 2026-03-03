@@ -1,6 +1,6 @@
 from typing import cast,List
 from . import HTTPException,BaseRepoModel
-from ..models.order import Orders
+from ..models.order import Orders,OrdersPaymentInvoiceInfo
 from ..models.product import Products
 from ..models.customer import Customers
 from ..models.distributor import Distributors
@@ -8,6 +8,7 @@ from core.utils.uuid_generator import generate_uuid
 from sqlalchemy import Numeric, select,delete,update,or_,func,String,cast,case,and_,Date,desc,text
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
+from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy import literal,true
 from core.data_formats.enums.user_enums import UserRoles
 from core.data_formats.enums.order_enums import PaymentStatus,InvoiceStatus,PurchaseTypes
@@ -42,9 +43,20 @@ class OrdersRepo(BaseRepoModel):
             Orders.distributor_id,
             Orders.discount_id,
             Orders.quantity,
-            Orders.status_info,
             Orders.delivery_info,
             Orders.logistic_info,
+            func.coalesce(
+            func.jsonb_agg(
+                func.jsonb_build_object(
+                    "invoice_number", OrdersPaymentInvoiceInfo.invoice_number,
+                    "invoice_date", OrdersPaymentInvoiceInfo.invoice_date,
+                    "invoice_status", OrdersPaymentInvoiceInfo.invoice_status,
+                    "payment_status", OrdersPaymentInvoiceInfo.payment_status,
+                    "paid_amount", OrdersPaymentInvoiceInfo.paid_amount
+                )
+            ).filter(OrdersPaymentInvoiceInfo.id.isnot(None)),
+            func.cast("[]", JSONB)
+        ).label("status_info"),
             Products.name.label('product_name'),
             Products.product_type,
             Products.description,
@@ -85,24 +97,39 @@ class OrdersRepo(BaseRepoModel):
 
     @start_db_transaction
     async def add(self,data:AddOrderDbSchema):
-        self.session.add(Orders(**data.model_dump(mode='json',exclude=['lui_id'])))
+        self.session.add(Orders(**data.model_dump(mode='json',exclude=['lui_id','status_info'])))
+        invoicetoadd=data.model_dump(mode='json')
+        invoicetoadd_bulk=[]
+        for status in invoicetoadd['status_info']:
+            invoicetoadd_bulk.append(OrdersPaymentInvoiceInfo(**status,order_id=data.id))
+        
+        self.session.add_all(invoicetoadd_bulk)
         await self.session.execute(update(TablesUiLId).where(TablesUiLId.id=="1").values(order_luiid=data.ui_id))
         # need to implement invoice generation process + email sending
         return True
     
     @start_db_transaction
-    async def add_bulk(self,datas:List[Orders],lui_id:str):
+    async def add_bulk(self,datas:List[Orders],status_datas:List[OrderFilterDateByEnum],lui_id:str):
         self.session.add_all(datas)
+        self.session.add_all(status_datas)
         await self.session.execute(update(TablesUiLId).where(TablesUiLId.id=="1").values(order_luiid=lui_id))
 
         return True
     
     @start_db_transaction
     async def update(self,data:UpdateOrderDbSchema):
-        data_toupdate=data.model_dump(mode='json',exclude=['product_id','customer_id','order_id'],exclude_none=True,exclude_unset=True)
+        data_toupdate=data.model_dump(mode='json',exclude=['product_id','customer_id','order_id','status_info'],exclude_none=True,exclude_unset=True)
         if not data_toupdate or len(data_toupdate)<1:
             return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Order",description="No valid fields to update provided")
         
+        invoicetoadd=data.model_dump(mode='json')
+        invoicetoadd_bulk=[]
+        await self.session.execute(delete(OrdersPaymentInvoiceInfo).where(OrdersPaymentInvoiceInfo.order_id==data.order_id))
+        for status in invoicetoadd['status_info']:
+            invoicetoadd_bulk.append(OrdersPaymentInvoiceInfo(**status,order_id=data.order_id))
+        
+        self.session.add_all(invoicetoadd_bulk)
+
         order_toupdate=update(Orders).where(Orders.id==data.order_id,Orders.customer_id==data.customer_id).values(
             **data_toupdate
         ).returning(Orders.id)
@@ -159,8 +186,8 @@ class OrdersRepo(BaseRepoModel):
         total_orders_condition=[]
         filters=[]
         filter_mapper={
-            'payment_status':Orders.status_info['payment_status'].astext,
-            'invoice_status':Orders.status_info['invoice_status'].astext,
+            'payment_status':OrdersPaymentInvoiceInfo.payment_status,
+            'invoice_status':OrdersPaymentInvoiceInfo.invoice_status,
             'purchase_type':Orders.logistic_info['purchase_type'].astext,
             'renewal_type':Orders.logistic_info['renewal_type'].astext,
             'distributor_type':Orders.logistic_info['distributor_type'].astext
@@ -181,9 +208,6 @@ class OrdersRepo(BaseRepoModel):
                 Customers.name.ilike(search_term),
                 Customers.email.ilike(search_term),
                 Customers.mobile_number.ilike(search_term),
-                Orders.status_info['invoice_status'].astext.ilike(search_term),
-                Orders.status_info['payment_status'].astext.ilike(search_term),
-                Orders.status_info['invoice_number'].astext.ilike(search_term),
                 Orders.logistic_info['purchase_type'].astext.ilike(search_term),
                 Orders.logistic_info['renewal_type'].astext.ilike(search_term),
                 Distributors.name.ilike(search_term),
@@ -217,6 +241,7 @@ class OrdersRepo(BaseRepoModel):
                     *cols,
                     date_expr.label("order_created_at")
                 )
+                .join(OrdersPaymentInvoiceInfo,OrdersPaymentInvoiceInfo.order_id==Orders.id,isouter=True)
                 .join(Products, Products.id == Orders.product_id, isouter=True)
                 .join(Customers, Customers.id == Orders.customer_id, isouter=True)
                 .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
@@ -228,6 +253,14 @@ class OrdersRepo(BaseRepoModel):
                 )
                 .limit(limit)
                 .order_by(Orders.sequence_id.asc())
+                .group_by(
+                    Orders.id,
+                    OrdersPaymentInvoiceInfo.order_id,
+                    Products.id,
+                    Users.id,
+                    Customers.id,
+                    Distributors.id
+                )
 
         )
 
@@ -288,6 +321,7 @@ class OrdersRepo(BaseRepoModel):
                 .join(Users, Users.id == Orders.deleted_by, isouter=True)
                 .where(*conditions,*filters,Orders.is_deleted==False,*total_orders_condition)
                 .where(date_filter_condition if date_filter_condition is not None else true())
+
             )).scalar_one_or_none()
 
             order_value=(await self.session.execute(
@@ -303,25 +337,31 @@ class OrdersRepo(BaseRepoModel):
             pending_invoice=(
                 await self.session.execute(
                     select(
-                        func.count().filter(Orders.status_info['invoice_status'].astext == InvoiceStatus.INCOMPLETED.value).label("pending_invoices")
+                        func.count().filter(OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.INCOMPLETED.value).label("pending_invoices")
                     )
+                    .select_from(Orders)
+                    .join(OrdersPaymentInvoiceInfo,OrdersPaymentInvoiceInfo.order_id==Orders.id,isouter=True)
                     .join(Products, Products.id == Orders.product_id, isouter=True)
                     .join(Customers, Customers.id == Orders.customer_id, isouter=True)
                     .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
                     .join(Users, Users.id == Orders.deleted_by, isouter=True)
                     .where(*conditions,*filters,Orders.is_deleted==False)
                     .where(date_filter_condition if date_filter_condition is not None else true())
+                    
                 )
             ).scalar_one_or_none()
             pending_dues=(
                 await self.session.execute(
-                    select(func.count().filter(Orders.status_info['payment_status'].astext == PaymentStatus.NOT_PAID.value).label("pending_dues"))
+                    select(func.count().filter(OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.NOT_PAID.value).label("pending_dues"))
+                    .select_from(Orders)
+                    .join(OrdersPaymentInvoiceInfo,OrdersPaymentInvoiceInfo.order_id==Orders.id,isouter=True)
                     .join(Products, Products.id == Orders.product_id, isouter=True)
                     .join(Customers, Customers.id == Orders.customer_id, isouter=True)
                     .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
                     .join(Users, Users.id == Orders.deleted_by, isouter=True)
                     .where(*conditions,*filters,Orders.is_deleted==False)
                     .where(date_filter_condition if date_filter_condition is not None else true())
+                    
                 )
             ).scalar_one_or_none()
 
@@ -362,10 +402,6 @@ class OrdersRepo(BaseRepoModel):
                     Customers.email.ilike(search_term),
                     Customers.mobile_number.ilike(search_term),
                     func.cast(Orders.created_at, String).ilike(search_term),
-                    Orders.status_info['invoice_status'].astext.ilike(search_term),
-                    Orders.status_info['payment_status'].astext.ilike(search_term),
-                    Orders.status_info['invoice_number'].astext.ilike(search_term),
-                    Orders.status_info['invoice_date'].astext.ilike(search_term),
                     Orders.logistic_info['purchase_type'].astext.ilike(search_term),
                     Orders.logistic_info['renewal_type'].astext.ilike(search_term),
                     Distributors.name.ilike(search_term),
@@ -374,6 +410,13 @@ class OrdersRepo(BaseRepoModel):
                 ),
                 Orders.is_deleted==False
             )
+            .group_by(
+                    Orders.id,
+                    OrdersPaymentInvoiceInfo.order_id,
+                    Products.id,
+                    Customers.id,
+                    Distributors.id
+                )
             .limit(5)
         )).mappings().all()
 
@@ -388,10 +431,18 @@ class OrdersRepo(BaseRepoModel):
                 date_expr.label("order_created_at"), 
                 Customers.email.label('customer_email')
             )
+            .join(OrdersPaymentInvoiceInfo,OrdersPaymentInvoiceInfo.order_id==Orders.id,isouter=True)
             .join(Products,Products.id==Orders.product_id,isouter=True)
             .join(Customers,Customers.id==Orders.customer_id,isouter=True)
             .join(Distributors,Distributors.id==Orders.distributor_id,isouter=True) 
             .where(or_(Orders.id==order_id,Orders.ui_id==order_id),Orders.is_deleted==False)
+            .group_by(
+                Orders.id,
+                OrdersPaymentInvoiceInfo.order_id,
+                Products.id,
+                Customers.id,
+                Distributors.id
+            )
         )).mappings().one_or_none()
 
         return {'order':queried_orders}
@@ -409,6 +460,13 @@ class OrdersRepo(BaseRepoModel):
             .join(Customers,Customers.id==Orders.customer_id,isouter=True)
             .join(Distributors,Distributors.id==Orders.distributor_id,isouter=True) 
             .where(Orders.customer_id==customer_id,Orders.sequence_id>cursor,Orders.is_deleted==False)
+            .group_by(
+                    Orders.id,
+                    OrdersPaymentInvoiceInfo.order_id,
+                    Products.id,
+                    Customers.id,
+                    Distributors.id
+                )
             .limit(limit)
         )).mappings().all()
 
@@ -448,7 +506,7 @@ class OrdersRepo(BaseRepoModel):
             pending_invoice=(
                 await self.session.execute(
                     select(
-                        func.count().filter(Orders.status_info['invoice_status'].astext == InvoiceStatus.INCOMPLETED.value).label("pending_invoices")
+                        func.count().filter(OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.INCOMPLETED.value).label("pending_invoices")
                     )
                     .join(Products,Products.id==Orders.product_id,isouter=True)
                     .join(Customers,Customers.id==Orders.customer_id,isouter=True)
@@ -458,7 +516,7 @@ class OrdersRepo(BaseRepoModel):
             ).scalar_one_or_none()
             pending_dues=(
                 await self.session.execute(
-                    select(func.count().filter(Orders.status_info['payment_status'].astext == PaymentStatus.NOT_PAID.value).label("pending_dues"))
+                    select(func.count().filter(OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.NOT_PAID.value).label("pending_dues"))
                     .join(Products,Products.id==Orders.product_id,isouter=True)
                     .join(Customers,Customers.id==Orders.customer_id,isouter=True)
                     .join(Distributors,Distributors.id==Orders.distributor_id,isouter=True)
@@ -491,7 +549,6 @@ class OrdersRepo(BaseRepoModel):
         last_ord_stmt=(
             select(
                 Orders.unit_price,
-                Orders.status_info,
                 Orders.logistic_info,
                 Orders.delivery_info,
                 date_expr.label("last_date")

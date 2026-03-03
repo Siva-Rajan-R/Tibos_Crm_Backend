@@ -28,6 +28,7 @@ ACCOUNTS_MAPPER={
     'state': 'state',
     'tenant_id': 'tenant_id',
     'website_url': 'website_url',
+    'secondary_domain':'secondary_domain',
     'customer_created_at':'customer_created_at'
 }
 

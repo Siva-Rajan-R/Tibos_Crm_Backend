@@ -17,7 +17,6 @@ class Orders(PG_BASE):
     quantity=Column(Integer,nullable=False)
     unit_price=Column(Float,nullable=True)
     delivery_info=Column(JSONB,nullable=False)
-    status_info=Column(JSONB,nullable=False)
     logistic_info=Column(JSONB,nullable=False)
     vendor_commision=Column(String,nullable=True)
     additional_discount=Column(String,nullable=False)
@@ -29,3 +28,18 @@ class Orders(PG_BASE):
 
     created_at=Column(TIMESTAMP(timezone=True),server_default=func.now())
     deleted_at=Column(DateTime(timezone=True),nullable=True)
+
+    order_payment_invoice_info=relationship("OrdersPaymentInvoiceInfo",back_populates="order",cascade="all, delete-orphan")
+
+
+class OrdersPaymentInvoiceInfo(PG_BASE):
+    __tablename__="orders_payment_invoice_info"
+    id=Column(BigInteger,primary_key=True,autoincrement=True)
+    order_id=Column(String,ForeignKey("orders.id",ondelete="CASCADE"),nullable=False)
+    payment_status=Column(String,nullable=True)
+    invoice_status=Column(String,nullable=False)
+    invoice_number=Column(String,nullable=True)
+    invoice_date=Column(String,nullable=True)
+    paid_amount=Column(BigInteger,nullable=True)
+
+    order=relationship("Orders",back_populates='order_payment_invoice_info')

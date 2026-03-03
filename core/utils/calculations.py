@@ -20,7 +20,7 @@ def get_remaining_days(from_date:Union[str,date],to_date:Union[str,date]):
 
 
 def get_total_price(price:int,qty:int):
-    total_price=price*qty
+    total_price=round(price*qty)
     return total_price
 
 def get_distributor_price(product_price:int,qty:int,distri_discount:str,addti_discount:str):
