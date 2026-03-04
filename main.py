@@ -1,5 +1,5 @@
 from fastapi import FastAPI,Request
-from api.routes import auth,contact,customer,order,product,user,drop_downs,dashboard,opportunity,leads,twofactor,distributor,recyclebin,setting,notification
+from api.routes import auth,contact,customer,order,product,user,drop_downs,dashboard,opportunity,leads,twofactor,distributor,recyclebin,setting,notification,distributor_payment
 from fastapi.middleware.cors import CORSMiddleware
 from infras.primary_db.services.user_service import UserService,UserRoles
 from infras.primary_db.main import init_pg_db
@@ -78,7 +78,7 @@ app=FastAPI(
 # Routers
 @app.get('/')
 def home_root(request:Request):
-    return {"accesss token":request.headers.get("X-Access-Token"),'refresh_token':request.headers.get("X-Refresh-Token")}
+    return {f"Please visit our official site => {SETTINGS.FRONTEND_URL}"}
 
 app.include_router(auth.router)
 app.include_router(twofactor.router)
@@ -95,6 +95,7 @@ app.include_router(dashboard.router)
 app.include_router(recyclebin.router)
 app.include_router(setting.router)
 app.include_router(notification.router)
+app.include_router(distributor_payment.router)
 
 #Middlewares
 app.add_middleware(

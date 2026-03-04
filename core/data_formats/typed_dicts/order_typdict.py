@@ -12,17 +12,17 @@ class DeliveryInfo(TypedDict):
 
 class StatusInfo(TypedDict):
     payment_status:NotRequired[Union[str,None,PaymentStatus]]=None
-    invoice_status:InvoiceStatus
+    invoice_status:Union[str,InvoiceStatus]
     invoice_number:NotRequired[Union[str,None]]=None
     invoice_date:NotRequired[Union[date,None]]=None
     paid_amount:NotRequired[Union[int,None]]=None
 
 class LogisticsInfo(TypedDict):
-    purchase_type:PurchaseTypes
+    purchase_type:Union[str,PurchaseTypes]
     last_ord_expiry_date:NotRequired[date]
-    renewal_type:RenewalTypes
+    renewal_type:Union[str,RenewalTypes]
     bill_to:NotRequired[str]
-    distributor_type:DistributorType
+    distributor_type:Union[str,DistributorType]
 
 class OrderDateFilterTypDict(TypedDict):
     from_date:date
