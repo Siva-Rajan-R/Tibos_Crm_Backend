@@ -1,4 +1,4 @@
-from typing import TypedDict
+from typing import TypedDict,Optional,Union
 from core.data_formats.enums.order_enums import DistributorType
 from datetime import date
 
@@ -8,7 +8,7 @@ class DistributorDiscountsTypDict(TypedDict):
     rebate_type:DistributorType
 
 class DistributorPaymentInfosTypDict(TypedDict):
-    invoice_number:str
-    invoice_value:int
-    paid_amount:int
-    paid_date:date
+    invoice_number:Optional[Union[None,str]]=None
+    invoice_value:Optional[Union[int,None]]=None
+    paid_amount:Optional[Union[None,int]]=None
+    paid_date:Optional[Union[None,date]]=None
