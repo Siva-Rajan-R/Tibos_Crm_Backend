@@ -18,6 +18,10 @@ async def get_dashboard_totals(from_date: Optional[datetime]=Query(None),to_date
     return await HandleDashboardRequest(session=session,user_role=user['role'],cur_user_id=user['id']).get_dashboard(from_date=from_date,to_date=to_date,timezone=timezone)
     
 
+@router.get('/distributors')
+async def get_distributor_totals(from_date: Optional[datetime]=Query(None),to_date:Optional[datetime]=Query(None),timezone: Optional[str] = Query("Asia/Kolkata"), session: AsyncSession = Depends(get_pg_db_session)):
+    user={'role':'ADMIN','id':'euiufhiuehrf'}
+    return await HandleDashboardRequest(session=session,user_role=user['role'],cur_user_id=user['id']).get_distri_dashboard(from_date=from_date,to_date=to_date,timezone=timezone)
 
 
     

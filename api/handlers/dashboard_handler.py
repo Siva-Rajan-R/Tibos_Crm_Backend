@@ -1,6 +1,7 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
-from infras.primary_db.models.order import Orders
+from infras.primary_db.models.order import Orders,OrdersPaymentInvoiceInfo
+from infras.primary_db.services.order_service import OrdersService,OrdersRepo
 from infras.primary_db.models.product import Products
 from infras.primary_db.models.distributor import Distributors
 from infras.primary_db.models.customer import Customers
@@ -10,6 +11,8 @@ from typing import Optional
 from icecream import ic
 from core.data_formats.enums.user_enums import UserRoles
 from core.data_formats.enums.order_enums import PaymentStatus,InvoiceStatus
+from schemas.request_schemas.order import OrderFilterSchema,OrderDateFilterTypDict
+from core.data_formats.enums.order_enums import OrderFilterDateByEnum
 from core.utils.calculations import get_customer_addon_price,get_customer_price,get_distri_addon_price,get_distributor_price,get_profit_loss_price,get_remaining_days,get_total_price
 from infras.primary_db.calculations import distri_final_price,customer_final_price,profit_loss_price
 
@@ -56,8 +59,8 @@ class HandleDashboardRequest:
         stmt = (select(
             day_expr.label("day"),
             func.count(Orders.id).label("total_orders"),
-            func.count().filter(Orders.status_info['payment_status'].astext == PaymentStatus.NOT_PAID.value).label("pending_dues"),
-            func.count().filter(Orders.status_info['invoice_status'].astext == InvoiceStatus.INCOMPLETED.value).label("pending_invoices"),
+            func.count(select(OrdersPaymentInvoiceInfo.id).where(OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.NOT_PAID.value,)).label("pending_dues"),
+            func.count(select(OrdersPaymentInvoiceInfo.id).where(OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.INCOMPLETED.value)).label("pending_invoices"),
             func.round(func.coalesce(func.sum(profit_loss_price), 0)).label("total_revenue"),
             func.round(func.sum(customer_final_price)).label("order_value")
         )
@@ -81,3 +84,20 @@ class HandleDashboardRequest:
         datas=(await self.session.execute(stmt)).mappings().all()
         ic(datas)
         return{'dashboard_datas':datas}
+    
+
+    async def get_distri_dashboard(self,from_date:Optional[date]=None,to_date:Optional[date]=None,timezone: Optional[str]="Asia/Kolkata"):
+        distri_ids=(await self.session.execute(select(Distributors.id))).scalars().all()
+        filter=OrderFilterSchema()
+        if from_date and to_date:
+            filter=OrderFilterSchema(date_filter=OrderDateFilterTypDict(from_date=from_date,to_date=to_date,by=OrderFilterDateByEnum.ACTIVATION_DATE))
+        distri_dashboard=[]
+        for id in distri_ids:
+            order_infos=await OrdersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(filter=filter,limit=1,query=id)
+            order_infos['name']=order_infos['orders'][0]['distributor_name']
+            order_infos['ui_id']=order_infos['orders'][0]['distributor_ui_id']
+            del order_infos['next_cursor']
+            del order_infos['orders']
+            distri_dashboard.append(order_infos)
+        
+        return {'distributor_datas':distri_dashboard}

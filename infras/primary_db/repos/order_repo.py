@@ -41,6 +41,8 @@ class OrdersRepo(BaseRepoModel):
             Orders.customer_id,
             Orders.product_id,
             Orders.distributor_id,
+            Distributors.ui_id.label('distributor_ui_id'),
+            Distributors.name.label("distributor_name"),
             Orders.discount_id,
             Orders.quantity,
             Orders.delivery_info,
