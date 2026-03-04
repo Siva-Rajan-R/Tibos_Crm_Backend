@@ -17,11 +17,11 @@ from ..dependencies.token_verification import verify_user
 router=APIRouter(tags=['Distributors Payments'],prefix='/distributor-payments')
 
 
-@router.post('/')
+@router.post('')
 async def add(data:AddDistributorPaymentSchema,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleDistributorPaymentRequest(session=session,user_role=user['role'],cur_user_id=['id']).add(data=data)
 
-@router.put('/')
+@router.put('')
 async def update(data:UpdateDistributorPaymentSchema,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleDistributorPaymentRequest(session=session,user_role=user['role'],cur_user_id=['id']).update(data=data)
 
@@ -35,7 +35,7 @@ async def recover(distri_payment_id:int,user:dict=Depends(verify_user),session:A
     return await HandleDistributorPaymentRequest(session=session,user_role=user['role'],cur_user_id=['id']).recover(distri_payment_id=distri_payment_id)
     
 
-@router.get("/")
+@router.get("")
 async def get(cursor:int=Query(1),limit:int=Query(10),query:str=Query(""),include_deleted:bool=False,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleDistributorPaymentRequest(session=session,user_role=user['role'],cur_user_id=['id']).get(cursor=cursor,limit=limit,query=query,include_deleted=include_deleted)
 
