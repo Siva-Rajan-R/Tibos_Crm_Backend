@@ -169,6 +169,11 @@ class DistributorsPaymentsRepo(BaseRepoModel):
                 date_expr.label("created_at")
             )
             .where(or_(DistributorsPayments.id==distributor_payment_id),DistributorsPayments.is_deleted==False)
+            .distinct(DistributorsPayments.id)
+            .join(Orders, Orders.id == DistributorsPayments.order_id, isouter=True)
+            .join(Products, Orders.product_id == Products.id, isouter=True)
+            .join(Customers, Orders.customer_id == Customers.id, isouter=True)
+            .join(Distributors, Orders.distributor_id == Distributors.id, isouter=True)
         )).mappings().one_or_none()
         
         return {'distributors_payments':queried_distributors}
