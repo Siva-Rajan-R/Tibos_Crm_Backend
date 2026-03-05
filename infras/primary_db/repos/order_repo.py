@@ -114,10 +114,23 @@ class OrdersRepo(BaseRepoModel):
         return True
     
     @start_db_transaction
-    async def add_bulk(self,datas:List[Orders],status_datas:List[OrderFilterDateByEnum],lui_id:str):
-        self.session.add_all(datas)
-        self.session.add_all(status_datas)
-        await self.session.execute(update(TablesUiLId).where(TablesUiLId.id=="1").values(order_luiid=lui_id))
+    async def add_bulk(self,datas:List[Orders],status_datas:List[OrdersPaymentInvoiceInfo],lui_id:str):
+        if not datas:
+            return True
+
+        with self.session.no_autoflush:
+
+            self.session.add_all(datas)
+
+            await self.session.flush()
+
+            self.session.add_all(status_datas)
+
+        await self.session.execute(
+            update(TablesUiLId)
+            .where(TablesUiLId.id == "1")
+            .values(order_luiid=lui_id)
+        )
 
         return True
     
@@ -461,9 +474,11 @@ class OrdersRepo(BaseRepoModel):
                 *self.orders_cols,
                 date_expr.label("order_created_at")  
             )
-            .join(Products,Products.id==Orders.product_id,isouter=True)
-            .join(Customers,Customers.id==Orders.customer_id,isouter=True)
-            .join(Distributors,Distributors.id==Orders.distributor_id,isouter=True)
+            .join(OrdersPaymentInvoiceInfo,OrdersPaymentInvoiceInfo.order_id==Orders.id,isouter=True)
+            .join(Products, Products.id == Orders.product_id, isouter=True)
+            .join(Customers, Customers.id == Orders.customer_id, isouter=True)
+            .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
+            .join(Users, Users.id == Orders.deleted_by, isouter=True)
             .where(
                 or_(
                     Orders.id.ilike(search_term),

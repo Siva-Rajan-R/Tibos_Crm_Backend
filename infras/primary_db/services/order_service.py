@@ -282,12 +282,16 @@ class OrdersService(BaseServiceModel):
             del data['existing_discounts']
             del data['converted_discounts']
 
-            status_infotoadd.append(OrdersPaymentInvoiceInfo(**data['status_info'],order_id=order_id))
-            data['status_info']=[data['status_info']]
-            formatted_schema=AddOrderDbSchema(**data,id=order_id,ui_id=cur_uiid).model_dump(mode='json',exclude_unset=True,exclude_none=True,exclude=['status_info'])
+            
+            
             ic(data['logistic_info']['renewal_type'])
             if data['logistic_info']['renewal_type']==RenewalTypes.YEARLY_YEARLY_BILL.value:
+                status_infotoadd.append(OrdersPaymentInvoiceInfo(**data['status_info'],order_id=order_id))
+                data['status_info']=[data['status_info']]
+                formatted_schema=AddOrderDbSchema(**data,id=order_id,ui_id=cur_uiid).model_dump(mode='json',exclude_unset=True,exclude_none=True,exclude=['status_info'])
                 datas_toadd.append(Orders(**formatted_schema))
+            else:
+                skipped_items.append(data)
 
 
         skipped_file_path = write_skipped_items_to_txt(skipped_items)
