@@ -1,6 +1,9 @@
 from . import HTTPException,BaseRepoModel
 from ..models.distributor import DistributorsPayments
 from ..models.product import Products
+from ..models.order import Orders
+from ..models.customer import Customers
+from ..models.distributor import Distributors
 from core.utils.uuid_generator import generate_uuid
 from sqlalchemy import select,delete,update,or_,func,String
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -23,8 +26,13 @@ class DistributorsPaymentsRepo(BaseRepoModel):
         self.cur_user_id=cur_user_id
         self.distri_payment_info_cols=(
             DistributorsPayments.id,
+            DistributorsPayments.sequence_id,
             DistributorsPayments.payment_infos,
-            DistributorsPayments.order_id
+            DistributorsPayments.order_id,
+            Products.name.label("product_name"),
+            Customers.name.label("customer_name"),
+            Distributors.name.label("distributor_name")
+
         )
 
         
@@ -97,8 +105,13 @@ class DistributorsPaymentsRepo(BaseRepoModel):
             select(
                 *cols,
                 date_expr.label("created_at")
-            ).limit(limit)
-            .join(Users,Users.id==DistributorsPayments.deleted_by,isouter=True)
+            )
+            .distinct(DistributorsPayments.id)
+            .join(Orders, Orders.id == DistributorsPayments.order_id, isouter=True)
+            .join(Products, Orders.product_id == Products.id, isouter=True)
+            .join(Customers, Orders.customer_id == Customers.id, isouter=True)
+            .join(Distributors, Orders.distributor_id == Distributors.id, isouter=True)
+            .limit(limit)
             .where(
                 or_(
                     func.cast(DistributorsPayments.id,String).ilike(search_term),
@@ -107,8 +120,14 @@ class DistributorsPaymentsRepo(BaseRepoModel):
                 ),
                 DistributorsPayments.sequence_id>cursor,
                 DistributorsPayments.is_deleted==include_deleted
-            ).order_by(DistributorsPayments.sequence_id.asc())
+            )
+            .order_by(
+                DistributorsPayments.id,
+                DistributorsPayments.sequence_id.asc()
+            )
         )).mappings().all()
+
+        ic(queried_distri)
 
         total_distributors:int=0
         if cursor==0:

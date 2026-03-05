@@ -1,6 +1,6 @@
 from pydantic import BaseModel,EmailStr
 from core.data_formats.typed_dicts.order_typdict import LogisticsInfo,StatusInfo,DeliveryInfo
-from core.data_formats.enums.order_enums import InvoiceStatus,PaymentStatus,RenewalTypes,PurchaseTypes,DistributorType
+from core.data_formats.enums.order_enums import InvoiceStatus,PaymentStatus,RenewalTypes,PurchaseTypes,DistributorType,OrderFilterRevenueEnum
 from typing import Optional,Union,List
 from datetime import date
 from core.data_formats.typed_dicts.order_typdict import OrderDateFilterTypDict
@@ -47,4 +47,5 @@ class OrderFilterSchema(BaseModel):
     purchase_type:Optional[Union[PurchaseTypes,None]]=None
     renewal_type:Optional[Union[RenewalTypes,None]]=None
     distributor_type:Optional[Union[DistributorType,None]]=None
+    revenue_type:Optional[Union[OrderFilterRevenueEnum,None]]=None
     date_filter:Optional[OrderDateFilterTypDict]=OrderDateFilterTypDict()

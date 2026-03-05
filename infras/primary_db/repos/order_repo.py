@@ -11,7 +11,7 @@ from icecream import ic
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy import literal,true
 from core.data_formats.enums.user_enums import UserRoles
-from core.data_formats.enums.order_enums import PaymentStatus,InvoiceStatus,PurchaseTypes
+from core.data_formats.enums.order_enums import PaymentStatus,InvoiceStatus,PurchaseTypes,OrderFilterRevenueEnum
 from schemas.db_schemas.order import AddOrderDbSchema,UpdateOrderDbSchema
 from core.decorators.db_session_handler_dec import start_db_transaction
 from math import ceil
@@ -183,6 +183,7 @@ class OrdersRepo(BaseRepoModel):
         query: str = '',
         include_deleted: bool = False,
     ):
+
         
         conditions = []
         total_orders_condition=[]
@@ -223,7 +224,7 @@ class OrdersRepo(BaseRepoModel):
         # ---------------- DATE FIELDS ----------------
         date_expr = func.date(func.timezone("Asia/Kolkata", Orders.created_at))
         deleted_at = func.date(func.timezone("Asia/Kolkata", Orders.deleted_at))
-
+        ic("Hello 1")
         cols = [*self.orders_cols]
         if include_deleted:
             cols.extend([
@@ -231,9 +232,9 @@ class OrdersRepo(BaseRepoModel):
                 deleted_at.label("deleted_at")
             ])
 
-    
+        ic("hello 2")
         for key,value in filter.model_dump(mode='json').items():
-            if value is not None and key!="date_filter":
+            if value is not None and key!="date_filter" and key!="revenue_type":
                 filters.append(filter_mapper[key]==value)
         
 
@@ -272,13 +273,18 @@ class OrdersRepo(BaseRepoModel):
 
         if date_by == OrderFilterDateByEnum.REQUESTED_DATE.value:
             date_tofilter = cast(Orders.delivery_info["requested_date"].astext,Date)
-        elif date_by == OrderFilterDateByEnum.ACTIVATION_DATE.value:
+
+        elif date_by == OrderFilterDateByEnum.ACTIVATION_DATE.value: 
             date_tofilter = cast(Orders.delivery_info["delivery_date"].astext,Date)
             ic("iam in activation date ",date_tofilter)
+
         elif date_by == OrderFilterDateByEnum.CREATED_DATE.value:
             date_tofilter = cast(Orders.created_at,Date)
         ic(date_tofilter)
+
         date_filter_condition=None
+        revenue_filter_condition=None
+
         if date_tofilter is not None:
             final_date = cast(date_tofilter, Date)
             from_date = filter.date_filter.get("from_date")
@@ -295,11 +301,41 @@ class OrdersRepo(BaseRepoModel):
                 final_date >= from_date,
                 final_date <= to_date
             )
+        ic(filter)
+        ic(type(filter))
+        ic(filter.revenue_type.value)
+       
+        if getattr(filter,'revenue_type',None):
+
+
+            if filter.revenue_type.value==OrderFilterRevenueEnum.PROFIT.value:
+                revenue_filter_condition=and_(
+                    profit_loss_price>0
+                )
+
+                orders_toquery=orders_toquery.where(
+                    and_(
+                        profit_loss_price>0
+                    )
+                )
+
+            elif filter.revenue_type.value==OrderFilterRevenueEnum.LOSS.value:
+                revenue_filter_condition=and_(
+                    profit_loss_price<0
+                )
+
+                orders_toquery=orders_toquery.where(
+                    and_(
+                        profit_loss_price<0
+                    )
+                )
+        
         queried_orders=(await self.session.execute(orders_toquery)).mappings().all()
         total_orders:int=0
         total_revenue=0
         order_value=0
         pending_dues=0
+        pending_amounts=0
         pending_invoice=0
         ic(cursor)
         if cursor==0:
@@ -366,6 +402,22 @@ class OrdersRepo(BaseRepoModel):
                     
                 )
             ).scalar_one_or_none()
+            pending_amounts = (
+            await self.session.execute(
+                select(
+                    func.sum(func.abs(profit_loss_price)).label("pending_dues")
+                )
+                .select_from(Orders)
+                .join(OrdersPaymentInvoiceInfo, OrdersPaymentInvoiceInfo.order_id == Orders.id, isouter=True)
+                .join(Products, Products.id == Orders.product_id, isouter=True)
+                .join(Customers, Customers.id == Orders.customer_id, isouter=True)
+                .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
+                .join(Users, Users.id == Orders.deleted_by, isouter=True)
+                .where(*conditions, *filters, Orders.is_deleted == False)
+                .where(date_filter_condition if date_filter_condition is not None else true())
+                .where(revenue_filter_condition if revenue_filter_condition is not None else true())
+            )
+        ).scalar_one_or_none()
 
         ic(total_orders,limit,total_revenue,order_value)
         ic("Hi",func.round(order_value,0))
@@ -378,6 +430,7 @@ class OrdersRepo(BaseRepoModel):
             'order_value':round(order_value,0) if order_value else 0,
             'pending_invoice':pending_invoice,
             'pending_dues':pending_dues,
+            'pending_amounts':pending_amounts,
             'next_cursor':queried_orders[-1]['sequence_id'] if len(queried_orders)>0 else None
         }
     

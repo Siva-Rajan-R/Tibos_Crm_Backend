@@ -80,7 +80,13 @@ distri_additi_price=case(
         
         )
     ),
-    else_=(func.round(distri_disc_price-cast(func.coalesce(Orders.additional_discount,'0'),Numeric)))
+    else_=(func.round(distri_disc_price-cast(
+        func.coalesce(
+            func.nullif(Orders.additional_discount, ''),
+            '0'
+        ),
+        Numeric
+    )))
 )
 
 
