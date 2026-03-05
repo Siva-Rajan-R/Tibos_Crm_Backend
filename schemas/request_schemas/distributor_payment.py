@@ -10,3 +10,6 @@ class UpdateDistributorPaymentSchema(BaseModel):
     id:int
     order_id:str
     payment_infos:List[DistributorPaymentInfosTypDict]
+
+class RecoverDistributorPayment(BaseModel):
+    distributor_payment_id:int

@@ -56,30 +56,37 @@ class HandleDashboardRequest:
         Date
     ).label("day")
         
-        stmt = (select(
-            day_expr.label("day"),
-            func.count(Orders.id).label("total_orders"),
-            func.count(select(OrdersPaymentInvoiceInfo.id).where(OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.NOT_PAID.value,)).label("pending_dues"),
-            func.count(select(OrdersPaymentInvoiceInfo.id).where(OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.INCOMPLETED.value)).label("pending_invoices"),
-            func.round(func.coalesce(func.sum(profit_loss_price), 0)).label("total_revenue"),
-            func.round(func.sum(customer_final_price)).label("order_value")
-        )
-        .join(Products,Products.id==Orders.product_id,isouter=True)
-        .join(Distributors,Distributors.id==Orders.distributor_id,isouter=True)
-        .join(Customers,Customers.id==Orders.customer_id,isouter=True)
-        .where(
-            Orders.is_deleted==False
-        ).group_by(
-            day_expr
-        ).order_by(
-            day_expr
-        ))
+        stmt = (
+            select(
+                day_expr,
+                func.count(Orders.id).label("total_orders"),
 
-        if from_date and to_date:
-            stmt=stmt.where(
-                day_expr >= from_date,
-                day_expr <= to_date
+                func.count().filter(
+                    OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.NOT_PAID.value
+                ).label("pending_dues"),
+
+                func.count().filter(
+                    OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.INCOMPLETED.value
+                ).label("pending_invoices"),
+
+                func.round(func.coalesce(func.sum(profit_loss_price), 0)).label("total_revenue"),
+                func.round(func.sum(customer_final_price)).label("order_value")
             )
+            .join(Products, Products.id == Orders.product_id, isouter=True)
+            .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
+            .join(Customers, Customers.id == Orders.customer_id, isouter=True)
+
+            # THIS JOIN IS REQUIRED
+            .join(
+                OrdersPaymentInvoiceInfo,
+                OrdersPaymentInvoiceInfo.order_id == Orders.id,
+                isouter=True
+            )
+
+            .where(Orders.is_deleted == False)
+            .group_by(day_expr)
+            .order_by(day_expr)
+        )
 
         datas=(await self.session.execute(stmt)).mappings().all()
         ic(datas)

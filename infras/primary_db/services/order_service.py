@@ -264,7 +264,7 @@ class OrdersService(BaseServiceModel):
             
             paid_amount=get_customer_price(customer_price=data['unit_price'],qty=data['quantity']).get('with_gst')
             ic(paid_amount)
-            data['status_info']['paid_amount']=int(paid_amount)
+            data['status_info']['paid_amount']=round(paid_amount)
 
             data['logistic_info']=LogisticsInfo(
                 purchase_type=data['purchase_type'],

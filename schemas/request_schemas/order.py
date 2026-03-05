@@ -42,10 +42,10 @@ class RecoverOrderSchema(BaseModel):
 
 
 class OrderFilterSchema(BaseModel):
-    payment_status:Optional[Union[PaymentStatus,None]]=None
-    invoice_status:Optional[Union[InvoiceStatus,None]]=None
-    purchase_type:Optional[Union[PurchaseTypes,None]]=None
-    renewal_type:Optional[Union[RenewalTypes,None]]=None
-    distributor_type:Optional[Union[DistributorType,None]]=None
-    revenue_type:Optional[Union[OrderFilterRevenueEnum,None]]=None
+    payment_status:Optional[Union[str,PaymentStatus,None]]=None
+    invoice_status:Optional[Union[str,InvoiceStatus,None]]=None
+    purchase_type:Optional[Union[str,PurchaseTypes,None]]=None
+    renewal_type:Optional[Union[str,RenewalTypes,None]]=None
+    distributor_type:Optional[Union[str,DistributorType,None]]=None
+    revenue_type:Optional[Union[str,OrderFilterRevenueEnum,None]]=None
     date_filter:Optional[OrderDateFilterTypDict]=OrderDateFilterTypDict()

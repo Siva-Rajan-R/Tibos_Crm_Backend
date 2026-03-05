@@ -3,7 +3,7 @@ from api.dependencies.token_verification import verify_user
 from infras.primary_db.main import AsyncSession,get_pg_db_session
 from core.data_formats.enums.user_enums import UserRoles
 from core.data_formats.enums.dd_enums import IndianStatesEnum,OwnersEnum,SettingsEnum
-from core.data_formats.enums.order_enums import ShippingMethods,PaymentStatus,InvoiceStatus,BillingType,PurchaseTypes,RenewalTypes,DistributorType,PaymentTermsEnum,OrderFilterDateByEnum
+from core.data_formats.enums.order_enums import ShippingMethods,PaymentStatus,InvoiceStatus,BillingType,PurchaseTypes,RenewalTypes,DistributorType,PaymentTermsEnum,OrderFilterDateByEnum,OrderFilterRevenueEnum
 from core.data_formats.enums.customer_enums import CustomerSectors,CustomerIndustries
 from core.data_formats.enums.product_enums import  ProductTypes
 from core.data_formats.enums.lead_oppr_enums import LeadSource,LeadStatus,OpportunityStatus
@@ -22,7 +22,9 @@ async def get_all_dd(user:dict=Depends(verify_user),session:AsyncSession=Depends
         {'name':'settings','values':list(SettingsEnum._value2member_map_.values())},
         {'name':'user_roles','values':list(UserRoles._value2member_map_.values())},
         {'name':'indian_states','values':list(IndianStatesEnum._value2member_map_.values())},
+        {'name':'order_revenue_filters','values':list(OrderFilterRevenueEnum._value2member_map_.values())},
         {'name':'order_date_filters','values':list(OrderFilterDateByEnum._value2member_map_.values())},
+
         *(await dd_obj.get())
     ]
 

@@ -1,6 +1,3 @@
-a=['a','b','c','d','e']
-b=['1',2,4]
+a=3209.6
 
-
-for i in zip(a,b):
-    print(i)
+print(round(a))

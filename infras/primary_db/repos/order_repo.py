@@ -24,7 +24,7 @@ from datetime import datetime,timedelta
 from core.constants import DEFAULT_ADDON_YEAR
 from typing import Optional,Literal
 from core.data_formats.enums.order_enums import OrderFilterDateByEnum
-from ..calculations import distri_final_price,customer_final_price,profit_loss_price,customer_tot_price,distributor_tot_price,vendor_disc_price,distri_additi_price,distri_disc_price,remaining_days,last_order_delivery_date,expiry_date,distri_discount
+from ..calculations import distri_final_price,customer_final_price,profit_loss_price,customer_tot_price,distributor_tot_price,vendor_disc_price,distri_additi_price,distri_disc_price,remaining_days,last_order_delivery_date,expiry_date,distri_discount,pending_amount,total_paid_amount,customer_amount_with_gst
 
 
 
@@ -79,6 +79,9 @@ class OrdersRepo(BaseRepoModel):
             distri_additi_price.label("distri_additi_price"),
             remaining_days.label("remaining_days"),
             last_order_delivery_date.label("last_order_date"),
+            pending_amount.label("pending_amount"),
+            total_paid_amount.label("total_paid_amount"),
+            customer_amount_with_gst.label('customer_amount_with_gst'),
             func.date(expiry_date).label("last_order_expiry_date")
 
         )
@@ -303,12 +306,11 @@ class OrdersRepo(BaseRepoModel):
             )
         ic(filter)
         ic(type(filter))
-        ic(filter.revenue_type.value)
+        ic()
        
         if getattr(filter,'revenue_type',None):
-
-
-            if filter.revenue_type.value==OrderFilterRevenueEnum.PROFIT.value:
+            revenue=filter.revenue_type.value if isinstance(filter.revenue_type,OrderFilterRevenueEnum) else filter.revenue_type
+            if revenue==OrderFilterRevenueEnum.PROFIT.value:
                 revenue_filter_condition=and_(
                     profit_loss_price>0
                 )
@@ -319,7 +321,7 @@ class OrdersRepo(BaseRepoModel):
                     )
                 )
 
-            elif filter.revenue_type.value==OrderFilterRevenueEnum.LOSS.value:
+            elif revenue==OrderFilterRevenueEnum.LOSS.value:
                 revenue_filter_condition=and_(
                     profit_loss_price<0
                 )
@@ -348,6 +350,7 @@ class OrdersRepo(BaseRepoModel):
                 .join(Users, Users.id == Orders.deleted_by, isouter=True)
                 .where(*conditions,*filters,Orders.is_deleted==False)
                 .where(date_filter_condition if date_filter_condition is not None else true())
+                .where(revenue_filter_condition if revenue_filter_condition is not None else true())
             )).scalar()
             ic(total_revenue)
             
@@ -359,6 +362,7 @@ class OrdersRepo(BaseRepoModel):
                 .join(Users, Users.id == Orders.deleted_by, isouter=True)
                 .where(*conditions,*filters,Orders.is_deleted==False,*total_orders_condition)
                 .where(date_filter_condition if date_filter_condition is not None else true())
+                .where(revenue_filter_condition if revenue_filter_condition is not None else true())
 
             )).scalar_one_or_none()
 
@@ -370,6 +374,7 @@ class OrdersRepo(BaseRepoModel):
                 .join(Users, Users.id == Orders.deleted_by, isouter=True)
                 .where(*conditions,*filters,Orders.is_deleted==False)
                 .where(date_filter_condition if date_filter_condition is not None else true())
+                .where(revenue_filter_condition if revenue_filter_condition is not None else true())
             )).scalar()
 
             pending_invoice=(
@@ -385,6 +390,7 @@ class OrdersRepo(BaseRepoModel):
                     .join(Users, Users.id == Orders.deleted_by, isouter=True)
                     .where(*conditions,*filters,Orders.is_deleted==False)
                     .where(date_filter_condition if date_filter_condition is not None else true())
+                    .where(revenue_filter_condition if revenue_filter_condition is not None else true())
                     
                 )
             ).scalar_one_or_none()
@@ -399,25 +405,38 @@ class OrdersRepo(BaseRepoModel):
                     .join(Users, Users.id == Orders.deleted_by, isouter=True)
                     .where(*conditions,*filters,Orders.is_deleted==False)
                     .where(date_filter_condition if date_filter_condition is not None else true())
+                    .where(revenue_filter_condition if revenue_filter_condition is not None else true())
                     
                 )
             ).scalar_one_or_none()
-            pending_amounts = (
-            await self.session.execute(
+
+            paid_per_order = (
                 select(
-                    func.sum(func.abs(profit_loss_price)).label("pending_dues")
+                    OrdersPaymentInvoiceInfo.order_id,
+                    func.coalesce(func.sum(OrdersPaymentInvoiceInfo.paid_amount), 0).label('total_paid')
                 )
-                .select_from(Orders)
-                .join(OrdersPaymentInvoiceInfo, OrdersPaymentInvoiceInfo.order_id == Orders.id, isouter=True)
-                .join(Products, Products.id == Orders.product_id, isouter=True)
-                .join(Customers, Customers.id == Orders.customer_id, isouter=True)
-                .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
-                .join(Users, Users.id == Orders.deleted_by, isouter=True)
-                .where(*conditions, *filters, Orders.is_deleted == False)
-                .where(date_filter_condition if date_filter_condition is not None else true())
-                .where(revenue_filter_condition if revenue_filter_condition is not None else true())
+                .group_by(OrdersPaymentInvoiceInfo.order_id)
+                .subquery()
             )
-        ).scalar_one_or_none()
+        #     pending_amounts = (
+        #     await self.session.execute(
+        #         select(
+        #             func.sum(
+        #                 func.round(func.coalesce(Orders.unit_price * Orders.quantity, 0) * 1.18) - 
+        #                 func.round(func.coalesce(paid_per_order.c.total_paid, 0))
+        #             ).label("total")
+        #         )
+        #         .select_from(Orders)
+        #         .join(Products, Products.id == Orders.product_id, isouter=True)
+        #         .outerjoin(paid_per_order, paid_per_order.c.order_id == Orders.id)
+        #         .join(Customers, Customers.id == Orders.customer_id, isouter=True)
+        #         .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
+        #         .join(Users, Users.id == Orders.deleted_by, isouter=True)
+        #         .where(*conditions, *filters, Orders.is_deleted == False)
+        #         .where(date_filter_condition if date_filter_condition is not None else true())
+        #         .where(revenue_filter_condition if revenue_filter_condition is not None else true())
+        #     )
+        # ).scalar_one_or_none()
 
         ic(total_orders,limit,total_revenue,order_value)
         ic("Hi",func.round(order_value,0))

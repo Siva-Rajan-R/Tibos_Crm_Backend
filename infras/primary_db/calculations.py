@@ -1,4 +1,4 @@
-from .models.order import Orders
+from .models.order import Orders,OrdersPaymentInvoiceInfo
 from .models.product import Products
 from .models.distributor import Distributors
 from sqlalchemy import func,case,cast,Date,Numeric,select
@@ -11,7 +11,14 @@ from sqlalchemy.orm import aliased
 PrevOrder = aliased(Orders)
 
 customer_tot_price=func.coalesce(Orders.unit_price*Orders.quantity,0)
+
+total_paid_amount = func.coalesce(
+    func.sum(OrdersPaymentInvoiceInfo.paid_amount), 0
+)
+
 distributor_tot_price=func.coalesce(Products.price*Orders.quantity,0)
+
+
 distri_discount=(select(Distributors.discounts[Orders.discount_id]).where(Distributors.id==Orders.distributor_id).correlate_except(Distributors)).scalar_subquery()
 last_order_delivery_date = (
     select(
@@ -103,6 +110,9 @@ distri_final_price=case(
 
 )
 
+
+customer_amount_with_gst=customer_tot_price*1.18
+pending_amount=func.round(customer_amount_with_gst)-func.round(total_paid_amount)
 
 customer_final_price=case(
     (
