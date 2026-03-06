@@ -134,10 +134,12 @@ class HandleDashboardRequest:
         distri_dashboard=[]
         for id in distri_ids:
             order_infos=await OrdersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(filter=filter,limit=1,query=id)
-            order_infos['name']=order_infos['orders'][0]['distributor_name']
-            order_infos['ui_id']=order_infos['orders'][0]['distributor_ui_id']
-            del order_infos['next_cursor']
-            del order_infos['orders']
-            distri_dashboard.append(order_infos)
+            ic(order_infos)
+            if len(order_infos['orders'])>0:
+                order_infos['name']=order_infos['orders'][0]['distributor_name'] 
+                order_infos['ui_id']=order_infos['orders'][0]['distributor_ui_id']
+                del order_infos['next_cursor']
+                del order_infos['orders']
+                distri_dashboard.append(order_infos)
         
         return {'distributor_datas':distri_dashboard}
