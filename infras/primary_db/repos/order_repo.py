@@ -455,28 +455,10 @@ class OrdersRepo(BaseRepoModel):
             )
 
             result = await self.session.execute(query)
-            total_due = result.scalar()
-        #     pending_amounts = (
-        #     await self.session.execute(
-        #         select(
-        #             func.sum(
-        #                 func.round(func.coalesce(Orders.unit_price * Orders.quantity, 0) * 1.18) - 
-        #                 func.round(func.coalesce(paid_per_order.c.total_paid, 0))
-        #             ).label("total")
-        #         )
-        #         .select_from(Orders)
-        #         .join(Products, Products.id == Orders.product_id, isouter=True)
-        #         .outerjoin(paid_per_order, paid_per_order.c.order_id == Orders.id)
-        #         .join(Customers, Customers.id == Orders.customer_id, isouter=True)
-        #         .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
-        #         .join(Users, Users.id == Orders.deleted_by, isouter=True)
-        #         .where(*conditions, *filters, Orders.is_deleted == False)
-        #         .where(date_filter_condition if date_filter_condition is not None else true())
-        #         .where(revenue_filter_condition if revenue_filter_condition is not None else true())
-        #     )
-        # ).scalar_one_or_none()
+            pending_amounts = result.scalar()
 
-        ic(total_orders,limit,total_revenue,order_value,total_due)
+
+        ic(total_orders,limit,total_revenue,order_value,pending_amounts)
         ic("Hi",func.round(order_value,0))
 
         return {
@@ -487,8 +469,8 @@ class OrdersRepo(BaseRepoModel):
             'order_value':round(order_value,0) if order_value else 0,
             'pending_invoice':pending_invoice,
             'pending_dues':pending_dues,
-            'pending_amounts':total_due,
-            'next_cursor':queried_orders[-1]['sequence_id'] if len(queried_orders)>0 else None
+            'pending_amounts':pending_amounts,
+            'next_cursor':queried_orders[-1]['sequence_id'] if (len(queried_orders)>0 and queried_orders[-1]['sequence_id']!=1) else None
         }
     
     async def search(self,query:str):

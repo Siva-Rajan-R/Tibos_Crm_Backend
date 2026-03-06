@@ -46,10 +46,12 @@ async def create_excel_export(
         while True:
             if OFFSET is not None:
                 data=(await data_cls(session=session,user_role=UserRoles.SUPER_ADMIN,cur_user_id="").get(cursor=OFFSET,limit=CHUNK_SIZE))
+                ic("data-1",data)
             if not OFFSET or not data[data_key] or len(data[data_key])<1:
                 break
             
             converted_data=convert_data_to_excel_format(mapper=mapper,data=data[data_key],converter_name=converter_name)
+            ic(converted_data)
             append_excel_rows(ws=ws,datas=converted_data,write_header=write_header)
             OFFSET=data['next_cursor']
             write_header=False

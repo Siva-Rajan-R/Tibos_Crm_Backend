@@ -47,9 +47,7 @@ CONTACTS_MAPPER={
 DISTRI_MAPPER={
     'ui_id':'id',
     'name':'name',
-    'discount':'discount',
-    'rebate_type':'rebate_type',
-    'minimum_thershold':'minimum_thershold',
+    'discounts':'discounts',
     'created_at':'distributor_created_at'
 }
 
@@ -76,11 +74,7 @@ ORDERS_MAPPER={
     'last_order_date':'last_order_activation_date',
     'last_order_expiry_date':'last_order_expiry_date',
     'order_created_at':'order_created_at',
-
-    'invoice_date': 'invoice_date',
-    'invoice_number': 'invoice_number',
-    'invoice_status': 'invoice_status',
-    'payment_status': 'payment_status',
+    'status_info':'status_info',
     'payment_terms': 'payment_terms',
     'purchase_type': 'purchase_type',
     'renewal_type': 'renewal_type',

@@ -120,7 +120,7 @@ class DistributorsRepo(BaseRepoModel):
             total_distributors=(await self.session.execute(
                 select(func.count(Distributors.id)).where(Distributors.is_deleted==False)
             )).scalar_one_or_none()
-
+        
         return {
             'distributors':queried_distri,
             'total_distributors':total_distributors,

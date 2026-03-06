@@ -4,6 +4,7 @@ from openpyxl import Workbook
 from openpyxl.utils.dataframe import dataframe_to_rows
 from pathlib import Path
 from icecream import ic
+import json
 
 
 def init_excel(sheet_name: str):
@@ -18,9 +19,9 @@ def append_excel_rows(ws, datas: list, write_header: bool):
 
     df = pd.DataFrame(datas)
 
-    for row in dataframe_to_rows(
-        df,
-        index=False,
-        header=write_header
-    ):
+    df = df.map(
+        lambda x: json.dumps(x) if isinstance(x, (dict, list)) else x
+    )
+
+    for row in dataframe_to_rows(df, index=False, header=write_header):
         ws.append(row)
