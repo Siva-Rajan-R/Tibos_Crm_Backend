@@ -1,12 +1,13 @@
 from sqlalchemy.ext.asyncio import AsyncSession
 from typing import Optional
 from infras.primary_db.models.order import Orders,OrdersPaymentInvoiceInfo
+from infras.primary_db.models.user import Users
 from infras.primary_db.services.order_service import OrdersService,OrdersRepo
 from infras.primary_db.models.product import Products
 from infras.primary_db.models.distributor import Distributors
 from infras.primary_db.models.customer import Customers
 from datetime import datetime,date
-from sqlalchemy import select,func,case,cast,Numeric,Date
+from sqlalchemy import select,func,case,cast,Numeric,Date,and_
 from typing import Optional
 from icecream import ic
 from core.data_formats.enums.user_enums import UserRoles
@@ -52,45 +53,77 @@ class HandleDashboardRequest:
     async def get_dashboard(self,from_date:Optional[date]=None,to_date:Optional[date]=None,timezone: Optional[str]="Asia/Kolkata"):
         # day_expr = func.date(func.timezone(timezone, Orders.delivery_info['requested_date']))
         day_expr = cast(
-        Orders.delivery_info["delivery_date"].astext,
-        Date
-    ).label("day")
+            Orders.delivery_info["delivery_date"].astext,
+            Date
+        ).label("day")
         
+        payment_subq = (
+            select(
+                OrdersPaymentInvoiceInfo.order_id,
+
+                # detect pending invoice per order
+                func.bool_or(
+                    OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.INCOMPLETED.value
+                ).label("has_pending_invoice"),
+
+                # detect pending payment per order
+                func.bool_or(
+                    and_(
+                        OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.PAID.value,
+                        OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.FULL_PAYMENT_RECEIVED.value
+                    )
+                ).label("has_pending_due")
+            )
+            .group_by(OrdersPaymentInvoiceInfo.order_id)
+            .subquery()
+        )
+
+
         stmt = (
             select(
-                day_expr,
-                func.count(Orders.id).label("total_orders"),
 
+                func.count(Orders.id).label("total_orders"),
+                day_expr.label("day"),
                 func.count().filter(
-                    OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.NOT_PAID.value
+                    payment_subq.c.has_pending_due
                 ).label("pending_dues"),
 
                 func.count().filter(
-                    OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.INCOMPLETED.value
+                    payment_subq.c.has_pending_invoice
                 ).label("pending_invoices"),
 
-                func.round(func.coalesce(func.sum(profit_loss_price), 0)).label("total_revenue"),
-                func.round(func.sum(customer_final_price)).label("order_value")
+                func.round(
+                    func.coalesce(func.sum(profit_loss_price), 0)
+                ).label("total_revenue"),
+
+                func.round(
+                    func.coalesce(func.sum(customer_final_price), 0)
+                ).label("order_value"),
             )
+
+            .select_from(Orders)
+
+            .join(payment_subq, payment_subq.c.order_id == Orders.id, isouter=True)
+
             .join(Products, Products.id == Orders.product_id, isouter=True)
-            .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
             .join(Customers, Customers.id == Orders.customer_id, isouter=True)
-
-            # THIS JOIN IS REQUIRED
-            .join(
-                OrdersPaymentInvoiceInfo,
-                OrdersPaymentInvoiceInfo.order_id == Orders.id,
-                isouter=True
-            )
-
+            .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
+            .join(Users, Users.id == Orders.deleted_by, isouter=True)
             .where(Orders.is_deleted == False)
             .group_by(day_expr)
-            .order_by(day_expr)
         )
 
-        datas=(await self.session.execute(stmt)).mappings().all()
-        ic(datas)
-        return{'dashboard_datas':datas}
+
+        if from_date and to_date:
+            stmt=stmt.where(and_(day_expr>=from_date),day_expr<=to_date)
+    
+        result = await self.session.execute(stmt)
+
+        dashboard = result.mappings().all()
+
+        return {
+            "dashboard_datas": dashboard
+        }
     
 
     async def get_distri_dashboard(self,from_date:Optional[date]=None,to_date:Optional[date]=None,timezone: Optional[str]="Asia/Kolkata"):

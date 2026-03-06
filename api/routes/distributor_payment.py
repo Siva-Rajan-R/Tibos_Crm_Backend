@@ -19,34 +19,34 @@ router=APIRouter(tags=['Distributors Payments'],prefix='/distributor-payments')
 
 @router.post('')
 async def add(data:AddDistributorPaymentSchema,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
-    return await HandleDistributorPaymentRequest(session=session,user_role=user['role'],cur_user_id=['id']).add(data=data)
+    return await HandleDistributorPaymentRequest(session=session,user_role=user['role'],cur_user_id=user['id']).add(data=data)
 
 @router.put('')
 async def update(data:UpdateDistributorPaymentSchema,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
-    return await HandleDistributorPaymentRequest(session=session,user_role=user['role'],cur_user_id=['id']).update(data=data)
+    return await HandleDistributorPaymentRequest(session=session,user_role=user['role'],cur_user_id=user['id']).update(data=data)
 
 
 @router.delete('/{distributor_payment_id}')
-async def delete(distributor_payment_id:int,soft_delete:bool=Query(False),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
-    return await HandleDistributorPaymentRequest(session=session,user_role=user['role'],cur_user_id=['id']).delete(distri_payment_id=distributor_payment_id,soft_delete=soft_delete)
+async def delete(distributor_payment_id:int,soft_delete:bool=Query(True),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+    return await HandleDistributorPaymentRequest(session=session,user_role=user['role'],cur_user_id=user['id']).delete(distri_payment_id=distributor_payment_id,soft_delete=soft_delete)
 
 @router.put("/recover")
 async def recover(data:RecoverDistributorPayment,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
-    return await HandleDistributorPaymentRequest(session=session,user_role=user['role'],cur_user_id=['id']).recover(distri_payment_id=data.distributor_payment_id)
+    return await HandleDistributorPaymentRequest(session=session,user_role=user['role'],cur_user_id=user['id']).recover(distri_payment_id=data.distributor_payment_id)
     
 
 @router.get("")
 async def get(cursor:int=Query(1),limit:int=Query(10),query:str=Query(""),include_deleted:bool=False,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
-    return await HandleDistributorPaymentRequest(session=session,user_role=user['role'],cur_user_id=['id']).get(cursor=cursor,limit=limit,query=query,include_deleted=include_deleted)
+    return await HandleDistributorPaymentRequest(session=session,user_role=user['role'],cur_user_id=user['id']).get(cursor=cursor,limit=limit,query=query,include_deleted=include_deleted)
 
 
 @router.get('/search')
 async def search(query:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
-    return await HandleDistributorPaymentRequest(session=session,user_role=user['role'],cur_user_id=['id']).search(query=query)
+    return await HandleDistributorPaymentRequest(session=session,user_role=user['role'],cur_user_id=user['id']).search(query=query)
 
 
 @router.get('/{distributor_payment_id}')    
 async def get_by_id(distributor_payment_id:int,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
-    return await HandleDistributorPaymentRequest(session=session,user_role=user['role'],cur_user_id=['id']).get_by_id(distributor_payment_id=distributor_payment_id)
+    return await HandleDistributorPaymentRequest(session=session,user_role=user['role'],cur_user_id=user['id']).get_by_id(distributor_payment_id=distributor_payment_id)
 
 

@@ -1,4 +1,4 @@
-from infras.primary_db.services import customer_service,contact_service,user_service,product_service,lead_service,opportunity_service,distri_service,order_service
+from infras.primary_db.services import customer_service,contact_service,user_service,product_service,lead_service,opportunity_service,distri_service,order_service,distributor_payment_service
 from sqlalchemy.ext.asyncio import AsyncSession
 from core.data_formats.enums.user_enums import UserRoles
 from schemas.request_schemas.order import OrderFilterSchema
@@ -18,6 +18,7 @@ class HandleRecycleBinRequests:
         opportunities=await opportunity_service.OpportunitiesService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True,cursor=cursor)
         distributors=await distri_service.DistributorService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True,cursor=cursor)
         orders=await order_service.OrdersService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True,cursor=cursor,filter=OrderFilterSchema())
+        distributor_payments=await distributor_payment_service.DistributorsPaymentsService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True,cursor=cursor,limit=limit)
 
         return [
             {
@@ -28,6 +29,7 @@ class HandleRecycleBinRequests:
                 'leads':leads['leads'],
                 'opportunities':opportunities['opportunities'],
                 'distributors':distributors['distributors'],
-                'orders':orders['orders']
+                'orders':orders['orders'],
+                'distributor_payments':distributor_payments['distributors_payments']
             }
         ]

@@ -409,7 +409,7 @@ class OrdersRepo(BaseRepoModel):
             ).scalar_one_or_none()
             pending_dues=(
                 await self.session.execute(
-                    select(func.count().filter(OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.NOT_PAID.value).label("pending_dues"))
+                    select(func.count().filter(and_(OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.PAID.value,OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.FULL_PAYMENT_RECEIVED.value)).label("pending_dues"))
                     .select_from(Orders)
                     .join(OrdersPaymentInvoiceInfo,OrdersPaymentInvoiceInfo.order_id==Orders.id,isouter=True)
                     .join(Products, Products.id == Orders.product_id, isouter=True)
@@ -423,14 +423,39 @@ class OrdersRepo(BaseRepoModel):
                 )
             ).scalar_one_or_none()
 
-            paid_per_order = (
+            payment_subq = (
                 select(
                     OrdersPaymentInvoiceInfo.order_id,
-                    func.coalesce(func.sum(OrdersPaymentInvoiceInfo.paid_amount), 0).label('total_paid')
+                    func.sum(func.coalesce(OrdersPaymentInvoiceInfo.paid_amount, 0)).label("paid_total")
                 )
                 .group_by(OrdersPaymentInvoiceInfo.order_id)
                 .subquery()
             )
+
+            customer_price = (Orders.unit_price * Orders.quantity)
+
+            query = (
+                select(
+                    func.sum(
+                        func.round(customer_price * 1.18) -
+                        func.coalesce(payment_subq.c.paid_total, 0)
+                    ).label("total_due")
+                ).outerjoin(
+                    payment_subq, payment_subq.c.order_id == Orders.id
+                )
+                .join(OrdersPaymentInvoiceInfo,OrdersPaymentInvoiceInfo.order_id==Orders.id,isouter=True)
+                .join(Products, Products.id == Orders.product_id, isouter=True)
+                .join(Customers, Customers.id == Orders.customer_id, isouter=True)
+                .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
+                .join(Users, Users.id == Orders.deleted_by, isouter=True)
+                .where(*conditions, *filters, Orders.is_deleted == False)
+                .where(date_filter_condition if date_filter_condition is not None else true())
+                .where(revenue_filter_condition if revenue_filter_condition is not None else true())
+                .where(and_(OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.PAID.value,OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.FULL_PAYMENT_RECEIVED.value))
+            )
+
+            result = await self.session.execute(query)
+            total_due = result.scalar()
         #     pending_amounts = (
         #     await self.session.execute(
         #         select(
@@ -451,7 +476,7 @@ class OrdersRepo(BaseRepoModel):
         #     )
         # ).scalar_one_or_none()
 
-        ic(total_orders,limit,total_revenue,order_value)
+        ic(total_orders,limit,total_revenue,order_value,total_due)
         ic("Hi",func.round(order_value,0))
 
         return {
@@ -462,7 +487,7 @@ class OrdersRepo(BaseRepoModel):
             'order_value':round(order_value,0) if order_value else 0,
             'pending_invoice':pending_invoice,
             'pending_dues':pending_dues,
-            'pending_amounts':pending_amounts,
+            'pending_amounts':total_due,
             'next_cursor':queried_orders[-1]['sequence_id'] if len(queried_orders)>0 else None
         }
     
