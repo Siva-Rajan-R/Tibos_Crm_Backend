@@ -29,8 +29,8 @@ from core.utils.calculations import get_customer_price
 
 import pandas as pd
 from schemas.request_schemas.order import OrderFilterSchema
-from core.utils.calculations import get_distributor_price,get_remaining_days
-from core.data_formats.typed_dicts.order_typdict import DeliveryInfo,StatusInfo,LogisticsInfo
+from core.utils.calculations import get_distributor_price,get_remaining_days,get_customer_addon_price
+from core.data_formats.typed_dicts.order_typdict import DeliveryInfo,StatusInfo,LogisticsInfo,InvoiceStatus,PaymentStatus,PurchaseTypes
 import json
 from datetime import datetime
 from pathlib import Path
@@ -177,7 +177,7 @@ class OrdersService(BaseServiceModel):
         cur_uiid=generate_ui_id(prefix=LUI_ID_ORDER_PREFIX,last_id=lui_id)
         return await order_obj.add(data=AddOrderDbSchema(**data_toadd,id=order_id,ui_id=cur_uiid))
     
-    @catch_errors
+    # @catch_errors
     async def add_bulk(self,datas:List[dict]):
         skipped_items=[]
         datas_toadd=[]
@@ -190,16 +190,19 @@ class OrdersService(BaseServiceModel):
             
             cust_exists=await CustomersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(customer_id=data['customer_id'])
             if not cust_exists['customer'] or len(cust_exists['customer'])<1:
+                data['reason']="Customer id not Found"
                 skipped_items.append(data)
                 continue
             
             prod_exists=await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(product_id=data['product_id'])
             if not prod_exists['product'] or len(prod_exists['product'])<1:
+                data['reason']="Product id not found"
                 skipped_items.append(data)
                 continue
             
             distri_exists=await DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(distributor_id=data['distributor_id'])
             if not distri_exists['distributors'] or len(distri_exists['distributors'])<1:
+                data['reason']="Distributor Not FOund"
                 skipped_items.append(data)
                 continue
             # ic("Hii da mapla")
@@ -228,6 +231,7 @@ class OrdersService(BaseServiceModel):
             data['converted_discounts']=converted_discounts
             data['existing_discounts']=existing_discounts
             if discount_id is None:
+                data['reason']="Discount mistmatched"
                 skipped_items.append(data)
                 continue
 
@@ -262,8 +266,31 @@ class OrdersService(BaseServiceModel):
             if invoice_date:
                 data['status_info']['invoice_date']=invoice_date
             
-            paid_amount=get_customer_price(customer_price=data['unit_price'],qty=data['quantity']).get('with_gst')
-            ic(paid_amount)
+            paid_amount=0
+            ic(data['status_info'])
+            if  data['status_info']['invoice_status']==InvoiceStatus.COMPLETED.value and data['status_info']['payment_status']==PaymentStatus.FULL_PAYMENT_RECEIVED.value:
+                if data['purchase_type']!=PurchaseTypes.EXISTING_ADD_ON.value:
+                    paid_amount=get_customer_price(customer_price=data['unit_price'],qty=data['quantity']).get('with_gst')
+                    ic(paid_amount)
+
+                elif data['purchase_type']==PurchaseTypes.EXISTING_ADD_ON.value:
+                    last_order=(await orders_obj.get_last_order(customer_id=data['customer_id'],product_id=data['product_id']))
+                    if not last_order['last_order'] or len(last_order['last_order'])<1:
+                        data['reason']="This customer+Product doesn't have on order"
+                        skipped_items.append(data)
+                        continue
+                    expiry_date=last_order['last_order']['expiry_date']
+                    remaining_days=get_remaining_days(from_date=expiry_date,to_date=data['delivery_info']['delivery_date'])
+                    if remaining_days>365:
+                        data['last_order']=last_order
+                        data['remaing_days']=remaining_days
+                        data['reason']="Date excedding >365"
+                        skipped_items.append(data)
+                        continue
+                    
+                    data['unit_price']=last_order['last_order']['unit_price']
+                    paid_amount=get_customer_addon_price(customer_price=data['unit_price'],qty=data['quantity'],expiry_date=expiry_date,delivery_date=data['delivery_info']['delivery_date']).get("with_gst")
+
             data['status_info']['paid_amount']=round(paid_amount)
 
             data['logistic_info']=LogisticsInfo(
@@ -291,6 +318,7 @@ class OrdersService(BaseServiceModel):
                 formatted_schema=AddOrderDbSchema(**data,id=order_id,ui_id=cur_uiid).model_dump(mode='json',exclude_unset=True,exclude_none=True,exclude=['status_info'])
                 datas_toadd.append(Orders(**formatted_schema))
             else:
+                data['reason']="Yearly Yearly bill only Allowed"
                 skipped_items.append(data)
 
 

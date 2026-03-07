@@ -89,7 +89,7 @@ class HandleOrdersRequest:
             )
         )
     
-    @catch_errors
+    # @catch_errors
     async def add_bulk(self,type:ImportExportTypeEnum,file:UploadFile):
         if type.value==ImportExportTypeEnum.EXCEL.value:
             datas_toadd=extract_excel_data(excel_file=file.file,headings_mapper=ORDERS_MAPPER)
