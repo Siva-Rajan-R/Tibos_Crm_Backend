@@ -68,6 +68,8 @@ class OrdersRepo(BaseRepoModel):
             Orders.customer_id,
             Orders.product_id,
             Orders.distributor_id,
+            Orders.activated,
+            Orders.additional_price,
             Distributors.ui_id.label('distributor_ui_id'),
             Distributors.name.label("distributor_name"),
             Orders.discount_id,
@@ -220,6 +222,7 @@ class OrdersRepo(BaseRepoModel):
         total_orders_condition=[]
         filters=[]
         filter_mapper={
+            'activation_status':Orders.activated,
             'distributor_id':Distributors.id,
             'payment_status':OrdersPaymentInvoiceInfo.payment_status,
             'invoice_status':OrdersPaymentInvoiceInfo.invoice_status,

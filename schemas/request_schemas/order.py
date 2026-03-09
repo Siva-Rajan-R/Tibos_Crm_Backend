@@ -11,7 +11,9 @@ class AddOrderSchema(BaseModel):
     distributor_id:str
     discount_id:str
     quantity:int
+    activated:bool
     additional_discount:str
+    additional_price:Optional[int]=None
     unit_price:float
     delivery_info:DeliveryInfo
     status_info:List[StatusInfo]
@@ -24,6 +26,8 @@ class UpdateOrderSchema(BaseModel):
     order_id:str
     customer_id:str
     product_id:str
+    activated:Optional[bool]=None
+    additional_price:Optional[int]=None
     unit_price:Optional[float]=None
     distributor_id:Optional[str]=None
     discount_id:Optional[str]=None
@@ -46,6 +50,7 @@ class OrderFilterSchema(BaseModel):
     invoice_status:Optional[Union[str,InvoiceStatus,None]]=None
     purchase_type:Optional[Union[str,PurchaseTypes,None]]=None
     renewal_type:Optional[Union[str,RenewalTypes,None]]=None
+    activation_status:Optional[Union[bool,None]]=None
     distributor_type:Optional[Union[str,DistributorType,None]]=None
     distributor_id:Optional[str]=None
     revenue_type:Optional[Union[str,OrderFilterRevenueEnum,None]]=None
