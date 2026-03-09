@@ -39,7 +39,7 @@ class DistributorService(BaseServiceModel):
             ic(discount)
             if discount is None:
                 break
-            filterd_set.add(f"{i.get('rebate_type').value}-{discount}")
+            filterd_set.add(f"{i.get('rebate_type')}-{discount}")
             ic(filterd_set)
 
         if len(filterd_set)!=len(data.discounts):
@@ -78,14 +78,14 @@ class DistributorService(BaseServiceModel):
         ic(skipped_items,datas_toadd)
         return await distri_obj.add_bulk(datas=datas_toadd,lui_id=lui_id)
         
-    @catch_errors  
+  
     async def update(self,data:UpdateDistriSchema):
         filterd_set=set()
         for i in data.discounts:
             discount=validate_discount(i.get('discount'))
             if discount is None:
                 break
-            filterd_set.add(f"{i.get('rebate_type').value}-{discount}")
+            filterd_set.add(f"{i.get('rebate_type')}-{discount}")
             
         if len(filterd_set)!=len(data.discounts):
             return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Distributor",description="Multiple same discount format was found")

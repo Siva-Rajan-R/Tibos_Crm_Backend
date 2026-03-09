@@ -368,6 +368,11 @@ class OrdersService(BaseServiceModel):
         return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(cursor=cursor,limit=limit,query=query,include_deleted=include_deleted,filter=filter)
     
     @catch_errors
+    async def test(self,cursor:int=1,limit:int=10,query:str='',include_deleted:Optional[bool]=False):
+        ic("Inside get order service")
+        return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).test(cursor=cursor,limit=limit,query=query,include_deleted=include_deleted)
+    
+    @catch_errors
     async def search(self,query:str):
         return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).search(query=query)
 

@@ -33,6 +33,33 @@ class OrdersRepo(BaseRepoModel):
         self.session=session
         self.user_role=user_role
         self.cur_user_id=cur_user_id
+        self.subquery=(
+                select(
+                    OrdersPaymentInvoiceInfo.order_id,
+
+                    func.coalesce(
+                        func.jsonb_agg(
+                            func.jsonb_build_object(
+                                "invoice_number", OrdersPaymentInvoiceInfo.invoice_number,
+                                "invoice_date", OrdersPaymentInvoiceInfo.invoice_date,
+                                "invoice_status", OrdersPaymentInvoiceInfo.invoice_status,
+                                "payment_status", OrdersPaymentInvoiceInfo.payment_status,
+                                "paid_amount", OrdersPaymentInvoiceInfo.paid_amount
+                            )
+                        ).filter(OrdersPaymentInvoiceInfo.id.isnot(None)),
+                        func.cast("[]", JSONB)
+                    ).label("status_info"),
+
+                    func.coalesce(
+                        func.sum(OrdersPaymentInvoiceInfo.paid_amount), 0
+                    ).label("total_paid_amount"),
+                    
+
+
+                )
+                .group_by(OrdersPaymentInvoiceInfo.order_id)
+                .subquery()
+            )
         self.orders_cols=(
             Orders.id,
             Orders.ui_id,
@@ -47,18 +74,6 @@ class OrdersRepo(BaseRepoModel):
             Orders.quantity,
             Orders.delivery_info,
             Orders.logistic_info,
-            func.coalesce(
-            func.jsonb_agg(
-                func.jsonb_build_object(
-                    "invoice_number", OrdersPaymentInvoiceInfo.invoice_number,
-                    "invoice_date", OrdersPaymentInvoiceInfo.invoice_date,
-                    "invoice_status", OrdersPaymentInvoiceInfo.invoice_status,
-                    "payment_status", OrdersPaymentInvoiceInfo.payment_status,
-                    "paid_amount", OrdersPaymentInvoiceInfo.paid_amount
-                )
-            ).filter(OrdersPaymentInvoiceInfo.id.isnot(None)),
-            func.cast("[]", JSONB)
-        ).label("status_info"),
             Products.name.label('product_name'),
             Products.product_type,
             Products.description,
@@ -79,10 +94,10 @@ class OrdersRepo(BaseRepoModel):
             distri_additi_price.label("distri_additi_price"),
             remaining_days.label("remaining_days"),
             last_order_delivery_date.label("last_order_date"),
-            pending_amount.label("pending_amount"),
-            total_paid_amount.label("total_paid_amount"),
             customer_amount_with_gst.label('customer_amount_with_gst'),
-            func.date(expiry_date).label("last_order_expiry_date")
+            func.date(expiry_date).label("last_order_expiry_date"),
+            self.subquery.c.status_info,
+            self.subquery.c.total_paid_amount,
 
         )
 
@@ -205,6 +220,7 @@ class OrdersRepo(BaseRepoModel):
         total_orders_condition=[]
         filters=[]
         filter_mapper={
+            'distributor_id':Distributors.id,
             'payment_status':OrdersPaymentInvoiceInfo.payment_status,
             'invoice_status':OrdersPaymentInvoiceInfo.invoice_status,
             'purchase_type':Orders.logistic_info['purchase_type'].astext,
@@ -256,30 +272,22 @@ class OrdersRepo(BaseRepoModel):
 
         ic(filters)
         orders_toquery = (
-                select(
-                    *cols,
-                    date_expr.label("order_created_at")
-                )
-                .join(OrdersPaymentInvoiceInfo,OrdersPaymentInvoiceInfo.order_id==Orders.id,isouter=True)
-                .join(Products, Products.id == Orders.product_id, isouter=True)
-                .join(Customers, Customers.id == Orders.customer_id, isouter=True)
-                .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
-                .join(Users, Users.id == Orders.deleted_by, isouter=True)
-                .where(
-                    *conditions,
-                    *filters,
-                    Orders.sequence_id>cursor
-                )
-                .limit(limit)
-                .order_by(Orders.sequence_id.asc())
-                .group_by(
-                    Orders.id,
-                    OrdersPaymentInvoiceInfo.order_id,
-                    Products.id,
-                    Users.id,
-                    Customers.id,
-                    Distributors.id
-                )
+            select(
+                *cols,
+                date_expr.label("order_created_at")
+            )
+            .join(self.subquery, self.subquery.c.order_id == Orders.id, isouter=True)
+            .join(Products,Products.id==Orders.product_id,isouter=True)
+            .join(Customers,Customers.id==Orders.customer_id,isouter=True)
+            .join(Distributors,Distributors.id==Orders.distributor_id,isouter=True)
+            .join(OrdersPaymentInvoiceInfo, OrdersPaymentInvoiceInfo.order_id == Orders.id,isouter=True)
+            .where(
+                *conditions,
+                *filters,
+                Orders.sequence_id>cursor
+            )
+            .limit(limit)
+            .order_by(Orders.sequence_id.asc())
 
         )
 
@@ -450,18 +458,11 @@ class OrdersRepo(BaseRepoModel):
                 date_expr.label("order_created_at"), 
                 Customers.email.label('customer_email')
             )
-            .join(OrdersPaymentInvoiceInfo,OrdersPaymentInvoiceInfo.order_id==Orders.id,isouter=True)
+            .join(self.subquery, self.subquery.c.order_id == Orders.id, isouter=True)
             .join(Products,Products.id==Orders.product_id,isouter=True)
             .join(Customers,Customers.id==Orders.customer_id,isouter=True)
             .join(Distributors,Distributors.id==Orders.distributor_id,isouter=True) 
             .where(or_(Orders.id==order_id,Orders.ui_id==order_id),Orders.is_deleted==False)
-            .group_by(
-                Orders.id,
-                OrdersPaymentInvoiceInfo.order_id,
-                Products.id,
-                Customers.id,
-                Distributors.id
-            )
         )).mappings().one_or_none()
 
         return {'order':queried_orders}
@@ -475,86 +476,59 @@ class OrdersRepo(BaseRepoModel):
                 *self.orders_cols,
                 date_expr.label("order_created_at")   
             )
+            .join(self.subquery, self.subquery.c.order_id == Orders.id, isouter=True)
             .join(Products,Products.id==Orders.product_id,isouter=True)
             .join(Customers,Customers.id==Orders.customer_id,isouter=True)
-            .join(Distributors,Distributors.id==Orders.distributor_id,isouter=True) 
+            .join(Distributors,Distributors.id==Orders.distributor_id,isouter=True)
             .where(Orders.customer_id==customer_id,Orders.sequence_id>cursor,Orders.is_deleted==False)
-            .group_by(
-                    Orders.id,
-                    OrdersPaymentInvoiceInfo.order_id,
-                    Products.id,
-                    Customers.id,
-                    Distributors.id
-                )
+
             .limit(limit)
         )).mappings().all()
 
-        total_orders:int=0
-        total_revenue=0
-        order_value=0
-        pending_dues=0
-        pending_invoice=0
+        orders_infos={}
         ic(cursor)
         if cursor==0:
-            total_revenue=(await self.session.execute(
-                select(func.coalesce(func.sum(profit_loss_price), 0))
-                .join(Products,Products.id==Orders.product_id,isouter=True)
-                .join(Customers,Customers.id==Orders.customer_id,isouter=True)
-                .join(Distributors,Distributors.id==Orders.distributor_id,isouter=True)
-                .where(Orders.is_deleted==False,Orders.customer_id==customer_id)
-            )).scalar()
-            ic(total_revenue)
-            
-            total_orders=(await self.session.execute(
-                select(func.count(Orders.id))
-                .join(Products,Products.id==Orders.product_id,isouter=True)
-                .join(Customers,Customers.id==Orders.customer_id,isouter=True)
-                .join(Distributors,Distributors.id==Orders.distributor_id,isouter=True)
-                .where(Orders.is_deleted==False,Orders.customer_id==customer_id)
-            )).scalar_one_or_none()
-
-            order_value=(await self.session.execute(
-                select(func.sum(customer_final_price))
-                .join(Products,Products.id==Orders.product_id,isouter=True)
-                .join(Customers,Customers.id==Orders.customer_id,isouter=True)
-                .join(Distributors,Distributors.id==Orders.distributor_id,isouter=True)
-                .where(Orders.is_deleted==False,Orders.customer_id==customer_id)
-                
-            )).scalar()
-
-            pending_invoice=(
-                await self.session.execute(
-                    select(
-                        func.count().filter(OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.INCOMPLETED.value).label("pending_invoices")
-                    )
-                    .join(Products,Products.id==Orders.product_id,isouter=True)
-                    .join(Customers,Customers.id==Orders.customer_id,isouter=True)
-                    .join(Distributors,Distributors.id==Orders.distributor_id,isouter=True)
-                    .where(Orders.is_deleted==False,Orders.customer_id==customer_id)
+            payment_subq = (
+                select(
+                    OrdersPaymentInvoiceInfo.order_id,
+                    func.sum(func.coalesce(OrdersPaymentInvoiceInfo.paid_amount, 0)).label("paid_total")
                 )
-            ).scalar_one_or_none()
-            pending_dues=(
-                await self.session.execute(
-                    select(func.count().filter(OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.NOT_PAID.value).label("pending_dues"))
-                    .join(Products,Products.id==Orders.product_id,isouter=True)
-                    .join(Customers,Customers.id==Orders.customer_id,isouter=True)
-                    .join(Distributors,Distributors.id==Orders.distributor_id,isouter=True)
-                    .where(Orders.is_deleted==False,Orders.customer_id==customer_id)
-                )
-            ).scalar_one_or_none()
+                .group_by(OrdersPaymentInvoiceInfo.order_id)
+                .subquery()
+            )
 
-        ic(total_orders,limit,total_revenue,order_value)
-        ic("Hi",func.round(order_value,0))
+            customer_price = (Orders.unit_price * Orders.quantity)
+
+            orders_infos=(await self.session.execute(
+                select(
+                    func.sum(
+                        func.round(customer_price * 1.18) -
+                        func.coalesce(payment_subq.c.paid_total, 0)
+                    ).filter(and_(OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.PAID.value,OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.FULL_PAYMENT_RECEIVED.value)).label("pending_amounts"),
+                    func.sum(func.distinct(profit_loss_price)).label("total_revenue"),
+                    func.count(func.distinct(Orders.id)).label("total_orders"),
+                    func.sum(func.distinct(customer_final_price)).label("order_value"),
+                    func.count(func.distinct(OrdersPaymentInvoiceInfo.id)).filter(OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.INCOMPLETED.value).label("pending_invoice"),
+                    func.count().filter(and_(OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.PAID.value,OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.FULL_PAYMENT_RECEIVED.value)).label("pending_dues")
+                )
+                .outerjoin(
+                    payment_subq, payment_subq.c.order_id == Orders.id
+                )
+                .join(OrdersPaymentInvoiceInfo,OrdersPaymentInvoiceInfo.order_id==Orders.id,isouter=True)
+                .join(Products, Products.id == Orders.product_id, isouter=True)
+                .join(Customers, Customers.id == Orders.customer_id, isouter=True)
+                .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
+                .join(Users, Users.id == Orders.deleted_by, isouter=True)
+                .where(Orders.customer_id==customer_id,Orders.is_deleted==False)
+            )).mappings().one_or_none()
+
+        ic(orders_infos)
         ic(queried_orders)
 
         return {
+            **orders_infos,
             'orders':queried_orders,
-            'total_orders':total_orders,
-            'total_pages':ceil(total_orders/limit),
-            'total_revenue':round(total_revenue) if total_revenue else 0,
-            'order_value':round(order_value,0) if order_value else 0,
-            'pending_invoice':pending_invoice,
-            'pending_dues':pending_dues,
+            'total_pages':ceil(orders_infos.get('total_orders',0)/limit),
             'next_cursor':queried_orders[-1]['sequence_id'] if len(queried_orders)>0 else None
         }
     
@@ -584,6 +558,113 @@ class OrdersRepo(BaseRepoModel):
         
         last_ord=(await self.session.execute(last_ord_stmt)).mappings().one_or_none()
         return {'last_order':{**last_ord,'expiry_date':last_ord['last_date']+timedelta(days=DEFAULT_ADDON_YEAR+1)}if last_ord else last_ord}
+    
+
+    async def test(self,cursor:int=1,limit:int=10,query:str='',include_deleted:Optional[bool]=False):
+        payment_subq = (
+                select(
+                    OrdersPaymentInvoiceInfo.order_id,
+
+                    func.coalesce(
+                        func.jsonb_agg(
+                            func.jsonb_build_object(
+                                "invoice_number", OrdersPaymentInvoiceInfo.invoice_number,
+                                "invoice_date", OrdersPaymentInvoiceInfo.invoice_date,
+                                "invoice_status", OrdersPaymentInvoiceInfo.invoice_status,
+                                "payment_status", OrdersPaymentInvoiceInfo.payment_status,
+                                "paid_amount", OrdersPaymentInvoiceInfo.paid_amount
+                            )
+                        ).filter(OrdersPaymentInvoiceInfo.id.isnot(None)),
+                        func.cast("[]", JSONB)
+                    ).label("status_info"),
+
+                    func.coalesce(
+                        func.sum(OrdersPaymentInvoiceInfo.paid_amount), 0
+                    ).label("total_paid_amount")
+
+                )
+                .group_by(OrdersPaymentInvoiceInfo.order_id)
+                .subquery()
+            )
+        result=(await self.session.execute(
+            select(
+                Orders.id,
+                Orders.ui_id,
+                Orders.additional_discount,
+                Orders.sequence_id,
+                Orders.customer_id,
+                Orders.product_id,
+                Orders.distributor_id,
+                Distributors.ui_id.label('distributor_ui_id'),
+                Distributors.name.label("distributor_name"),
+                Orders.discount_id,
+                Orders.quantity,
+                Orders.delivery_info,
+                Orders.logistic_info,Products.name.label('product_name'),
+                Products.product_type,
+                Products.description,
+                Products.price.label('product_price'),
+                Customers.name.label('customer_name'),
+                Customers.mobile_number,
+                Distributors.name.label('distributor_name'),
+                distri_discount.label('distributor_discount'),
+                Orders.unit_price,
+                Orders.vendor_commision,
+                payment_subq.c.status_info,
+                payment_subq.c.total_paid_amount,
+                customer_final_price.label('customer_price'),
+                distri_final_price.label('distributor_price'),
+                profit_loss_price.label('profit_loss'),
+                customer_tot_price.label("customer_total_price"),
+                distributor_tot_price.label("distributor_total_price"),
+                vendor_disc_price.label("vendor_total_price"),
+                distri_disc_price.label("distri_discount_price"),
+                distri_additi_price.label("distri_additi_price"),
+                remaining_days.label("remaining_days"),
+                last_order_delivery_date.label("last_order_date"),
+                customer_amount_with_gst.label('customer_amount_with_gst'),
+                func.date(expiry_date).label("last_order_expiry_date")
+            )
+            .limit(limit=limit)
+            .join(payment_subq, payment_subq.c.order_id == Orders.id, isouter=True)
+            .join(Products,Products.id==Orders.product_id,isouter=True)
+            .join(Customers,Customers.id==Orders.customer_id,isouter=True)
+            .join(Distributors,Distributors.id==Orders.distributor_id,isouter=True)
+        )
+        
+        ).mappings().all()
+        # payment_subq = (
+        #         select(
+        #             OrdersPaymentInvoiceInfo.order_id,
+        #             func.sum(func.coalesce(OrdersPaymentInvoiceInfo.paid_amount, 0)).label("paid_total")
+        #         )
+        #         .group_by(OrdersPaymentInvoiceInfo.order_id)
+        #         .subquery()
+        #     )
+        
+        # customer_price = (Orders.unit_price * Orders.quantity)
+        # orders_infos=(await self.session.execute(
+        #         select(
+        #             func.sum(
+        #                 func.round(customer_price * 1.18) -
+        #                 func.coalesce(payment_subq.c.paid_total, 0)
+        #             ).filter(and_(OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.PAID.value,OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.FULL_PAYMENT_RECEIVED.value)).label("pending_amounts"),
+        #             func.sum(func.distinct(profit_loss_price)).label("total_revenue"),
+        #             func.count(func.distinct(Orders.id)).label("total_orders"),
+        #             func.sum(func.distinct(customer_final_price)).label("order_value"),
+        #             func.count(func.distinct(OrdersPaymentInvoiceInfo.id)).filter(OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.INCOMPLETED.value).label("pending_invoice"),
+        #             func.count().filter(and_(OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.PAID.value,OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.FULL_PAYMENT_RECEIVED.value)).label("pending_dues")
+        #         )
+        #         .outerjoin(
+        #             payment_subq, payment_subq.c.order_id == Orders.id
+        #         )
+        #         .join(OrdersPaymentInvoiceInfo,OrdersPaymentInvoiceInfo.order_id==Orders.id,isouter=True)
+        #         .join(Products, Products.id == Orders.product_id, isouter=True)
+        #         .join(Customers, Customers.id == Orders.customer_id, isouter=True)
+        #         .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
+        #         .join(Users, Users.id == Orders.deleted_by, isouter=True)
+        #     )).mappings().one_or_none()
+        return result
     
 
 

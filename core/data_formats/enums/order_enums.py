@@ -8,7 +8,7 @@ class PaymentTermsEnum(Enum):
 
 
 class PaymentStatus(Enum):
-    PAID ='paid'.upper()
+    PAID="PAID"
     NOT_PAID = "not paid".upper()
     TDS_PENDING="TDS PENDING"
     FULL_PAYMENT_RECEIVED="FULL PAYMENT RECEIVED"

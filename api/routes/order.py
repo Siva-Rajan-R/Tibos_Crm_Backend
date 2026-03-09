@@ -71,6 +71,14 @@ async def delete_order(customer_id:str,order_id:str,user:dict=Depends(verify_use
 
 
 
+@router.get('/testing')
+async def testing(q:str=Query(''),cursor:Optional[int]=Query(1),limit:Optional[int]=Query(10),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+    return await HandleOrdersRequest(
+        session=session,
+        user_role=user['role'],
+        cur_user_id=user['id']
+    ).test(cursor=cursor,limit=limit,query=q)
+
 
 @router.put('/recover')
 async def recover_order(data:RecoverOrderSchema,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):

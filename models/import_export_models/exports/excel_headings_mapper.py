@@ -57,6 +57,7 @@ ORDERS_MAPPER={
     'customer_name':'customer_name',
     'product_id': 'product_id',
     'product_name':'product_name',
+    'product_price':'product_price',
     'distributor_id': 'distributor_id',
     'distributor_name':'distributor_name',
     'discount_id':'discount_id',

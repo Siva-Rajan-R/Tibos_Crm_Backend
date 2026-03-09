@@ -43,7 +43,7 @@ async def api_lifespan(app:FastAPI):
             # await DropDownRepo(session=session).init_dd()
         #     await session.commit()
         await check_redis_health()
-        await redis_client.flushall()
+        # await redis_client.flushall()
         yield
     except Exception as e:
         ic(f"❌ Error At Executing API Lifespan {e}")

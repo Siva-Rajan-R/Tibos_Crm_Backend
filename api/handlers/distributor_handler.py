@@ -39,7 +39,6 @@ class HandleDistributorRequest:
         #         ).model_dump(mode='json')
         #     )
        
-    @catch_errors
     async def add(self,data:CreateDistriSchema):
 
         res = await DistributorService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(data=data)
@@ -111,7 +110,7 @@ class HandleDistributorRequest:
 
 
         
-    @catch_errors  
+      
     async def update(self,data:UpdateDistriSchema):
         res=await DistributorService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=data)
         if not res or isinstance(res,ErrorResponseTypDict):

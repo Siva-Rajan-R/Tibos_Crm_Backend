@@ -17,33 +17,6 @@ from core.data_formats.enums.order_enums import OrderFilterDateByEnum
 from core.utils.calculations import get_customer_addon_price,get_customer_price,get_distri_addon_price,get_distributor_price,get_profit_loss_price,get_remaining_days,get_total_price
 from infras.primary_db.calculations import distri_final_price,customer_final_price,profit_loss_price
 
-
-# vendor_comm_amount = case(
-# (
-#     Orders.vendor_commision.like('%\%%'),
-#     # percentage: (unit_price * quantity) * percent / 100
-#     (
-#         cast(func.coalesce(Orders.unit_price, 0), Numeric) *
-#         cast(func.coalesce(Orders.quantity, 0), Numeric)
-#     )
-#     *
-#     (
-#         cast(func.replace(Orders.vendor_commision, '%', ''), Numeric) / 100
-#     )
-# ),
-# else_=cast(func.coalesce(Orders.vendor_commision, '0'), Numeric)
-# )
-
-# profit_expr = (
-# (cast(func.coalesce(Orders.unit_price, 0), Numeric) *
-# cast(func.coalesce(Orders.quantity, 0), Numeric))
-# -
-# (vendor_comm_amount*cast(func.coalesce(Orders.quantity, 0), Numeric))
-# -
-# cast(func.coalesce(get_distributor_price(product_price=Products.price,qty=Orders.quantity,distri_discount=Distributors.discount,addti_discount=Orders.additional_discount), 0), Numeric)
-# )
-
-
 class HandleDashboardRequest:
     def __init__(self,session:AsyncSession,user_role:UserRoles,cur_user_id:str):
         self.session=session
@@ -54,7 +27,7 @@ class HandleDashboardRequest:
         # day_expr = func.date(func.timezone(timezone, Orders.delivery_info['requested_date']))
         day_expr = cast(
             Orders.delivery_info["delivery_date"].astext,
-            Date
+            Date    
         ).label("day")
         
         payment_subq = (

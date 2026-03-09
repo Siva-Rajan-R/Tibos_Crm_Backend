@@ -79,11 +79,11 @@ distri_additi_price=case(
     (
         Orders.additional_discount.ilike("%\%%"),
         func.round(
-            distri_disc_price
+            distributor_tot_price
             -
             ((cast(func.coalesce(func.replace(Orders.additional_discount,'%',''),'0'),Numeric)/100)
             *
-            distri_disc_price)
+            distributor_tot_price)
         
         )
     ),
@@ -101,12 +101,12 @@ distri_additi_price=case(
 distri_final_price=case(
     (
         Orders.logistic_info['purchase_type'].astext==PurchaseTypes.EXISTING_ADD_ON.value,
-        func.round((distri_additi_price/DEFAULT_ADDON_YEAR)
+        func.round((((distri_additi_price+distri_disc_price)-distributor_tot_price)/DEFAULT_ADDON_YEAR)
         *
         remaining_days
         )
     ),
-    else_=(func.round(distri_additi_price))
+    else_=(func.round(((distri_additi_price+distri_disc_price)-distributor_tot_price)))
 
 )
 

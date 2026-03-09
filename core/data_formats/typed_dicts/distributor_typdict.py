@@ -5,7 +5,7 @@ from datetime import date
 class DistributorDiscountsTypDict(TypedDict):
     discount:str
     minimum_thershold:int
-    rebate_type:DistributorType
+    rebate_type:str
 
 class DistributorPaymentInfosTypDict(TypedDict):
     invoice_number:Optional[Union[None,str]]=None

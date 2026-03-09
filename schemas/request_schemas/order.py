@@ -47,5 +47,6 @@ class OrderFilterSchema(BaseModel):
     purchase_type:Optional[Union[str,PurchaseTypes,None]]=None
     renewal_type:Optional[Union[str,RenewalTypes,None]]=None
     distributor_type:Optional[Union[str,DistributorType,None]]=None
+    distributor_id:Optional[str]=None
     revenue_type:Optional[Union[str,OrderFilterRevenueEnum,None]]=None
     date_filter:Optional[OrderDateFilterTypDict]=OrderDateFilterTypDict()
