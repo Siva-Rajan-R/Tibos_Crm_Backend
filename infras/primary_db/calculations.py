@@ -16,7 +16,7 @@ total_paid_amount = func.coalesce(
     func.sum(OrdersPaymentInvoiceInfo.paid_amount), 0
 )
 
-distributor_tot_price=func.coalesce(Products.price*Orders.quantity,0)
+distributor_tot_price=func.round(func.coalesce((Products.price+func.coalesce(Orders.additional_price, 0))*Orders.quantity,0))
 
 
 distri_discount=(select(Distributors.discounts[Orders.discount_id]).where(Distributors.id==Orders.distributor_id).correlate_except(Distributors)).scalar_subquery()
@@ -64,30 +64,26 @@ remaining_days = func.greatest(
 distri_disc_price=case(
     (
         distri_discount['discount'].astext.ilike("%\%%"),
-        func.round(   
-            distributor_tot_price
-            -
+        func.round(
             ((cast(func.coalesce(func.replace(distri_discount['discount'].astext,'%',''),'0'),Numeric)/100)
             *
             distributor_tot_price)
         )
     ),
-    else_=(func.round(distributor_tot_price-cast(func.coalesce(distri_discount['discount'].astext,'0'),Numeric)))
+    else_=(func.round(cast(func.coalesce(distri_discount['discount'].astext,'0'),Numeric)))
 )
 
 distri_additi_price=case(
     (
         Orders.additional_discount.ilike("%\%%"),
         func.round(
-            distributor_tot_price
-            -
             ((cast(func.coalesce(func.replace(Orders.additional_discount,'%',''),'0'),Numeric)/100)
             *
             distributor_tot_price)
         
         )
     ),
-    else_=(func.round(distri_disc_price-cast(
+    else_=(func.round(cast(
         func.coalesce(
             func.nullif(Orders.additional_discount, ''),
             '0'
@@ -101,12 +97,12 @@ distri_additi_price=case(
 distri_final_price=case(
     (
         Orders.logistic_info['purchase_type'].astext==PurchaseTypes.EXISTING_ADD_ON.value,
-        func.round((((distri_additi_price+distri_disc_price)-distributor_tot_price)/DEFAULT_ADDON_YEAR)
+        func.round(((distributor_tot_price-(distri_additi_price+distri_disc_price))/DEFAULT_ADDON_YEAR)
         *
         remaining_days
         )
     ),
-    else_=(func.round(((distri_additi_price+distri_disc_price)-distributor_tot_price)))
+    else_=(func.round((distributor_tot_price-(distri_additi_price+distri_disc_price))))
 
 )
 
@@ -118,11 +114,9 @@ customer_final_price=case(
     (
         Orders.logistic_info['purchase_type'].astext==PurchaseTypes.EXISTING_ADD_ON.value,
         func.round(
-           (Orders.unit_price/DEFAULT_ADDON_YEAR)
+           (customer_tot_price/DEFAULT_ADDON_YEAR)
             *
-            remaining_days
-            *
-            Orders.quantity 
+            remaining_days 
         )
     ),
     else_=(func.round(customer_tot_price))

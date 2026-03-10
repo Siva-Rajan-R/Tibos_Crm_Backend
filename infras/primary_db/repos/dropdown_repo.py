@@ -36,6 +36,7 @@ class DropDownRepo:
             'renewal_types':list(RenewalTypes._value2member_map_.values().mapping),
             'purchase_types':list(PurchaseTypes._value2member_map_.values().mapping),
             'distributor_types':list(DistributorType._value2member_map_.values().mapping),
+            'rebate_types':list(DistributorType._value2member_map_.values().mapping)
         }
 
         formated_data=[]

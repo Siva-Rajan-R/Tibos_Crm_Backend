@@ -155,18 +155,23 @@ class OrdersService(BaseServiceModel):
         # need to check if the customer and the product is exists on the order
         # then check customer is exists or not
         # then chck product is exists or not
+
         order_obj=OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id)
         
         cust_exists=await CustomersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(customer_id=data.customer_id)
-        if not cust_exists or len(cust_exists)<1:
+        if not cust_exists['customer'] or len(cust_exists['customer'])<1:
             return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Order",description="Customer with the given id does not exist")
         
         prod_exists=await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(product_id=data.product_id)
-        if not prod_exists or len(prod_exists)<1:
+        if not prod_exists['product'] or len(prod_exists['product'])<1:
             return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Order",description="Product with the given id does not exist")
         
+        ic(prod_exists['product']['price']>0,data.additional_price!=None)
+        if prod_exists['product']['price']>0 and (data.additional_price!=None and data.additional_price!=0):
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Order",description="Product have a price you cantbe able to add addtional price")
+        
         distri_exists=await DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(distributor_id=data.distributor_id)
-        if not distri_exists or len(distri_exists)<1:
+        if not distri_exists['distributors'] or len(distri_exists['distributors'])<1:
             return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Order",description="Distributor with the given id does not exist")
 
         data_toadd=data.model_dump(mode='json')
@@ -339,16 +344,19 @@ class OrdersService(BaseServiceModel):
         order_obj=OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id)
 
         cust_exists=await CustomersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(customer_id=data.customer_id)
-        if not cust_exists or len(cust_exists)<1:
-            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Order",description="Customer with the given id does not exist")
+        if not cust_exists['customer'] or len(cust_exists['customer'])<1:
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updaing Order",description="Customer with the given id does not exist")
         
         prod_exists=await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(product_id=data.product_id)
-        if not prod_exists or len(prod_exists)<1:
-            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Order",description="Product with the given id does not exist")
+        if not prod_exists['product'] or len(prod_exists['product'])<1:
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updaing Order",description="Product with the given id does not exist")
         
+        if prod_exists['product']['price']>0 and (data.additional_price!=None and data.additional_price!=0):
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updaing Order",description="Product have a price you cantbe able to add addtional price")
         distri_exists=await DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(distributor_id=data.distributor_id)
-        if not distri_exists or len(distri_exists)<1:
-            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Order",description="Distributor with the given id does not exist")
+
+        if not distri_exists['distributors'] or len(distri_exists['distributors'])<1:
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updaing Order",description="Distributor with the given id does not exist")
 
 
         return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateOrderDbSchema(**data_toupdate))

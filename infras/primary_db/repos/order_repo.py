@@ -240,8 +240,10 @@ class OrdersRepo(BaseRepoModel):
                 Orders.id.ilike(search_term),
                 Orders.ui_id.ilike(search_term),
                 Orders.distributor_id.ilike(search_term),
+                Distributors.ui_id.ilike(search_term),
                 Products.name.ilike(search_term),
                 Products.id.ilike(search_term),
+                Products.ui_id.ilike(search_term),
                 Products.product_type.ilike(search_term),
                 Customers.name.ilike(search_term),
                 Customers.email.ilike(search_term),
@@ -375,15 +377,30 @@ class OrdersRepo(BaseRepoModel):
 
             orders_infos=(await self.session.execute(
                 select(
+                    func.sum(profit_loss_price).label("total_revenue"),
+                    func.count(Orders.id).label("total_orders"),
+                    func.sum(customer_final_price).label("order_value"),
+                    func.count(func.distinct(OrdersPaymentInvoiceInfo.id)).filter(OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.INCOMPLETED.value).label("pending_invoice"),
+                    func.count().filter(OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.TDS_PENDING.value).label("tds_pendings"),
                     func.sum(
                         func.round(customer_price * 1.18) -
                         func.coalesce(payment_subq.c.paid_total, 0)
-                    ).filter(and_(OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.PAID.value,OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.FULL_PAYMENT_RECEIVED.value)).label("pending_amounts"),
-                    func.sum(func.distinct(profit_loss_price)).label("total_revenue"),
-                    func.count(func.distinct(Orders.id)).label("total_orders"),
-                    func.sum(func.distinct(customer_final_price)).label("order_value"),
-                    func.count(func.distinct(OrdersPaymentInvoiceInfo.id)).filter(OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.INCOMPLETED.value).label("pending_invoice"),
-                    func.count().filter(and_(OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.PAID.value,OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.FULL_PAYMENT_RECEIVED.value)).label("pending_dues")
+                    ).filter(and_(OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.PAID.value,OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.FULL_PAYMENT_RECEIVED.value)).label("tot_pending_amounts"),
+                    func.count().filter(and_(OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.PAID.value,OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.FULL_PAYMENT_RECEIVED.value)).label("tot_pending_dues"),
+                    func.sum(
+                        func.round(customer_price * 1.18) -
+                        func.coalesce(payment_subq.c.paid_total, 0)
+                    ).filter(OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.TDS_PENDING.value).label("tds_amounts"),
+                    func.count().filter(OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.NOT_PAID.value).label("not_paid_pendings"),
+                    func.sum(
+                        func.round(customer_price * 1.18) -
+                        func.coalesce(payment_subq.c.paid_total, 0)
+                    ).filter(OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.NOT_PAID.value).label("not_paid_amounts"),
+                    func.count().filter(OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.GST_PENDING.value).label("gst_pendings"),
+                    func.sum(
+                        func.round(customer_price * 1.18) -
+                        func.coalesce(payment_subq.c.paid_total, 0)
+                    ).filter(OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.GST_PENDING.value).label("gst_amounts")
                 )
                 .outerjoin(
                     payment_subq, payment_subq.c.order_id == Orders.id
@@ -508,10 +525,10 @@ class OrdersRepo(BaseRepoModel):
                         func.round(customer_price * 1.18) -
                         func.coalesce(payment_subq.c.paid_total, 0)
                     ).filter(and_(OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.PAID.value,OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.FULL_PAYMENT_RECEIVED.value)).label("pending_amounts"),
-                    func.sum(func.distinct(profit_loss_price)).label("total_revenue"),
-                    func.count(func.distinct(Orders.id)).label("total_orders"),
-                    func.sum(func.distinct(customer_final_price)).label("order_value"),
-                    func.count(func.distinct(OrdersPaymentInvoiceInfo.id)).filter(OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.INCOMPLETED.value).label("pending_invoice"),
+                    func.sum(profit_loss_price).label("total_revenue"),
+                    func.count(Orders.id).label("total_orders"),
+                    func.sum(customer_final_price).label("order_value"),
+                    func.count(OrdersPaymentInvoiceInfo.id).filter(OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.INCOMPLETED.value).label("pending_invoice"),
                     func.count().filter(and_(OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.PAID.value,OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.FULL_PAYMENT_RECEIVED.value)).label("pending_dues")
                 )
                 .outerjoin(
