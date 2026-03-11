@@ -20,16 +20,16 @@ class HandleDistributorPaymentRequest:
 
         
     async def add(self,data:AddDistributorPaymentSchema):
-        if len(data.payment_infos)>12:
-            raise HTTPException(
-                status_code=400,
-                detail=ErrorResponseTypDict(
-                    status_code=400,
-                    success=False,
-                    msg="Error : Creating Distributor payment",
-                    description="Payment infos length should be 12"
-                )
-            )
+        # if len(data.payment_infos)>12:
+        #     raise HTTPException(
+        #         status_code=400,
+        #         detail=ErrorResponseTypDict(
+        #             status_code=400,
+        #             success=False,
+        #             msg="Error : Creating Distributor payment",
+        #             description="Payment infos length should be 12"
+        #         )
+        #     )
         res=await DistributorsPaymentsService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(data=data)
 
         if res:
@@ -54,16 +54,16 @@ class HandleDistributorPaymentRequest:
         )
          
     async def update(self,data:UpdateDistributorPaymentSchema):
-        if len(data.payment_infos)>12:
-            raise HTTPException(
-                status_code=400,
-                detail=ErrorResponseTypDict(
-                    status_code=400,
-                    success=False,
-                    msg="Error : Creating Distributor payment",
-                    description="Payment infos length should be 12"
-                )
-            )
+        # if len(data.payment_infos)>12:
+        #     raise HTTPException(
+        #         status_code=400,
+        #         detail=ErrorResponseTypDict(
+        #             status_code=400,
+        #             success=False,
+        #             msg="Error : Creating Distributor payment",
+        #             description="Payment infos length should be 12"
+        #         )
+        #     )
         
         res=await DistributorsPaymentsService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=data)
         if res:
@@ -134,7 +134,7 @@ class HandleDistributorPaymentRequest:
             detail=detail.model_dump(mode='json')
         )
     
-    async def get(self,cursor:int=1,limit:int=10,query:str='',include_deleted:bool=False):
+    async def get(self,cursor:int=1,limit:int=50,query:str='',include_deleted:bool=False):
         res=await DistributorsPaymentsService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(cursor=cursor,limit=limit,query=query,include_deleted=include_deleted)
         return res
         

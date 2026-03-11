@@ -1,0 +1,195 @@
+--- Skipped Item 1 ---
+{
+  "customer_id": "CUST-T-2026-100865",
+  "product_id": "PROD-T-2026-100664",
+  "distributor_id": "DIST-T-2026-100004",
+  "distributor_discount": "0.0375",
+  "quantity": "1",
+  "discount": "0.02",
+  "unit_price": "6524",
+  "vendor_commision": "0",
+  "bill_to": "SAMUNNATI FINANCE PRIVATE LIMITED - (samunnatisystems)",
+  "requested_date": "2026-03-02T00:00:00",
+  "purchase_type": "EXISTING-RENEWAL",
+  "delivery_date": "2026-03-02T00:00:00",
+  "shipping_method": "ONLINE",
+  "payment_status": "NOT PAID",
+  "invoice_status": "COMPLETED",
+  "invoice_number": "TBS2526IN1900",
+  "invoice_date": "2026-03-02T00:00:00",
+  "distributor_type": "REBATE",
+  "renewal_type": "YEARLY-YEARLY-BILL",
+  "payment_terms": "15-DAYS",
+  "reason": "Product id not found"
+}
+
+--- Skipped Item 2 ---
+{
+  "customer_id": "CUST-T-2026-100866",
+  "product_id": "PROD-T-2026-100664",
+  "distributor_id": "DIST-T-2026-100004",
+  "distributor_discount": "0.0375",
+  "quantity": "1",
+  "discount": "0.02",
+  "unit_price": "6524",
+  "vendor_commision": "0",
+  "bill_to": "SAMUNNATI FINANCE PRIVATE LIMITED - (azuresamunnati)",
+  "requested_date": "2026-03-02T00:00:00",
+  "purchase_type": "EXISTING-RENEWAL",
+  "delivery_date": "2026-03-02T00:00:00",
+  "shipping_method": "ONLINE",
+  "payment_status": "NOT PAID",
+  "invoice_status": "COMPLETED",
+  "invoice_number": "TBS2526IN1900",
+  "invoice_date": "2026-03-02T00:00:00",
+  "distributor_type": "REBATE",
+  "renewal_type": "YEARLY-YEARLY-BILL",
+  "payment_terms": "15-DAYS",
+  "reason": "Product id not found"
+}
+
+--- Skipped Item 3 ---
+{
+  "customer_id": "CUST-T-2026-100867",
+  "product_id": "PROD-T-2026-100664",
+  "distributor_id": "DIST-T-2026-100004",
+  "distributor_discount": "0.0375",
+  "quantity": "1",
+  "discount": "0.02",
+  "unit_price": "6524",
+  "vendor_commision": "0",
+  "bill_to": "SAMUNNATI FINANCE PRIVATE LIMITED - (vcxsamunnatti)",
+  "requested_date": "2026-03-02T00:00:00",
+  "purchase_type": "EXISTING-RENEWAL",
+  "delivery_date": "2026-03-02T00:00:00",
+  "shipping_method": "ONLINE",
+  "payment_status": "NOT PAID",
+  "invoice_status": "COMPLETED",
+  "invoice_number": "TBS2526IN1900",
+  "invoice_date": "2026-03-02T00:00:00",
+  "distributor_type": "REBATE",
+  "renewal_type": "YEARLY-YEARLY-BILL",
+  "payment_terms": "15-DAYS",
+  "reason": "Product id not found"
+}
+
+--- Skipped Item 4 ---
+{
+  "customer_id": "CUST-T-2026-100868",
+  "product_id": "PROD-T-2026-100664",
+  "distributor_id": "DIST-T-2026-100004",
+  "distributor_discount": "0.0375",
+  "quantity": "1",
+  "discount": "0.02",
+  "unit_price": "6524",
+  "vendor_commision": "0",
+  "bill_to": "SAMUNNATI FINANCE PRIVATE LIMITED - (samunnatibranding)",
+  "requested_date": "2026-03-02T00:00:00",
+  "purchase_type": "EXISTING-RENEWAL",
+  "delivery_date": "2026-03-02T00:00:00",
+  "shipping_method": "ONLINE",
+  "payment_status": "NOT PAID",
+  "invoice_status": "COMPLETED",
+  "invoice_number": "TBS2526IN1900",
+  "invoice_date": "2026-03-02T00:00:00",
+  "distributor_type": "REBATE",
+  "renewal_type": "YEARLY-YEARLY-BILL",
+  "payment_terms": "15-DAYS",
+  "reason": "Product id not found"
+}
+
+--- Skipped Item 5 ---
+{
+  "customer_id": "CUST-T-2026-100869",
+  "product_id": "PROD-T-2026-100664",
+  "distributor_id": "DIST-T-2026-100004",
+  "distributor_discount": "0.0375",
+  "quantity": "1",
+  "discount": "0.02",
+  "unit_price": "6524",
+  "vendor_commision": "0",
+  "bill_to": "SAMUNNATI FINANCE PRIVATE LIMITED - (samunnatiascend)",
+  "requested_date": "2026-03-02T00:00:00",
+  "purchase_type": "EXISTING-RENEWAL",
+  "delivery_date": "2026-03-02T00:00:00",
+  "shipping_method": "ONLINE",
+  "payment_status": "NOT PAID",
+  "invoice_status": "COMPLETED",
+  "invoice_number": "TBS2526IN1900",
+  "invoice_date": "2026-03-02T00:00:00",
+  "distributor_type": "REBATE",
+  "renewal_type": "YEARLY-YEARLY-BILL",
+  "payment_terms": "15-DAYS",
+  "reason": "Product id not found"
+}
+
+--- Skipped Item 6 ---
+{
+  "customer_id": "CUST-T-2026-100094",
+  "product_id": "PROD-T-2026-101255",
+  "distributor_id": "DIST-T-2026-100003",
+  "distributor_discount": "0.03",
+  "quantity": "2",
+  "discount": "0.0",
+  "unit_price": "36222",
+  "vendor_commision": "0",
+  "bill_to": "Integra Software Services Private Limited",
+  "requested_date": "2026-03-07T00:00:00",
+  "purchase_type": "EXISTING-RENEWAL",
+  "delivery_date": "2026-03-07T00:00:00",
+  "shipping_method": "ONLINE",
+  "payment_status": "NOT PAID",
+  "invoice_status": "INCOMPLETED",
+  "invoice_number": "nan",
+  "invoice_date": "NaT",
+  "distributor_type": "REBATE",
+  "renewal_type": "YEARLY-YEARLY-BILL",
+  "payment_terms": "15-DAYS",
+  "converted_discounts": [
+    "3.00%",
+    "3.00%",
+    "3.00%"
+  ],
+  "existing_discounts": [
+    "0.00%",
+    "3.00%",
+    "4.40%"
+  ],
+  "reason": "Discount mistmatched"
+}
+
+--- Skipped Item 7 ---
+{
+  "customer_id": "CUST-T-2026-100094",
+  "product_id": "PROD-T-2026-101255",
+  "distributor_id": "DIST-T-2026-100003",
+  "distributor_discount": "0.03",
+  "quantity": "2",
+  "discount": "0.0",
+  "unit_price": "36222",
+  "vendor_commision": "0",
+  "bill_to": "Integra Software Services Private Limited",
+  "requested_date": "2026-03-07T00:00:00",
+  "purchase_type": "EXISTING-RENEWAL",
+  "delivery_date": "2026-03-07T00:00:00",
+  "shipping_method": "ONLINE",
+  "payment_status": "NOT PAID",
+  "invoice_status": "INCOMPLETED",
+  "invoice_number": "nan",
+  "invoice_date": "NaT",
+  "distributor_type": "REBATE",
+  "renewal_type": "YEARLY-YEARLY-BILL",
+  "payment_terms": "15-DAYS",
+  "converted_discounts": [
+    "3.00%",
+    "3.00%",
+    "3.00%"
+  ],
+  "existing_discounts": [
+    "0.00%",
+    "3.00%",
+    "4.40%"
+  ],
+  "reason": "Discount mistmatched"
+}
+

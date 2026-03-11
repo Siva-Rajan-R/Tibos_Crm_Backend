@@ -7,6 +7,7 @@ def extract_excel_data(excel_file,headings_mapper:dict):
     ic(headings_mapper)
     ex_data=pd.read_excel(excel_file)
     df=pd.DataFrame(data=ex_data)
+    df = df.where(pd.notna(df), None)
     converted_data=df.to_dict('records')
     ic(converted_data[0])
     ic(len(converted_data[0]),len(headings_mapper))

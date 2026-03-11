@@ -29,6 +29,7 @@ class DistributorsPaymentsRepo(BaseRepoModel):
             DistributorsPayments.sequence_id,
             DistributorsPayments.payment_infos,
             DistributorsPayments.order_id,
+            DistributorsPayments.payment_type,
             Products.name.label("product_name"),
             Customers.name.label("customer_name"),
             Distributors.name.label("distributor_name")

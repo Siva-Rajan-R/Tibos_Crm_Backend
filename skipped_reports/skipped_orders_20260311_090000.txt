@@ -1,0 +1,1405 @@
+--- Skipped Item 1 ---
+{
+  "customer_id": "fc099750-0d4d-5345-b646-9f5c88cf3cee",
+  "product_id": "379b44d8-cd8b-5266-9689-ba2d7b88f6fe",
+  "distributor_id": "64860767-c70f-5b86-beda-32d596ce9706",
+  "distributor_discount": "24%",
+  "quantity": "3",
+  "discount": "0.02",
+  "unit_price": "nan",
+  "vendor_commision": "0",
+  "bill_to": "NCL VEKA",
+  "requested_date": "2026-03-02T00:00:00",
+  "purchase_type": "EXISTING-ADD-ON",
+  "delivery_date": "2026-03-02T00:00:00",
+  "shipping_method": "ONLINE",
+  "payment_status": "NOT PAID",
+  "invoice_status": "COMPLETED",
+  "invoice_number": "TBS2526IN1898",
+  "invoice_date": "2026-03-02T00:00:00",
+  "distributor_type": "REBATE",
+  "renewal_type": "YEARLY-YEARLY-BILL",
+  "payment_terms": "15-DAYS",
+  "discount_id": "233b7fce-7998-5ac7-acb7-6ad474f9f851",
+  "delivery_info": {
+    "requested_date": "2026-03-02",
+    "delivery_date": "2026-03-02",
+    "shipping_method": "ONLINE",
+    "payment_terms": "15-DAYS"
+  },
+  "status_info": [
+    {
+      "payment_status": "NOT PAID",
+      "invoice_status": "COMPLETED",
+      "invoice_number": "TBS2526IN1898",
+      "invoice_date": "2026-03-02",
+      "paid_amount": "0"
+    }
+  ],
+  "reason": "This customer+Product doesn't have on order",
+  "activated": "False",
+  "logistic_info": {
+    "purchase_type": "EXISTING-ADD-ON",
+    "renewal_type": "YEARLY-YEARLY-BILL",
+    "bill_to": "NCL VEKA",
+    "distributor_type": "REBATE"
+  },
+  "additional_discount": "0.02"
+}
+
+--- Skipped Item 2 ---
+{
+  "customer_id": "0fe16990-726e-5eeb-bde8-0388eec514a0",
+  "product_id": "379b44d8-cd8b-5266-9689-ba2d7b88f6fe",
+  "distributor_id": "64860767-c70f-5b86-beda-32d596ce9706",
+  "distributor_discount": "24%",
+  "quantity": "1",
+  "discount": "0.02",
+  "unit_price": "nan",
+  "vendor_commision": "0",
+  "bill_to": "TROPICAL AGROSYSTEM (INDIA) PVT LTD",
+  "requested_date": "2026-03-02T00:00:00",
+  "purchase_type": "EXISTING-ADD-ON",
+  "delivery_date": "2026-03-02T00:00:00",
+  "shipping_method": "ONLINE",
+  "payment_status": "FULL PAYMENT RECEIVED",
+  "invoice_status": "COMPLETED",
+  "invoice_number": "TBS2526IN1899",
+  "invoice_date": "2026-03-02T00:00:00",
+  "distributor_type": "REBATE",
+  "renewal_type": "YEARLY-YEARLY-BILL",
+  "payment_terms": "7-DAYS",
+  "converted_discounts": [
+    "24.00%",
+    "24.00%",
+    "24.00%"
+  ],
+  "existing_discounts": [
+    "22.00%",
+    "26.00%",
+    "24.00%"
+  ],
+  "discount_id": "233b7fce-7998-5ac7-acb7-6ad474f9f851",
+  "delivery_info": {
+    "requested_date": "2026-03-02",
+    "delivery_date": "2026-03-02",
+    "shipping_method": "ONLINE",
+    "payment_terms": "7-DAYS"
+  },
+  "status_info": {
+    "payment_status": "FULL PAYMENT RECEIVED",
+    "invoice_status": "COMPLETED",
+    "invoice_number": "TBS2526IN1899",
+    "invoice_date": "2026-03-02"
+  },
+  "reason": "This customer+Product doesn't have on order"
+}
+
+--- Skipped Item 3 ---
+{
+  "customer_id": "f4285226-352b-5cf4-b115-9f6b370467f3",
+  "product_id": "379b44d8-cd8b-5266-9689-ba2d7b88f6fe",
+  "distributor_id": "64860767-c70f-5b86-beda-32d596ce9706",
+  "distributor_discount": "24%",
+  "quantity": "1",
+  "discount": "0.02",
+  "unit_price": "nan",
+  "vendor_commision": "0",
+  "bill_to": "V SPACEZ WORKSPACE SOLUTIONS LLP",
+  "requested_date": "2026-03-02T00:00:00",
+  "purchase_type": "EXISTING-ADD-ON",
+  "delivery_date": "2026-03-02T00:00:00",
+  "shipping_method": "ONLINE",
+  "payment_status": "NOT PAID",
+  "invoice_status": "COMPLETED",
+  "invoice_number": "TBS2526IN1902",
+  "invoice_date": "2026-03-03T00:00:00",
+  "distributor_type": "REBATE",
+  "renewal_type": "YEARLY-YEARLY-BILL",
+  "payment_terms": "15-DAYS",
+  "discount_id": "233b7fce-7998-5ac7-acb7-6ad474f9f851",
+  "delivery_info": {
+    "requested_date": "2026-03-02",
+    "delivery_date": "2026-03-02",
+    "shipping_method": "ONLINE",
+    "payment_terms": "15-DAYS"
+  },
+  "status_info": [
+    {
+      "payment_status": "NOT PAID",
+      "invoice_status": "COMPLETED",
+      "invoice_number": "TBS2526IN1902",
+      "invoice_date": "2026-03-03",
+      "paid_amount": "0"
+    }
+  ],
+  "reason": "This customer+Product doesn't have on order",
+  "activated": "False",
+  "logistic_info": {
+    "purchase_type": "EXISTING-ADD-ON",
+    "renewal_type": "YEARLY-YEARLY-BILL",
+    "bill_to": "V SPACEZ WORKSPACE SOLUTIONS LLP",
+    "distributor_type": "REBATE"
+  },
+  "additional_discount": "0.02"
+}
+
+--- Skipped Item 4 ---
+{
+  "customer_id": "7ce906e4-c2f7-5dde-9b1d-c136ed0d3d69",
+  "product_id": "a6bfddd2-df24-506c-b9c5-82cdfcd65e6d",
+  "distributor_id": "71f89d10-f19f-55fb-8af6-6b55de83f5df",
+  "distributor_discount": "3.75%",
+  "quantity": "5",
+  "discount": "0.02",
+  "unit_price": "nan",
+  "vendor_commision": "0",
+  "bill_to": "FINYES CONSULTING",
+  "requested_date": "2026-03-02T00:00:00",
+  "purchase_type": "EXISTING-ADD-ON",
+  "delivery_date": "2026-03-02T00:00:00",
+  "shipping_method": "ONLINE",
+  "payment_status": "NOT PAID",
+  "invoice_status": "COMPLETED",
+  "invoice_number": "TBS2526IN1903",
+  "invoice_date": "2026-03-03T00:00:00",
+  "distributor_type": "REBATE",
+  "renewal_type": "YEARLY-YEARLY-BILL",
+  "payment_terms": "15-DAYS",
+  "discount_id": "8990f165-ec9b-5736-ad51-ab85a58caf64",
+  "delivery_info": {
+    "requested_date": "2026-03-02",
+    "delivery_date": "2026-03-02",
+    "shipping_method": "ONLINE",
+    "payment_terms": "15-DAYS"
+  },
+  "status_info": [
+    {
+      "payment_status": "NOT PAID",
+      "invoice_status": "COMPLETED",
+      "invoice_number": "TBS2526IN1903",
+      "invoice_date": "2026-03-03",
+      "paid_amount": "0"
+    }
+  ],
+  "reason": "This customer+Product doesn't have on order",
+  "activated": "False",
+  "logistic_info": {
+    "purchase_type": "EXISTING-ADD-ON",
+    "renewal_type": "YEARLY-YEARLY-BILL",
+    "bill_to": "FINYES CONSULTING",
+    "distributor_type": "REBATE"
+  },
+  "additional_discount": "0.02"
+}
+
+--- Skipped Item 5 ---
+{
+  "customer_id": "0792fe15-a317-538a-ad56-795cc1d3699c",
+  "product_id": "379b44d8-cd8b-5266-9689-ba2d7b88f6fe",
+  "distributor_id": "64860767-c70f-5b86-beda-32d596ce9706",
+  "distributor_discount": "24%",
+  "quantity": "5",
+  "discount": "0.02",
+  "unit_price": "nan",
+  "vendor_commision": "0",
+  "bill_to": "HYPERLINK BRAND SOLUTIONS PRIVATE LIMITED",
+  "requested_date": "2026-03-02T00:00:00",
+  "purchase_type": "EXISTING-ADD-ON",
+  "delivery_date": "2026-03-02T00:00:00",
+  "shipping_method": "ONLINE",
+  "payment_status": "NOT PAID",
+  "invoice_status": "COMPLETED",
+  "invoice_number": "TBS2526IN1905",
+  "invoice_date": "2026-03-03T00:00:00",
+  "distributor_type": "REBATE",
+  "renewal_type": "YEARLY-YEARLY-BILL",
+  "payment_terms": "15-DAYS",
+  "discount_id": "233b7fce-7998-5ac7-acb7-6ad474f9f851",
+  "delivery_info": {
+    "requested_date": "2026-03-02",
+    "delivery_date": "2026-03-02",
+    "shipping_method": "ONLINE",
+    "payment_terms": "15-DAYS"
+  },
+  "status_info": [
+    {
+      "payment_status": "NOT PAID",
+      "invoice_status": "COMPLETED",
+      "invoice_number": "TBS2526IN1905",
+      "invoice_date": "2026-03-03",
+      "paid_amount": "0"
+    }
+  ],
+  "reason": "This customer+Product doesn't have on order",
+  "activated": "False",
+  "logistic_info": {
+    "purchase_type": "EXISTING-ADD-ON",
+    "renewal_type": "YEARLY-YEARLY-BILL",
+    "bill_to": "HYPERLINK BRAND SOLUTIONS PRIVATE LIMITED",
+    "distributor_type": "REBATE"
+  },
+  "additional_discount": "0.02"
+}
+
+--- Skipped Item 6 ---
+{
+  "customer_id": "1fc33726-4fc9-56da-97ed-a94ea640788f",
+  "product_id": "a6bfddd2-df24-506c-b9c5-82cdfcd65e6d",
+  "distributor_id": "64860767-c70f-5b86-beda-32d596ce9706",
+  "distributor_discount": "24%",
+  "quantity": "1",
+  "discount": "0.02",
+  "unit_price": "nan",
+  "vendor_commision": "0",
+  "bill_to": "NIVIDATA CONSULTANCY",
+  "requested_date": "2026-03-04T00:00:00",
+  "purchase_type": "EXISTING-ADD-ON",
+  "delivery_date": "2026-03-04T00:00:00",
+  "shipping_method": "ONLINE",
+  "payment_status": "FULL PAYMENT RECEIVED",
+  "invoice_status": "COMPLETED",
+  "invoice_number": "TBS2526IN1916",
+  "invoice_date": "2026-03-05T00:00:00",
+  "distributor_type": "REBATE",
+  "renewal_type": "YEARLY-YEARLY-BILL",
+  "payment_terms": "7-DAYS",
+  "converted_discounts": [
+    "24.00%",
+    "24.00%",
+    "24.00%"
+  ],
+  "existing_discounts": [
+    "22.00%",
+    "26.00%",
+    "24.00%"
+  ],
+  "discount_id": "233b7fce-7998-5ac7-acb7-6ad474f9f851",
+  "delivery_info": {
+    "requested_date": "2026-03-04",
+    "delivery_date": "2026-03-04",
+    "shipping_method": "ONLINE",
+    "payment_terms": "7-DAYS"
+  },
+  "status_info": {
+    "payment_status": "FULL PAYMENT RECEIVED",
+    "invoice_status": "COMPLETED",
+    "invoice_number": "TBS2526IN1916",
+    "invoice_date": "2026-03-05"
+  },
+  "reason": "This customer+Product doesn't have on order"
+}
+
+--- Skipped Item 7 ---
+{
+  "customer_id": "0fe16990-726e-5eeb-bde8-0388eec514a0",
+  "product_id": "379b44d8-cd8b-5266-9689-ba2d7b88f6fe",
+  "distributor_id": "64860767-c70f-5b86-beda-32d596ce9706",
+  "distributor_discount": "24%",
+  "quantity": "1",
+  "discount": "0.02",
+  "unit_price": "nan",
+  "vendor_commision": "0",
+  "bill_to": "TROPICAL AGROSYSTEM (INDIA) PVT LTD",
+  "requested_date": "2026-03-04T00:00:00",
+  "purchase_type": "EXISTING-ADD-ON",
+  "delivery_date": "2026-03-04T00:00:00",
+  "shipping_method": "ONLINE",
+  "payment_status": "FULL PAYMENT RECEIVED",
+  "invoice_status": "COMPLETED",
+  "invoice_number": "TBS2526IN1917",
+  "invoice_date": "2026-03-05T00:00:00",
+  "distributor_type": "REBATE",
+  "renewal_type": "YEARLY-YEARLY-BILL",
+  "payment_terms": "7-DAYS",
+  "converted_discounts": [
+    "24.00%",
+    "24.00%",
+    "24.00%"
+  ],
+  "existing_discounts": [
+    "22.00%",
+    "26.00%",
+    "24.00%"
+  ],
+  "discount_id": "233b7fce-7998-5ac7-acb7-6ad474f9f851",
+  "delivery_info": {
+    "requested_date": "2026-03-04",
+    "delivery_date": "2026-03-04",
+    "shipping_method": "ONLINE",
+    "payment_terms": "7-DAYS"
+  },
+  "status_info": {
+    "payment_status": "FULL PAYMENT RECEIVED",
+    "invoice_status": "COMPLETED",
+    "invoice_number": "TBS2526IN1917",
+    "invoice_date": "2026-03-05"
+  },
+  "reason": "This customer+Product doesn't have on order"
+}
+
+--- Skipped Item 8 ---
+{
+  "customer_id": "0ee1e991-cbcf-5ce8-8747-eee76d8fea16",
+  "product_id": "379b44d8-cd8b-5266-9689-ba2d7b88f6fe",
+  "distributor_id": "64860767-c70f-5b86-beda-32d596ce9706",
+  "distributor_discount": "24%",
+  "quantity": "10",
+  "discount": "0.02",
+  "unit_price": "nan",
+  "vendor_commision": "0",
+  "bill_to": "IntactIT Infosystems Pvt Ltd",
+  "requested_date": "2026-03-04T00:00:00",
+  "purchase_type": "EXISTING-ADD-ON",
+  "delivery_date": "2026-03-04T00:00:00",
+  "shipping_method": "ONLINE",
+  "payment_status": "NOT PAID",
+  "invoice_status": "COMPLETED",
+  "invoice_number": "TBS2526IN1928",
+  "invoice_date": "2026-03-06T00:00:00",
+  "distributor_type": "REBATE",
+  "renewal_type": "YEARLY-YEARLY-BILL",
+  "payment_terms": "15-DAYS",
+  "discount_id": "233b7fce-7998-5ac7-acb7-6ad474f9f851",
+  "delivery_info": {
+    "requested_date": "2026-03-04",
+    "delivery_date": "2026-03-04",
+    "shipping_method": "ONLINE",
+    "payment_terms": "15-DAYS"
+  },
+  "status_info": [
+    {
+      "payment_status": "NOT PAID",
+      "invoice_status": "COMPLETED",
+      "invoice_number": "TBS2526IN1928",
+      "invoice_date": "2026-03-06",
+      "paid_amount": "0"
+    }
+  ],
+  "reason": "This customer+Product doesn't have on order",
+  "activated": "False",
+  "logistic_info": {
+    "purchase_type": "EXISTING-ADD-ON",
+    "renewal_type": "YEARLY-YEARLY-BILL",
+    "bill_to": "IntactIT Infosystems Pvt Ltd",
+    "distributor_type": "REBATE"
+  },
+  "additional_discount": "0.02"
+}
+
+--- Skipped Item 9 ---
+{
+  "customer_id": "a9d6d58a-35a4-5780-bdfc-6e10cc47184f",
+  "product_id": "a6bfddd2-df24-506c-b9c5-82cdfcd65e6d",
+  "distributor_id": "64860767-c70f-5b86-beda-32d596ce9706",
+  "distributor_discount": "24%",
+  "quantity": "2",
+  "discount": "0.02",
+  "unit_price": "nan",
+  "vendor_commision": "0",
+  "bill_to": "INDIAL SHIPPING PRIVATE LIMITED",
+  "requested_date": "2026-03-05T00:00:00",
+  "purchase_type": "EXISTING-ADD-ON",
+  "delivery_date": "2026-03-05T00:00:00",
+  "shipping_method": "ONLINE",
+  "payment_status": "NOT PAID",
+  "invoice_status": "COMPLETED",
+  "invoice_number": "TBS2526IN1918",
+  "invoice_date": "2026-03-05T00:00:00",
+  "distributor_type": "REBATE",
+  "renewal_type": "YEARLY-YEARLY-BILL",
+  "payment_terms": "15-DAYS",
+  "discount_id": "233b7fce-7998-5ac7-acb7-6ad474f9f851",
+  "delivery_info": {
+    "requested_date": "2026-03-05",
+    "delivery_date": "2026-03-05",
+    "shipping_method": "ONLINE",
+    "payment_terms": "15-DAYS"
+  },
+  "status_info": [
+    {
+      "payment_status": "NOT PAID",
+      "invoice_status": "COMPLETED",
+      "invoice_number": "TBS2526IN1918",
+      "invoice_date": "2026-03-05",
+      "paid_amount": "0"
+    }
+  ],
+  "reason": "This customer+Product doesn't have on order",
+  "activated": "False",
+  "logistic_info": {
+    "purchase_type": "EXISTING-ADD-ON",
+    "renewal_type": "YEARLY-YEARLY-BILL",
+    "bill_to": "INDIAL SHIPPING PRIVATE LIMITED",
+    "distributor_type": "REBATE"
+  },
+  "additional_discount": "0.02"
+}
+
+--- Skipped Item 10 ---
+{
+  "customer_id": "fb61c760-d2a7-5bb5-a60a-8f73a7221e53",
+  "product_id": "a6bfddd2-df24-506c-b9c5-82cdfcd65e6d",
+  "distributor_id": "dac5e6cb-74a3-58b0-ae9e-a5402f06cdb1",
+  "distributor_discount": "4%",
+  "quantity": "4",
+  "discount": "0.02",
+  "unit_price": "nan",
+  "vendor_commision": "0",
+  "bill_to": "BHILAI LOGIC LABS PRIVATE LIMITED",
+  "requested_date": "2026-03-05T00:00:00",
+  "purchase_type": "EXISTING-ADD-ON",
+  "delivery_date": "2026-03-05T00:00:00",
+  "shipping_method": "ONLINE",
+  "payment_status": "NOT PAID",
+  "invoice_status": "COMPLETED",
+  "invoice_number": "TBS2526IN1919",
+  "invoice_date": "2026-03-05T00:00:00",
+  "distributor_type": "REBATE",
+  "renewal_type": "YEARLY-YEARLY-BILL",
+  "payment_terms": "15-DAYS",
+  "discount_id": "501489a4-a242-5143-a75b-c82e98c9ab9f",
+  "delivery_info": {
+    "requested_date": "2026-03-05",
+    "delivery_date": "2026-03-05",
+    "shipping_method": "ONLINE",
+    "payment_terms": "15-DAYS"
+  },
+  "status_info": [
+    {
+      "payment_status": "NOT PAID",
+      "invoice_status": "COMPLETED",
+      "invoice_number": "TBS2526IN1919",
+      "invoice_date": "2026-03-05",
+      "paid_amount": "0"
+    }
+  ],
+  "reason": "This customer+Product doesn't have on order",
+  "activated": "False",
+  "logistic_info": {
+    "purchase_type": "EXISTING-ADD-ON",
+    "renewal_type": "YEARLY-YEARLY-BILL",
+    "bill_to": "BHILAI LOGIC LABS PRIVATE LIMITED",
+    "distributor_type": "REBATE"
+  },
+  "additional_discount": "0.02"
+}
+
+--- Skipped Item 11 ---
+{
+  "customer_id": "3abb7d87-f365-5ba0-9576-d69b1bdf8858",
+  "product_id": "379b44d8-cd8b-5266-9689-ba2d7b88f6fe",
+  "distributor_id": "5eedfe72-cf91-55c1-97b5-e6032576d5aa",
+  "distributor_discount": "4.40%",
+  "quantity": "1",
+  "discount": "0.02",
+  "unit_price": "nan",
+  "vendor_commision": "0",
+  "bill_to": "Virya Logistics Technologies Private Limited",
+  "requested_date": "2026-03-05T00:00:00",
+  "purchase_type": "EXISTING-ADD-ON",
+  "delivery_date": "2026-03-05T00:00:00",
+  "shipping_method": "ONLINE",
+  "payment_status": "NOT PAID",
+  "invoice_status": "COMPLETED",
+  "invoice_number": "TBS2526IN1930",
+  "invoice_date": "2026-03-06T00:00:00",
+  "distributor_type": "REBATE",
+  "renewal_type": "YEARLY-YEARLY-BILL",
+  "payment_terms": "15-DAYS",
+  "discount_id": "ce847b42-6f92-5505-86ce-1eda429fff63",
+  "delivery_info": {
+    "requested_date": "2026-03-05",
+    "delivery_date": "2026-03-05",
+    "shipping_method": "ONLINE",
+    "payment_terms": "15-DAYS"
+  },
+  "status_info": [
+    {
+      "payment_status": "NOT PAID",
+      "invoice_status": "COMPLETED",
+      "invoice_number": "TBS2526IN1930",
+      "invoice_date": "2026-03-06",
+      "paid_amount": "0"
+    }
+  ],
+  "reason": "This customer+Product doesn't have on order",
+  "activated": "False",
+  "logistic_info": {
+    "purchase_type": "EXISTING-ADD-ON",
+    "renewal_type": "YEARLY-YEARLY-BILL",
+    "bill_to": "Virya Logistics Technologies Private Limited",
+    "distributor_type": "REBATE"
+  },
+  "additional_discount": "0.02"
+}
+
+--- Skipped Item 12 ---
+{
+  "customer_id": "266b202e-8a66-5f67-88fc-455acfd5df91",
+  "product_id": "a6bfddd2-df24-506c-b9c5-82cdfcd65e6d",
+  "distributor_id": "64860767-c70f-5b86-beda-32d596ce9706",
+  "distributor_discount": "24%",
+  "quantity": "10",
+  "discount": "0.02",
+  "unit_price": "nan",
+  "vendor_commision": "0",
+  "bill_to": "ACCORD SOFTWARE AND SYSTEM PVT LTD",
+  "requested_date": "2026-03-05T00:00:00",
+  "purchase_type": "EXISTING-ADD-ON",
+  "delivery_date": "2026-03-05T00:00:00",
+  "shipping_method": "ONLINE",
+  "payment_status": "NOT PAID",
+  "invoice_status": "COMPLETED",
+  "invoice_number": "TBS2526IN1926",
+  "invoice_date": "2026-03-06T00:00:00",
+  "distributor_type": "REBATE",
+  "renewal_type": "YEARLY-YEARLY-BILL",
+  "payment_terms": "15-DAYS",
+  "discount_id": "233b7fce-7998-5ac7-acb7-6ad474f9f851",
+  "delivery_info": {
+    "requested_date": "2026-03-05",
+    "delivery_date": "2026-03-05",
+    "shipping_method": "ONLINE",
+    "payment_terms": "15-DAYS"
+  },
+  "status_info": [
+    {
+      "payment_status": "NOT PAID",
+      "invoice_status": "COMPLETED",
+      "invoice_number": "TBS2526IN1926",
+      "invoice_date": "2026-03-06",
+      "paid_amount": "0"
+    }
+  ],
+  "reason": "This customer+Product doesn't have on order",
+  "activated": "False",
+  "logistic_info": {
+    "purchase_type": "EXISTING-ADD-ON",
+    "renewal_type": "YEARLY-YEARLY-BILL",
+    "bill_to": "ACCORD SOFTWARE AND SYSTEM PVT LTD",
+    "distributor_type": "REBATE"
+  },
+  "additional_discount": "0.02"
+}
+
+--- Skipped Item 13 ---
+{
+  "customer_id": "c8790563-f0b1-51f5-8247-aae1ff3ab389",
+  "product_id": "a6bfddd2-df24-506c-b9c5-82cdfcd65e6d",
+  "distributor_id": "64860767-c70f-5b86-beda-32d596ce9706",
+  "distributor_discount": "24%",
+  "quantity": "5",
+  "discount": "0.02",
+  "unit_price": "nan",
+  "vendor_commision": "0",
+  "bill_to": "DIVERSE INFOTECH PVT LTD",
+  "requested_date": "2026-03-06T00:00:00",
+  "purchase_type": "EXISTING-ADD-ON",
+  "delivery_date": "2026-03-06T00:00:00",
+  "shipping_method": "ONLINE",
+  "payment_status": "NOT PAID",
+  "invoice_status": "COMPLETED",
+  "invoice_number": "TBS2526IN1939",
+  "invoice_date": "2026-03-07T00:00:00",
+  "distributor_type": "REBATE",
+  "renewal_type": "YEARLY-YEARLY-BILL",
+  "payment_terms": "15-DAYS",
+  "discount_id": "233b7fce-7998-5ac7-acb7-6ad474f9f851",
+  "delivery_info": {
+    "requested_date": "2026-03-06",
+    "delivery_date": "2026-03-06",
+    "shipping_method": "ONLINE",
+    "payment_terms": "15-DAYS"
+  },
+  "status_info": [
+    {
+      "payment_status": "NOT PAID",
+      "invoice_status": "COMPLETED",
+      "invoice_number": "TBS2526IN1939",
+      "invoice_date": "2026-03-07",
+      "paid_amount": "0"
+    }
+  ],
+  "reason": "This customer+Product doesn't have on order",
+  "activated": "False",
+  "logistic_info": {
+    "purchase_type": "EXISTING-ADD-ON",
+    "renewal_type": "YEARLY-YEARLY-BILL",
+    "bill_to": "DIVERSE INFOTECH PVT LTD",
+    "distributor_type": "REBATE"
+  },
+  "additional_discount": "0.02"
+}
+
+--- Skipped Item 14 ---
+{
+  "customer_id": "50850827-3cd2-5f88-9c4e-5b51fe125adb",
+  "product_id": "a6bfddd2-df24-506c-b9c5-82cdfcd65e6d",
+  "distributor_id": "b594753b-380a-5888-ba76-bb4f7ba18dbd",
+  "distributor_discount": "4.40%",
+  "quantity": "1",
+  "discount": "0.02",
+  "unit_price": "nan",
+  "vendor_commision": "0",
+  "bill_to": "TECTON ENGINEERING AND CONSTRUCTION (INDIA) PRIVATE LIMITED",
+  "requested_date": "2026-03-06T00:00:00",
+  "purchase_type": "EXISTING-ADD-ON",
+  "delivery_date": "2026-03-06T00:00:00",
+  "shipping_method": "ONLINE",
+  "payment_status": "NOT PAID",
+  "invoice_status": "COMPLETED",
+  "invoice_number": "TBS2526IN1937",
+  "invoice_date": "2026-03-07T00:00:00",
+  "distributor_type": "REBATE",
+  "renewal_type": "YEARLY-YEARLY-BILL",
+  "payment_terms": "15-DAYS",
+  "discount_id": "e5bd0e7d-998a-52a0-bbf7-06a38a38e628",
+  "delivery_info": {
+    "requested_date": "2026-03-06",
+    "delivery_date": "2026-03-06",
+    "shipping_method": "ONLINE",
+    "payment_terms": "15-DAYS"
+  },
+  "status_info": [
+    {
+      "payment_status": "NOT PAID",
+      "invoice_status": "COMPLETED",
+      "invoice_number": "TBS2526IN1937",
+      "invoice_date": "2026-03-07",
+      "paid_amount": "0"
+    }
+  ],
+  "reason": "This customer+Product doesn't have on order",
+  "activated": "False",
+  "logistic_info": {
+    "purchase_type": "EXISTING-ADD-ON",
+    "renewal_type": "YEARLY-YEARLY-BILL",
+    "bill_to": "TECTON ENGINEERING AND CONSTRUCTION (INDIA) PRIVATE LIMITED",
+    "distributor_type": "REBATE"
+  },
+  "additional_discount": "0.02"
+}
+
+--- Skipped Item 15 ---
+{
+  "customer_id": "b63b4383-289c-56dd-b5c5-0057b1e27050",
+  "product_id": "379b44d8-cd8b-5266-9689-ba2d7b88f6fe",
+  "distributor_id": "64860767-c70f-5b86-beda-32d596ce9706",
+  "distributor_discount": "24%",
+  "quantity": "2",
+  "discount": "0.02",
+  "unit_price": "nan",
+  "vendor_commision": "0",
+  "bill_to": "RX PROPELLANT PRIVATE LIMITED",
+  "requested_date": "2026-03-08T00:00:00",
+  "purchase_type": "EXISTING-ADD-ON",
+  "delivery_date": "2026-03-08T00:00:00",
+  "shipping_method": "ONLINE",
+  "payment_status": "NOT PAID",
+  "invoice_status": "COMPLETED",
+  "invoice_number": "TBS2526IN1942",
+  "invoice_date": "2026-03-09T00:00:00",
+  "distributor_type": "REBATE",
+  "renewal_type": "YEARLY-YEARLY-BILL",
+  "payment_terms": "15-DAYS",
+  "discount_id": "233b7fce-7998-5ac7-acb7-6ad474f9f851",
+  "delivery_info": {
+    "requested_date": "2026-03-08",
+    "delivery_date": "2026-03-08",
+    "shipping_method": "ONLINE",
+    "payment_terms": "15-DAYS"
+  },
+  "status_info": [
+    {
+      "payment_status": "NOT PAID",
+      "invoice_status": "COMPLETED",
+      "invoice_number": "TBS2526IN1942",
+      "invoice_date": "2026-03-09",
+      "paid_amount": "0"
+    }
+  ],
+  "reason": "This customer+Product doesn't have on order",
+  "activated": "False",
+  "logistic_info": {
+    "purchase_type": "EXISTING-ADD-ON",
+    "renewal_type": "YEARLY-YEARLY-BILL",
+    "bill_to": "RX PROPELLANT PRIVATE LIMITED",
+    "distributor_type": "REBATE"
+  },
+  "additional_discount": "0.02"
+}
+
+--- Skipped Item 16 ---
+{
+  "customer_id": "c908dfbd-aaf2-5e18-b309-9e3512e6fcf9",
+  "product_id": "20c1a3c3-21fb-5ec5-97c1-5228a11e5048",
+  "distributor_id": "64860767-c70f-5b86-beda-32d596ce9706",
+  "distributor_discount": "24%",
+  "quantity": "80",
+  "discount": "0.02",
+  "unit_price": "nan",
+  "vendor_commision": "0",
+  "bill_to": "Connectivity IT Services Pvt Ltd",
+  "requested_date": "2026-03-11T00:00:00",
+  "purchase_type": "EXISTING-ADD-ON",
+  "delivery_date": "2026-03-11T00:00:00",
+  "shipping_method": "ONLINE",
+  "payment_status": "NOT PAID",
+  "invoice_status": "INCOMPLETED",
+  "invoice_number": "nan",
+  "invoice_date": "NaT",
+  "distributor_type": "REBATE",
+  "renewal_type": "YEARLY-YEARLY-BILL",
+  "payment_terms": "15-DAYS",
+  "discount_id": "233b7fce-7998-5ac7-acb7-6ad474f9f851",
+  "delivery_info": {
+    "requested_date": "2026-03-11",
+    "delivery_date": "2026-03-11",
+    "shipping_method": "ONLINE",
+    "payment_terms": "15-DAYS"
+  },
+  "status_info": [
+    {
+      "payment_status": "NOT PAID",
+      "invoice_status": "INCOMPLETED",
+      "paid_amount": "0"
+    }
+  ],
+  "reason": "This customer+Product doesn't have on order",
+  "activated": "False",
+  "logistic_info": {
+    "purchase_type": "EXISTING-ADD-ON",
+    "renewal_type": "YEARLY-YEARLY-BILL",
+    "bill_to": "Connectivity IT Services Pvt Ltd",
+    "distributor_type": "REBATE"
+  },
+  "additional_discount": "0.02"
+}
+
+--- Skipped Item 17 ---
+{
+  "customer_id": "c908dfbd-aaf2-5e18-b309-9e3512e6fcf9",
+  "product_id": "7a413f86-e183-5cbb-b237-4da6e6c9cefb",
+  "distributor_id": "64860767-c70f-5b86-beda-32d596ce9706",
+  "distributor_discount": "22%",
+  "quantity": "60",
+  "discount": "0.0",
+  "unit_price": "nan",
+  "vendor_commision": "0",
+  "bill_to": "Connectivity IT Services Pvt Ltd",
+  "requested_date": "2026-03-11T00:00:00",
+  "purchase_type": "EXISTING-ADD-ON",
+  "delivery_date": "2026-03-11T00:00:00",
+  "shipping_method": "ONLINE",
+  "payment_status": "NOT PAID",
+  "invoice_status": "INCOMPLETED",
+  "invoice_number": "nan",
+  "invoice_date": "NaT",
+  "distributor_type": "NON-REBATE",
+  "renewal_type": "YEARLY-YEARLY-BILL",
+  "payment_terms": "15-DAYS",
+  "discount_id": "121cfa1f-7935-5ddf-9905-52a41d5081d2",
+  "delivery_info": {
+    "requested_date": "2026-03-11",
+    "delivery_date": "2026-03-11",
+    "shipping_method": "ONLINE",
+    "payment_terms": "15-DAYS"
+  },
+  "status_info": [
+    {
+      "payment_status": "NOT PAID",
+      "invoice_status": "INCOMPLETED",
+      "paid_amount": "0"
+    }
+  ],
+  "reason": "This customer+Product doesn't have on order",
+  "activated": "False",
+  "logistic_info": {
+    "purchase_type": "EXISTING-ADD-ON",
+    "renewal_type": "YEARLY-YEARLY-BILL",
+    "bill_to": "Connectivity IT Services Pvt Ltd",
+    "distributor_type": "NON-REBATE"
+  },
+  "additional_discount": "0.0"
+}
+
+--- Skipped Item 18 ---
+{
+  "customer_id": "c908dfbd-aaf2-5e18-b309-9e3512e6fcf9",
+  "product_id": "3e252170-c734-5b50-9fe8-ecd02d9252c3",
+  "distributor_id": "64860767-c70f-5b86-beda-32d596ce9706",
+  "distributor_discount": "22%",
+  "quantity": "90",
+  "discount": "0.0",
+  "unit_price": "nan",
+  "vendor_commision": "0",
+  "bill_to": "Connectivity IT Services Pvt Ltd",
+  "requested_date": "2026-03-11T00:00:00",
+  "purchase_type": "EXISTING-ADD-ON",
+  "delivery_date": "2026-03-11T00:00:00",
+  "shipping_method": "ONLINE",
+  "payment_status": "NOT PAID",
+  "invoice_status": "INCOMPLETED",
+  "invoice_number": "nan",
+  "invoice_date": "NaT",
+  "distributor_type": "NON-REBATE",
+  "renewal_type": "YEARLY-YEARLY-BILL",
+  "payment_terms": "15-DAYS",
+  "discount_id": "121cfa1f-7935-5ddf-9905-52a41d5081d2",
+  "delivery_info": {
+    "requested_date": "2026-03-11",
+    "delivery_date": "2026-03-11",
+    "shipping_method": "ONLINE",
+    "payment_terms": "15-DAYS"
+  },
+  "status_info": [
+    {
+      "payment_status": "NOT PAID",
+      "invoice_status": "INCOMPLETED",
+      "paid_amount": "0"
+    }
+  ],
+  "reason": "This customer+Product doesn't have on order",
+  "activated": "False",
+  "logistic_info": {
+    "purchase_type": "EXISTING-ADD-ON",
+    "renewal_type": "YEARLY-YEARLY-BILL",
+    "bill_to": "Connectivity IT Services Pvt Ltd",
+    "distributor_type": "NON-REBATE"
+  },
+  "additional_discount": "0.0"
+}
+
+--- Skipped Item 19 ---
+{
+  "customer_id": "1ac70da1-0094-50e2-be9d-f90bab824612",
+  "product_id": "98c10902-5635-554b-8845-6051921f54e1",
+  "distributor_id": "64860767-c70f-5b86-beda-32d596ce9706",
+  "distributor_discount": "22%",
+  "quantity": "1",
+  "discount": "0.0",
+  "unit_price": "nan",
+  "vendor_commision": "0",
+  "bill_to": "UNIGLOBE MOD TRAVELS PVT LTD",
+  "requested_date": "2026-03-09T00:00:00",
+  "purchase_type": "EXISTING-ADD-ON",
+  "delivery_date": "2026-03-09T00:00:00",
+  "shipping_method": "ONLINE",
+  "payment_status": "NOT PAID",
+  "invoice_status": "INCOMPLETED",
+  "invoice_number": "nan",
+  "invoice_date": "NaT",
+  "distributor_type": "NON-REBATE",
+  "renewal_type": "YEARLY-YEARLY-BILL",
+  "payment_terms": "15-DAYS",
+  "discount_id": "121cfa1f-7935-5ddf-9905-52a41d5081d2",
+  "delivery_info": {
+    "requested_date": "2026-03-09",
+    "delivery_date": "2026-03-09",
+    "shipping_method": "ONLINE",
+    "payment_terms": "15-DAYS"
+  },
+  "status_info": [
+    {
+      "payment_status": "NOT PAID",
+      "invoice_status": "INCOMPLETED",
+      "paid_amount": "0"
+    }
+  ],
+  "reason": "This customer+Product doesn't have on order",
+  "activated": "False",
+  "logistic_info": {
+    "purchase_type": "EXISTING-ADD-ON",
+    "renewal_type": "YEARLY-YEARLY-BILL",
+    "bill_to": "UNIGLOBE MOD TRAVELS PVT LTD",
+    "distributor_type": "NON-REBATE"
+  },
+  "additional_discount": "0.0"
+}
+
+--- Skipped Item 20 ---
+{
+  "customer_id": "904fc17d-33fb-5fdf-b0ca-151c15c49c12",
+  "product_id": "379b44d8-cd8b-5266-9689-ba2d7b88f6fe",
+  "distributor_id": "64860767-c70f-5b86-beda-32d596ce9706",
+  "distributor_discount": "24%",
+  "quantity": "3",
+  "discount": "0.02",
+  "unit_price": "nan",
+  "vendor_commision": "0",
+  "bill_to": "DRILLBIT SOFTTECH INDIA PRIVATE LIMITED",
+  "requested_date": "2026-03-09T00:00:00",
+  "purchase_type": "EXISTING-ADD-ON",
+  "delivery_date": "2026-03-09T00:00:00",
+  "shipping_method": "ONLINE",
+  "payment_status": "NOT PAID",
+  "invoice_status": "COMPLETED",
+  "invoice_number": "TBS2526IN1946",
+  "invoice_date": "2026-03-10T00:00:00",
+  "distributor_type": "REBATE",
+  "renewal_type": "YEARLY-YEARLY-BILL",
+  "payment_terms": "15-DAYS",
+  "discount_id": "233b7fce-7998-5ac7-acb7-6ad474f9f851",
+  "delivery_info": {
+    "requested_date": "2026-03-09",
+    "delivery_date": "2026-03-09",
+    "shipping_method": "ONLINE",
+    "payment_terms": "15-DAYS"
+  },
+  "status_info": [
+    {
+      "payment_status": "NOT PAID",
+      "invoice_status": "COMPLETED",
+      "invoice_number": "TBS2526IN1946",
+      "invoice_date": "2026-03-10",
+      "paid_amount": "0"
+    }
+  ],
+  "reason": "This customer+Product doesn't have on order",
+  "activated": "False",
+  "logistic_info": {
+    "purchase_type": "EXISTING-ADD-ON",
+    "renewal_type": "YEARLY-YEARLY-BILL",
+    "bill_to": "DRILLBIT SOFTTECH INDIA PRIVATE LIMITED",
+    "distributor_type": "REBATE"
+  },
+  "additional_discount": "0.02"
+}
+
+--- Skipped Item 21 ---
+{
+  "customer_id": "d728e27e-d003-52f6-983a-2f563768863f",
+  "product_id": "a6bfddd2-df24-506c-b9c5-82cdfcd65e6d",
+  "distributor_id": "71f89d10-f19f-55fb-8af6-6b55de83f5df",
+  "distributor_discount": "3.75%",
+  "quantity": "5",
+  "discount": "0.02",
+  "unit_price": "nan",
+  "vendor_commision": "0",
+  "bill_to": "WRAPTRON APPTECH LLP",
+  "requested_date": "2026-03-09T00:00:00",
+  "purchase_type": "EXISTING-ADD-ON",
+  "delivery_date": "2026-03-09T00:00:00",
+  "shipping_method": "ONLINE",
+  "payment_status": "NOT PAID",
+  "invoice_status": "COMPLETED",
+  "invoice_number": "TBS2526IN1948",
+  "invoice_date": "2026-03-10T00:00:00",
+  "distributor_type": "REBATE",
+  "renewal_type": "YEARLY-YEARLY-BILL",
+  "payment_terms": "15-DAYS",
+  "discount_id": "8990f165-ec9b-5736-ad51-ab85a58caf64",
+  "delivery_info": {
+    "requested_date": "2026-03-09",
+    "delivery_date": "2026-03-09",
+    "shipping_method": "ONLINE",
+    "payment_terms": "15-DAYS"
+  },
+  "status_info": [
+    {
+      "payment_status": "NOT PAID",
+      "invoice_status": "COMPLETED",
+      "invoice_number": "TBS2526IN1948",
+      "invoice_date": "2026-03-10",
+      "paid_amount": "0"
+    }
+  ],
+  "reason": "This customer+Product doesn't have on order",
+  "activated": "False",
+  "logistic_info": {
+    "purchase_type": "EXISTING-ADD-ON",
+    "renewal_type": "YEARLY-YEARLY-BILL",
+    "bill_to": "WRAPTRON APPTECH LLP",
+    "distributor_type": "REBATE"
+  },
+  "additional_discount": "0.02"
+}
+
+--- Skipped Item 22 ---
+{
+  "customer_id": "d728e27e-d003-52f6-983a-2f563768863f",
+  "product_id": "a6bfddd2-df24-506c-b9c5-82cdfcd65e6d",
+  "distributor_id": "71f89d10-f19f-55fb-8af6-6b55de83f5df",
+  "distributor_discount": "3.75%",
+  "quantity": "5",
+  "discount": "0.02",
+  "unit_price": "nan",
+  "vendor_commision": "0",
+  "bill_to": "WRAPTRON APPTECH LLP",
+  "requested_date": "2026-03-09T00:00:00",
+  "purchase_type": "EXISTING-ADD-ON",
+  "delivery_date": "2026-03-09T00:00:00",
+  "shipping_method": "ONLINE",
+  "payment_status": "NOT PAID",
+  "invoice_status": "COMPLETED",
+  "invoice_number": "TBS2526IN1949",
+  "invoice_date": "2026-03-10T00:00:00",
+  "distributor_type": "REBATE",
+  "renewal_type": "YEARLY-YEARLY-BILL",
+  "payment_terms": "15-DAYS",
+  "discount_id": "8990f165-ec9b-5736-ad51-ab85a58caf64",
+  "delivery_info": {
+    "requested_date": "2026-03-09",
+    "delivery_date": "2026-03-09",
+    "shipping_method": "ONLINE",
+    "payment_terms": "15-DAYS"
+  },
+  "status_info": [
+    {
+      "payment_status": "NOT PAID",
+      "invoice_status": "COMPLETED",
+      "invoice_number": "TBS2526IN1949",
+      "invoice_date": "2026-03-10",
+      "paid_amount": "0"
+    }
+  ],
+  "reason": "This customer+Product doesn't have on order",
+  "activated": "False",
+  "logistic_info": {
+    "purchase_type": "EXISTING-ADD-ON",
+    "renewal_type": "YEARLY-YEARLY-BILL",
+    "bill_to": "WRAPTRON APPTECH LLP",
+    "distributor_type": "REBATE"
+  },
+  "additional_discount": "0.02"
+}
+
+--- Skipped Item 23 ---
+{
+  "customer_id": "f6c8bf20-1807-5746-a9d9-10c7d108d4c8",
+  "product_id": "a25fdb7b-cc11-5852-9d5d-5c976cebbdf8",
+  "distributor_id": "b594753b-380a-5888-ba76-bb4f7ba18dbd",
+  "distributor_discount": "4.40%",
+  "quantity": "1",
+  "discount": "0.02",
+  "unit_price": "nan",
+  "vendor_commision": "0",
+  "bill_to": "TIGER ANALYTICS INDIA CONSULTING PRIVATE LIMITED",
+  "requested_date": "2026-03-09T00:00:00",
+  "purchase_type": "EXISTING-ADD-ON",
+  "delivery_date": "2026-03-09T00:00:00",
+  "shipping_method": "ONLINE",
+  "payment_status": "NOT PAID",
+  "invoice_status": "COMPLETED",
+  "invoice_number": "TBS2526IN1950",
+  "invoice_date": "2026-03-10T00:00:00",
+  "distributor_type": "REBATE",
+  "renewal_type": "YEARLY-YEARLY-BILL",
+  "payment_terms": "15-DAYS",
+  "discount_id": "e5bd0e7d-998a-52a0-bbf7-06a38a38e628",
+  "delivery_info": {
+    "requested_date": "2026-03-09",
+    "delivery_date": "2026-03-09",
+    "shipping_method": "ONLINE",
+    "payment_terms": "15-DAYS"
+  },
+  "status_info": [
+    {
+      "payment_status": "NOT PAID",
+      "invoice_status": "COMPLETED",
+      "invoice_number": "TBS2526IN1950",
+      "invoice_date": "2026-03-10",
+      "paid_amount": "0"
+    }
+  ],
+  "reason": "This customer+Product doesn't have on order",
+  "activated": "False",
+  "logistic_info": {
+    "purchase_type": "EXISTING-ADD-ON",
+    "renewal_type": "YEARLY-YEARLY-BILL",
+    "bill_to": "TIGER ANALYTICS INDIA CONSULTING PRIVATE LIMITED",
+    "distributor_type": "REBATE"
+  },
+  "additional_discount": "0.02"
+}
+
+--- Skipped Item 24 ---
+{
+  "customer_id": "529d907c-1733-56b1-9d34-b36f7038eadd",
+  "product_id": "3e252170-c734-5b50-9fe8-ecd02d9252c3",
+  "distributor_id": "dac5e6cb-74a3-58b0-ae9e-a5402f06cdb1",
+  "distributor_discount": "0%",
+  "quantity": "3",
+  "discount": "0.0",
+  "unit_price": "nan",
+  "vendor_commision": "0",
+  "bill_to": "CasleSky soft Pvt Ltd",
+  "requested_date": "2026-03-09T00:00:00",
+  "purchase_type": "EXISTING-ADD-ON",
+  "delivery_date": "2026-03-09T00:00:00",
+  "shipping_method": "ONLINE",
+  "payment_status": "FULL PAYMENT RECEIVED",
+  "invoice_status": "COMPLETED",
+  "invoice_number": "TBS2526IN1954",
+  "invoice_date": "2026-03-10T00:00:00",
+  "distributor_type": "NON-REBATE",
+  "renewal_type": "YEARLY-YEARLY-BILL",
+  "payment_terms": "15-DAYS",
+  "converted_discounts": [
+    "0.00%",
+    "0.00%",
+    "0.00%",
+    "0.00%"
+  ],
+  "existing_discounts": [
+    "6.75%",
+    "4.00%",
+    "3.00%",
+    "0.00%"
+  ],
+  "discount_id": "f0a5f38b-afca-525d-90b9-a4d9973f0402",
+  "delivery_info": {
+    "requested_date": "2026-03-09",
+    "delivery_date": "2026-03-09",
+    "shipping_method": "ONLINE",
+    "payment_terms": "15-DAYS"
+  },
+  "status_info": {
+    "payment_status": "FULL PAYMENT RECEIVED",
+    "invoice_status": "COMPLETED",
+    "invoice_number": "TBS2526IN1954",
+    "invoice_date": "2026-03-10"
+  },
+  "reason": "This customer+Product doesn't have on order"
+}
+
+--- Skipped Item 25 ---
+{
+  "customer_id": "dbd6b1db-0f5d-5ef2-9d40-b451ae416d2a",
+  "product_id": "379b44d8-cd8b-5266-9689-ba2d7b88f6fe",
+  "distributor_id": "64860767-c70f-5b86-beda-32d596ce9706",
+  "distributor_discount": "24%",
+  "quantity": "2",
+  "discount": "0.02",
+  "unit_price": "nan",
+  "vendor_commision": "0",
+  "bill_to": "HODEK VIBRATION TECHNOLOGIES PVT LTD",
+  "requested_date": "2026-03-09T00:00:00",
+  "purchase_type": "EXISTING-ADD-ON",
+  "delivery_date": "2026-03-09T00:00:00",
+  "shipping_method": "ONLINE",
+  "payment_status": "NOT PAID",
+  "invoice_status": "COMPLETED",
+  "invoice_number": "TBS2526IN1955",
+  "invoice_date": "2026-03-10T00:00:00",
+  "distributor_type": "REBATE",
+  "renewal_type": "YEARLY-YEARLY-BILL",
+  "payment_terms": "15-DAYS",
+  "discount_id": "233b7fce-7998-5ac7-acb7-6ad474f9f851",
+  "delivery_info": {
+    "requested_date": "2026-03-09",
+    "delivery_date": "2026-03-09",
+    "shipping_method": "ONLINE",
+    "payment_terms": "15-DAYS"
+  },
+  "status_info": [
+    {
+      "payment_status": "NOT PAID",
+      "invoice_status": "COMPLETED",
+      "invoice_number": "TBS2526IN1955",
+      "invoice_date": "2026-03-10",
+      "paid_amount": "0"
+    }
+  ],
+  "reason": "This customer+Product doesn't have on order",
+  "activated": "False",
+  "logistic_info": {
+    "purchase_type": "EXISTING-ADD-ON",
+    "renewal_type": "YEARLY-YEARLY-BILL",
+    "bill_to": "HODEK VIBRATION TECHNOLOGIES PVT LTD",
+    "distributor_type": "REBATE"
+  },
+  "additional_discount": "0.02"
+}
+
+--- Skipped Item 26 ---
+{
+  "customer_id": "76a94e99-b8bf-5e33-ba14-a9cadb3506ac",
+  "product_id": "379b44d8-cd8b-5266-9689-ba2d7b88f6fe",
+  "distributor_id": "64860767-c70f-5b86-beda-32d596ce9706",
+  "distributor_discount": "24%",
+  "quantity": "9",
+  "discount": "0.02",
+  "unit_price": "nan",
+  "vendor_commision": "0",
+  "bill_to": "NKK",
+  "requested_date": "2026-03-10T00:00:00",
+  "purchase_type": "EXISTING-ADD-ON",
+  "delivery_date": "2026-03-10T00:00:00",
+  "shipping_method": "ONLINE",
+  "payment_status": "NOT PAID",
+  "invoice_status": "INCOMPLETED",
+  "invoice_number": "nan",
+  "invoice_date": "NaT",
+  "distributor_type": "REBATE",
+  "renewal_type": "YEARLY-YEARLY-BILL",
+  "payment_terms": "15-DAYS",
+  "discount_id": "233b7fce-7998-5ac7-acb7-6ad474f9f851",
+  "delivery_info": {
+    "requested_date": "2026-03-10",
+    "delivery_date": "2026-03-10",
+    "shipping_method": "ONLINE",
+    "payment_terms": "15-DAYS"
+  },
+  "status_info": [
+    {
+      "payment_status": "NOT PAID",
+      "invoice_status": "INCOMPLETED",
+      "paid_amount": "0"
+    }
+  ],
+  "reason": "This customer+Product doesn't have on order",
+  "activated": "False",
+  "logistic_info": {
+    "purchase_type": "EXISTING-ADD-ON",
+    "renewal_type": "YEARLY-YEARLY-BILL",
+    "bill_to": "NKK",
+    "distributor_type": "REBATE"
+  },
+  "additional_discount": "0.02"
+}
+
+--- Skipped Item 27 ---
+{
+  "customer_id": "76a94e99-b8bf-5e33-ba14-a9cadb3506ac",
+  "product_id": "a6bfddd2-df24-506c-b9c5-82cdfcd65e6d",
+  "distributor_id": "64860767-c70f-5b86-beda-32d596ce9706",
+  "distributor_discount": "24%",
+  "quantity": "8",
+  "discount": "0.02",
+  "unit_price": "nan",
+  "vendor_commision": "0",
+  "bill_to": "NKK",
+  "requested_date": "2026-03-10T00:00:00",
+  "purchase_type": "EXISTING-ADD-ON",
+  "delivery_date": "2026-03-10T00:00:00",
+  "shipping_method": "ONLINE",
+  "payment_status": "NOT PAID",
+  "invoice_status": "INCOMPLETED",
+  "invoice_number": "nan",
+  "invoice_date": "NaT",
+  "distributor_type": "REBATE",
+  "renewal_type": "YEARLY-YEARLY-BILL",
+  "payment_terms": "15-DAYS",
+  "discount_id": "233b7fce-7998-5ac7-acb7-6ad474f9f851",
+  "delivery_info": {
+    "requested_date": "2026-03-10",
+    "delivery_date": "2026-03-10",
+    "shipping_method": "ONLINE",
+    "payment_terms": "15-DAYS"
+  },
+  "status_info": [
+    {
+      "payment_status": "NOT PAID",
+      "invoice_status": "INCOMPLETED",
+      "paid_amount": "0"
+    }
+  ],
+  "reason": "This customer+Product doesn't have on order",
+  "activated": "False",
+  "logistic_info": {
+    "purchase_type": "EXISTING-ADD-ON",
+    "renewal_type": "YEARLY-YEARLY-BILL",
+    "bill_to": "NKK",
+    "distributor_type": "REBATE"
+  },
+  "additional_discount": "0.02"
+}
+
+--- Skipped Item 28 ---
+{
+  "customer_id": "40977a0e-59ee-5f59-b95b-9fa1e7d1e739",
+  "product_id": "a6bfddd2-df24-506c-b9c5-82cdfcd65e6d",
+  "distributor_id": "dac5e6cb-74a3-58b0-ae9e-a5402f06cdb1",
+  "distributor_discount": "4%",
+  "quantity": "1",
+  "discount": "0.02",
+  "unit_price": "nan",
+  "vendor_commision": "0",
+  "bill_to": "PURATHANA VENTURES PRIVATE LIMITED",
+  "requested_date": "2026-03-10T00:00:00",
+  "purchase_type": "EXISTING-ADD-ON",
+  "delivery_date": "2026-03-10T00:00:00",
+  "shipping_method": "ONLINE",
+  "payment_status": "NOT PAID",
+  "invoice_status": "COMPLETED",
+  "invoice_number": "TBS2526IN1953",
+  "invoice_date": "2026-03-10T00:00:00",
+  "distributor_type": "REBATE",
+  "renewal_type": "YEARLY-YEARLY-BILL",
+  "payment_terms": "15-DAYS",
+  "discount_id": "501489a4-a242-5143-a75b-c82e98c9ab9f",
+  "delivery_info": {
+    "requested_date": "2026-03-10",
+    "delivery_date": "2026-03-10",
+    "shipping_method": "ONLINE",
+    "payment_terms": "15-DAYS"
+  },
+  "status_info": [
+    {
+      "payment_status": "NOT PAID",
+      "invoice_status": "COMPLETED",
+      "invoice_number": "TBS2526IN1953",
+      "invoice_date": "2026-03-10",
+      "paid_amount": "0"
+    }
+  ],
+  "reason": "This customer+Product doesn't have on order",
+  "activated": "False",
+  "logistic_info": {
+    "purchase_type": "EXISTING-ADD-ON",
+    "renewal_type": "YEARLY-YEARLY-BILL",
+    "bill_to": "PURATHANA VENTURES PRIVATE LIMITED",
+    "distributor_type": "REBATE"
+  },
+  "additional_discount": "0.02"
+}
+
+--- Skipped Item 29 ---
+{
+  "customer_id": "4d989a96-2cb5-5b96-9aab-a3a4e2cb3919",
+  "product_id": "a6bfddd2-df24-506c-b9c5-82cdfcd65e6d",
+  "distributor_id": "64860767-c70f-5b86-beda-32d596ce9706",
+  "distributor_discount": "24%",
+  "quantity": "5",
+  "discount": "0.02",
+  "unit_price": "nan",
+  "vendor_commision": "0",
+  "bill_to": "RIGHT TIGHT FASTNERS PRIVATE LIMITED",
+  "requested_date": "2026-03-10T00:00:00",
+  "purchase_type": "EXISTING-ADD-ON",
+  "delivery_date": "2026-03-10T00:00:00",
+  "shipping_method": "ONLINE",
+  "payment_status": "NOT PAID",
+  "invoice_status": "INCOMPLETED",
+  "invoice_number": "nan",
+  "invoice_date": "NaT",
+  "distributor_type": "REBATE",
+  "renewal_type": "YEARLY-YEARLY-BILL",
+  "payment_terms": "15-DAYS",
+  "discount_id": "233b7fce-7998-5ac7-acb7-6ad474f9f851",
+  "delivery_info": {
+    "requested_date": "2026-03-10",
+    "delivery_date": "2026-03-10",
+    "shipping_method": "ONLINE",
+    "payment_terms": "15-DAYS"
+  },
+  "status_info": [
+    {
+      "payment_status": "NOT PAID",
+      "invoice_status": "INCOMPLETED",
+      "paid_amount": "0"
+    }
+  ],
+  "reason": "This customer+Product doesn't have on order",
+  "activated": "False",
+  "logistic_info": {
+    "purchase_type": "EXISTING-ADD-ON",
+    "renewal_type": "YEARLY-YEARLY-BILL",
+    "bill_to": "RIGHT TIGHT FASTNERS PRIVATE LIMITED",
+    "distributor_type": "REBATE"
+  },
+  "additional_discount": "0.02"
+}
+

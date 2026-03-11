@@ -380,7 +380,8 @@ class OrdersRepo(BaseRepoModel):
                     func.sum(profit_loss_price).label("total_revenue"),
                     func.count(Orders.id).label("total_orders"),
                     func.sum(customer_final_price).label("order_value"),
-                    func.count(func.distinct(OrdersPaymentInvoiceInfo.id)).filter(OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.INCOMPLETED.value).label("pending_invoice"),
+                    func.count(OrdersPaymentInvoiceInfo.id).filter(OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.INCOMPLETED.value).label("pending_invoice"),
+                    func.count(Orders.activated).filter(Orders.activated==False).label("not_activated"),
                     func.count().filter(OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.TDS_PENDING.value).label("tds_pendings"),
                     func.sum(
                         func.round(customer_price * 1.18) -
@@ -432,11 +433,11 @@ class OrdersRepo(BaseRepoModel):
                 *self.orders_cols,
                 date_expr.label("order_created_at")  
             )
-            .join(OrdersPaymentInvoiceInfo,OrdersPaymentInvoiceInfo.order_id==Orders.id,isouter=True)
-            .join(Products, Products.id == Orders.product_id, isouter=True)
-            .join(Customers, Customers.id == Orders.customer_id, isouter=True)
-            .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
-            .join(Users, Users.id == Orders.deleted_by, isouter=True)
+            .join(self.subquery, self.subquery.c.order_id == Orders.id, isouter=True)
+            .join(Products,Products.id==Orders.product_id,isouter=True)
+            .join(Customers,Customers.id==Orders.customer_id,isouter=True)
+            .join(Distributors,Distributors.id==Orders.distributor_id,isouter=True)
+            .join(OrdersPaymentInvoiceInfo, OrdersPaymentInvoiceInfo.order_id == Orders.id,isouter=True)
             .where(
                 or_(
                     Orders.id.ilike(search_term),
@@ -457,13 +458,6 @@ class OrdersRepo(BaseRepoModel):
                 ),
                 Orders.is_deleted==False
             )
-            .group_by(
-                    Orders.id,
-                    OrdersPaymentInvoiceInfo.order_id,
-                    Products.id,
-                    Customers.id,
-                    Distributors.id
-                )
             .limit(5)
         )).mappings().all()
 

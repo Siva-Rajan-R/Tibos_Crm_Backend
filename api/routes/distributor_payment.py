@@ -36,7 +36,7 @@ async def recover(data:RecoverDistributorPayment,user:dict=Depends(verify_user),
     
 
 @router.get("")
-async def get(cursor:int=Query(1),limit:int=Query(10),query:str=Query(""),include_deleted:bool=False,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+async def get(cursor:int=Query(1),limit:int=Query(50),query:str=Query(""),include_deleted:bool=False,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleDistributorPaymentRequest(session=session,user_role=user['role'],cur_user_id=user['id']).get(cursor=cursor,limit=limit,query=query,include_deleted=include_deleted)
 
 

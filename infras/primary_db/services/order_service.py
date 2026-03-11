@@ -274,11 +274,7 @@ class OrdersService(BaseServiceModel):
             paid_amount=0
             ic(data['status_info'])
             if  data['status_info']['invoice_status']==InvoiceStatus.COMPLETED.value and data['status_info']['payment_status']==PaymentStatus.FULL_PAYMENT_RECEIVED.value:
-                if data['purchase_type']!=PurchaseTypes.EXISTING_ADD_ON.value:
-                    paid_amount=get_customer_price(customer_price=data['unit_price'],qty=data['quantity']).get('with_gst')
-                    ic(paid_amount)
-
-                elif data['purchase_type']==PurchaseTypes.EXISTING_ADD_ON.value:
+                if data['purchase_type']==PurchaseTypes.EXISTING_ADD_ON.value:
                     last_order=(await orders_obj.get_last_order(customer_id=data['customer_id'],product_id=data['product_id']))
                     if not last_order['last_order'] or len(last_order['last_order'])<1:
                         data['reason']="This customer+Product doesn't have on order"
@@ -295,8 +291,24 @@ class OrdersService(BaseServiceModel):
                     
                     data['unit_price']=last_order['last_order']['unit_price']
                     paid_amount=get_customer_addon_price(customer_price=data['unit_price'],qty=data['quantity'],expiry_date=expiry_date,delivery_date=data['delivery_info']['delivery_date']).get("with_gst")
+                
+                else:
+                    paid_amount=get_customer_price(customer_price=data['unit_price'],qty=data['quantity']).get('with_gst')
+                    ic(paid_amount)
+            
+            if data['purchase_type']==PurchaseTypes.EXISTING_ADD_ON.value:
+                last_order=(await orders_obj.get_last_order(customer_id=data['customer_id'],product_id=data['product_id']))
+                if not last_order['last_order'] or len(last_order['last_order'])<1:
+                    data['reason']="This customer+Product doesn't have on order"
+                    skipped_items.append(data)
+                    continue
+                else:   
+                    last_order=(await orders_obj.get_last_order(customer_id=data['customer_id'],product_id=data['product_id']))
+                    data['unit_price']=last_order['last_order']['unit_price']
+                    paid_amount=0
 
             data['status_info']['paid_amount']=round(paid_amount)
+            data['activated']=False
 
             data['logistic_info']=LogisticsInfo(
                 purchase_type=data['purchase_type'],

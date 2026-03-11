@@ -5,7 +5,9 @@ from core.data_formats.typed_dicts.distributor_typdict import DistributorPayment
 class AddDbDistributorPaymentSchema(BaseModel):
     order_id:str
     payment_infos:List[DistributorPaymentInfosTypDict]
+    payment_type:str
 
 class UpdateDbDistributorPaymentSchema(BaseModel):
     id:int
     payment_infos:List[DistributorPaymentInfosTypDict]
+    payment_type:str
