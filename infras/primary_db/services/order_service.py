@@ -26,7 +26,8 @@ from core.constants import UI_ID_STARTING_DIGIT,LUI_ID_ORDER_PREFIX
 from core.utils.discount_validator import parse_discount,validate_discount
 from core.data_formats.enums.order_enums import RenewalTypes
 from core.utils.calculations import get_customer_price
-
+from core.utils.msblob import generate_sas_url,upload_excel_to_blob
+from services.sse import sse_manager,sse_msg_builder
 import pandas as pd
 from schemas.request_schemas.order import OrderFilterSchema
 from core.utils.calculations import get_distributor_price,get_remaining_days,get_customer_addon_price
@@ -86,24 +87,25 @@ def make_json_safe(obj):
     return str(obj)
 
 
-def write_skipped_items_to_txt(skipped_items: list, prefix="skipped_orders"):
+def write_skipped_items_to_excel(skipped_items: list, prefix="skipped_orders"):
     if not skipped_items:
         return None
 
     ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
+
     output_dir = Path("skipped_reports")
     output_dir.mkdir(exist_ok=True)
 
-    file_path = output_dir / f"{prefix}_{ts}.txt"
+    file_path = output_dir / f"{prefix}_{ts}.xlsx"
 
-    with open(file_path, "w", encoding="utf-8") as f:
-        for idx, item in enumerate(skipped_items, start=1):
-            f.write(f"--- Skipped Item {idx} ---\n")
-            safe_item = make_json_safe(item)
-            f.write(json.dumps(safe_item, indent=2))
-            f.write("\n\n")
+    # convert nested objects safely
+    safe_items = [make_json_safe(item) for item in skipped_items]
 
-    return str(file_path)
+    df = pd.DataFrame(safe_items)
+
+    df.to_excel(file_path, index=False)
+
+    return file_path.as_posix()
 
 def safe_date(value, fmt="%Y-%m-%d"):
     if value is None:
@@ -207,7 +209,7 @@ class OrdersService(BaseServiceModel):
             
             distri_exists=await DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(distributor_id=data['distributor_id'])
             if not distri_exists['distributors'] or len(distri_exists['distributors'])<1:
-                data['reason']="Distributor Not FOund"
+                data['reason']="Distributor Not Found"
                 skipped_items.append(data)
                 continue
             # ic("Hii da mapla")
@@ -236,7 +238,7 @@ class OrdersService(BaseServiceModel):
             data['converted_discounts']=converted_discounts
             data['existing_discounts']=existing_discounts
             if discount_id is None:
-                data['reason']="Discount mistmatched"
+                data['reason']="Discount or Rebate Type Mistmatched"
                 skipped_items.append(data)
                 continue
 
@@ -280,6 +282,7 @@ class OrdersService(BaseServiceModel):
                         data['reason']="This customer+Product doesn't have on order"
                         skipped_items.append(data)
                         continue
+
                     expiry_date=last_order['last_order']['expiry_date']
                     remaining_days=get_remaining_days(from_date=expiry_date,to_date=data['delivery_info']['delivery_date'])
                     if remaining_days>365:
@@ -339,11 +342,18 @@ class OrdersService(BaseServiceModel):
                 skipped_items.append(data)
 
 
-        skipped_file_path = write_skipped_items_to_txt(skipped_items)
+        skipped_file_path = write_skipped_items_to_excel(skipped_items)
 
         ic("skipped_items_count", len(skipped_items))
         ic("orders_to_insert_count", len(datas_toadd))
         ic("Skipped file path",skipped_file_path)
+        if skipped_file_path:
+            blob_name=upload_excel_to_blob(local_file_path=skipped_file_path)
+            url=generate_sas_url(blob_name=blob_name)
+            ic(url)
+            msg=sse_msg_builder(title="Skipeed datas report",description="During bulk upload these are the datas are skipped",type="file",url=url)
+            await sse_manager.send(self.cur_user_id,data=msg)
+
         return await orders_obj.add_bulk(datas=datas_toadd,lui_id=lui_id,status_datas=status_infotoadd)
     
 

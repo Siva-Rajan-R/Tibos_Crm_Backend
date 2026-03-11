@@ -1,3 +1,5 @@
-a=3209.6
+a=set()
 
-print(round(a))
+a.add("hello")
+a.add("mrejn")
+print(a)

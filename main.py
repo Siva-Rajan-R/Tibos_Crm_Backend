@@ -1,5 +1,5 @@
 from fastapi import FastAPI,Request
-from api.routes import auth,contact,customer,order,product,user,drop_downs,dashboard,opportunity,leads,twofactor,distributor,recyclebin,setting,notification,distributor_payment
+from api.routes import auth,contact,customer,order,product,user,drop_downs,dashboard,opportunity,leads,twofactor,distributor,recyclebin,setting,notification,distributor_payment,sse
 from fastapi.middleware.cors import CORSMiddleware
 from infras.primary_db.services.user_service import UserService,UserRoles
 from infras.primary_db.main import init_pg_db
@@ -97,6 +97,7 @@ app.include_router(recyclebin.router)
 app.include_router(setting.router)
 app.include_router(notification.router)
 app.include_router(distributor_payment.router)
+app.include_router(sse.router)
 
 #Middlewares
 app.add_middleware(
