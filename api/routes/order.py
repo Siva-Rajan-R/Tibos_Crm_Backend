@@ -1,5 +1,5 @@
 from fastapi import Depends,APIRouter,Query,Form,UploadFile,Query,File,Request,BackgroundTasks,HTTPException
-from schemas.request_schemas.order import AddOrderSchema,UpdateOrderSchema,RecoverOrderSchema
+from schemas.request_schemas.order import AddOrderSchema,UpdateOrderSchema,RecoverOrderSchema,OrderBulkDeleteSchema
 from infras.primary_db.main import get_pg_db_session,AsyncSession
 from api.dependencies.token_verification import verify_user
 from ..handlers.order_handler import HandleOrdersRequest
@@ -14,6 +14,7 @@ from models.import_export_models.exports.excel_headings_mapper import ORDERS_MAP
 from schemas.request_schemas.export import ExportFields
 from tasks.arq_tasks.enqueues.report import enqueue_excel_report_job
 from pydantic import EmailStr
+
 
 
 
@@ -66,6 +67,17 @@ async def delete_order(customer_id:str,order_id:str,user:dict=Depends(verify_use
     ).delete(
         customer_id=customer_id,
         order_id=order_id,
+        soft_delete=soft_delete
+    )
+
+@router.post('/delete/bulk')
+async def delete_order(data:OrderBulkDeleteSchema,user:dict=Depends(verify_user),soft_delete:Optional[bool]=Query(True),session:AsyncSession=Depends(get_pg_db_session)):
+    return await HandleOrdersRequest(
+        session=session,
+        user_role=user['role'],
+        cur_user_id=user['id']
+    ).delete_bulk(
+        data=data,
         soft_delete=soft_delete
     )
 

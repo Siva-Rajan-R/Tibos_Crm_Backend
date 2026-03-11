@@ -3,6 +3,7 @@ from ..models.order import Orders,OrdersPaymentInvoiceInfo
 from ..models.product import Products
 from ..models.customer import Customers
 from ..repos.product_repo import ProductsRepo
+from ..repos.user_repo import UserRepo
 from ..repos.customer_repo import CustomersRepo
 from ..repos.distri_repo import DistributorsRepo
 from core.utils.uuid_generator import generate_uuid
@@ -13,8 +14,8 @@ from icecream import ic
 from core.data_formats.enums.user_enums import UserRoles
 from core.data_formats.enums.order_enums import PurchaseTypes
 from core.data_formats.typed_dicts.order_typdict import DeliveryInfo
-from schemas.db_schemas.order import AddOrderDbSchema,UpdateOrderDbSchema
-from schemas.request_schemas.order import AddOrderSchema,UpdateOrderSchema
+from schemas.db_schemas.order import AddOrderDbSchema,UpdateOrderDbSchema,OrderBulkDeleteDbSchema
+from schemas.request_schemas.order import AddOrderSchema,UpdateOrderSchema,OrderBulkDeleteSchema
 from core.decorators.error_handler_dec import catch_errors
 from math import ceil
 from typing import Optional,List
@@ -35,6 +36,7 @@ from core.data_formats.typed_dicts.order_typdict import DeliveryInfo,StatusInfo,
 import json
 from datetime import datetime
 from pathlib import Path
+from services.email_service import send_email
 
 
 def normalize_percent(value) -> Decimal:
@@ -351,8 +353,13 @@ class OrdersService(BaseServiceModel):
             blob_name=upload_excel_to_blob(local_file_path=skipped_file_path)
             url=generate_sas_url(blob_name=blob_name)
             ic(url)
-            msg=sse_msg_builder(title="Skipeed datas report",description="During bulk upload these are the datas are skipped",type="file",url=url)
+            msg=sse_msg_builder(title="Skiped datas report",description="During bulk upload these are the datas are skipped",type="file",url=url)
             await sse_manager.send(self.cur_user_id,data=msg)
+        else:
+            user=await UserRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(userid_toget=self.cur_user_id)
+            user_email=user['user']['email']
+
+            await send_email(client_ip="",reciver_emails=[user_email],subject="Skiped datas report",body="During bulk upload these are the datas are skipped",is_html=False,sender_email_id="crm@tibos.in")
 
         return await orders_obj.add_bulk(datas=datas_toadd,lui_id=lui_id,status_datas=status_infotoadd)
     
@@ -387,6 +394,11 @@ class OrdersService(BaseServiceModel):
     @catch_errors    
     async def delete(self,order_id:str,customer_id:str,soft_delete:bool=True):
         return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete(order_id=order_id,customer_id=customer_id,soft_delete=soft_delete)
+    
+    @catch_errors    
+    async def delete_bulk(self,data:OrderBulkDeleteSchema,customer_id:str,soft_delete:bool=True):
+        data=OrderBulkDeleteDbSchema(order_ids=data.order_ids)
+        return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete_bulk(data=data,soft_delete=soft_delete)
     
     @catch_errors  
     async def recover(self,order_id:str,customer_id:str):
