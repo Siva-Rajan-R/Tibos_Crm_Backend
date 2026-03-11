@@ -55,3 +55,7 @@ class OrderFilterSchema(BaseModel):
     distributor_id:Optional[str]=None
     revenue_type:Optional[Union[str,OrderFilterRevenueEnum,None]]=None
     date_filter:Optional[OrderDateFilterTypDict]=OrderDateFilterTypDict()
+
+
+class OrderBulkDeleteSchema(BaseModel):
+    order_ids:List[str]

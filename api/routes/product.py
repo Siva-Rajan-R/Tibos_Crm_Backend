@@ -91,6 +91,7 @@ async def export(data:ExportFields,bgt:BackgroundTasks,user:dict=Depends(verify_
         )
     
     await enqueue_excel_report_job(
+        user_id=user['id'],
         emails_tosend=[user_email],
         custom_fields=data.fields,
         mapper=PRODUCTS_MAPPER,

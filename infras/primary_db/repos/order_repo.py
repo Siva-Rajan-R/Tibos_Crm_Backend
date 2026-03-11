@@ -12,7 +12,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy import literal,true
 from core.data_formats.enums.user_enums import UserRoles
 from core.data_formats.enums.order_enums import PaymentStatus,InvoiceStatus,PurchaseTypes,OrderFilterRevenueEnum
-from schemas.db_schemas.order import AddOrderDbSchema,UpdateOrderDbSchema
+from schemas.db_schemas.order import AddOrderDbSchema,UpdateOrderDbSchema,OrderBulkDeleteDbSchema
 from core.decorators.db_session_handler_dec import start_db_transaction
 from math import ceil
 from ..models.user import Users
@@ -193,6 +193,28 @@ class OrdersRepo(BaseRepoModel):
             order_todelete=delete(Orders).where(Orders.id==order_id,Orders.customer_id==customer_id).returning(Orders.id)
             is_deleted=(await self.session.execute(order_todelete)).scalar_one_or_none()
             
+            # need to implement email sending "Your orders has been stoped from CRM"
+        return is_deleted if is_deleted else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Deleting Order",description="Unable to delete the order, may be invalid order id or order already deleted")
+    
+    @start_db_transaction    
+    async def delete_bulk(self,data:OrderBulkDeleteDbSchema,soft_delete:bool=True):
+        ic(soft_delete)
+        if soft_delete:
+            for order_id in data.order_ids:
+                order_todelete=update(Orders).where(Orders.id==order_id,Orders.is_deleted==False).values(
+                    is_deleted=True,
+                    deleted_at=func.now(),
+                    deleted_by=self.cur_user_id
+                ).returning(Orders.id)
+
+                is_deleted=(await self.session.execute(order_todelete)).scalar_one_or_none()
+        else:
+            if self.user_role if isinstance(self.user_role,UserRoles) else self.user_role!=UserRoles.SUPER_ADMIN.value:
+                return ErrorResponseTypDict(status_code=403,success=False,msg="Error : Deleting Order",description="Only super admin can perform hard delete operation")
+            
+            for order_id in data.order_ids:
+                order_todelete=delete(Orders).where(Orders.id==order_id).returning(Orders.id)
+                is_deleted=(await self.session.execute(order_todelete)).scalar_one_or_none()
             # need to implement email sending "Your orders has been stoped from CRM"
         return is_deleted if is_deleted else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Deleting Order",description="Unable to delete the order, may be invalid order id or order already deleted")
     

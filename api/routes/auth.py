@@ -20,6 +20,7 @@ from schemas.request_schemas.auth import AuthSchema,AuthForgotEmailSchema,AuthFo
 from security.data_hashing import verfiy_hashed,hash_data
 from icecream import ic
 from core.settings import SETTINGS
+from services.sse import sse_manager,sse_msg_builder
 
 router=APIRouter(
     tags=['Auth Crud'],
@@ -51,6 +52,7 @@ async def auth_user(data:AuthSchema,request:Request,session=Depends(get_pg_db_se
     access_token=generate_jwt_token(data={'data':{'email':user['email'],'role':user['role'],'id':user['id'],'token_version':user['token_version']}},secret=ACCESS_JWT_KEY,alg=JWT_ALG,exp_day=7)
     refresh_token=generate_jwt_token(data={'data':{'email':user['email'],'role':user['role'],'id':user['id'],'token_version':user['token_version']}},secret=REFRESH_JWT_KEY,alg=JWT_ALG,exp_day=7)
     ic(f"Auth tokens : {access_token} {refresh_token}")
+    
     return {
         'access_token':access_token,
         'refresh_token':refresh_token,

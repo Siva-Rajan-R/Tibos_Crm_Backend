@@ -1,26 +1,38 @@
 import asyncio
 from typing import Optional
 from icecream import ic
+import json
+from infras.caching.main import set_redis,get_redis,unlink_redis
+
 class SSEManager:
 
     def __init__(self):
         self.connections = {}
 
-    def create(self, client_id):
-        ic(client_id)
+    async def create(self, client_id):
+
+        if client_id in self.connections:
+            return {
+                "queue": self.connections[client_id],
+                "send_greet": False
+            }
+
         q = asyncio.Queue()
         self.connections[client_id] = q
-        ic(self.connections)
-        return q
+
+        return {
+            "queue": q,
+            "send_greet": True
+        }
 
     async def send(self, client_id, data):
-        ic(client_id,self.connections)
-        if client_id in self.connections:
-            ic("data => sended => ",data)
-            ic(self.connections[client_id])
-            await self.connections[client_id].put(data)
+        ic(self.connections)
+        queue = self.connections.get(client_id)
+        ic(queue)
+        if queue:
+            await queue.put(data)
 
-    def remove(self, client_id):
+    async def remove(self, client_id):
         self.connections.pop(client_id, None)
 
 

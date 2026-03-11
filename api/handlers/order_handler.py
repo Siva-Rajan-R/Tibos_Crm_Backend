@@ -7,7 +7,7 @@ from core.data_formats.enums.user_enums import UserRoles
 from core.data_formats.enums.order_enums import PaymentStatus,InvoiceStatus
 from core.data_formats.typed_dicts.order_typdict import DeliveryInfo
 from schemas.db_schemas.order import AddOrderDbSchema,UpdateOrderDbSchema
-from schemas.request_schemas.order import AddOrderSchema,UpdateOrderSchema,RecoverOrderSchema
+from schemas.request_schemas.order import AddOrderSchema,UpdateOrderSchema,RecoverOrderSchema,OrderBulkDeleteSchema
 from core.decorators.error_handler_dec import catch_errors
 from math import ceil
 from . import HTTPException,ErrorResponseTypDict,SuccessResponseTypDict,BaseResponseTypDict
@@ -209,6 +209,42 @@ class HandleOrdersRequest:
                 status_code=200,
                 success=True,
                 msg="Order deleted successfully"
+            )
+        )
+    
+
+    @catch_errors    
+    async def delete_bulk(self,data:OrderBulkDeleteSchema,soft_delete:bool=True):
+        ic(self.user_role)
+        if self.user_role!=UserRoles.SUPER_ADMIN.value:
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponseTypDict(
+                    status_code=400,
+                    msg="Error : Deleting Bulk Order",
+                    description="Insufficient Permission",
+                    success=False
+                )
+            )
+        res = await OrdersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete_bulk(data=data,soft_delete=soft_delete)
+        if not res or isinstance(res,ErrorResponseTypDict):
+            detail:ErrorResponseTypDict=ErrorResponseTypDict(
+                    status_code=400,
+                    msg="Error : Deleting Bulk Order",
+                    description="A Unknown Error, Please Try Again Later!",
+                    success=False
+                ) if not isinstance(res,ErrorResponseTypDict) else res
+            
+            raise HTTPException(
+                status_code=detail.status_code,
+                detail=detail.model_dump(mode='json')
+            )
+        
+        return SuccessResponseTypDict(
+            detail=BaseResponseTypDict(
+                status_code=200,
+                success=True,
+                msg="Order Bulk Deleted Successfully"
             )
         )
     

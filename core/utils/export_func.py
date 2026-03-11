@@ -18,6 +18,8 @@ from pathlib import Path
 from core.utils.msblob import upload_excel_to_blob,generate_sas_url
 from icecream import ic
 from templates.email.report import get_report_download_email_content
+from services.sse import sse_manager,sse_msg_builder
+from services.redis_pub_sub import notify
 
 
 async def create_excel_export(
@@ -29,6 +31,7 @@ async def create_excel_export(
         sheet_name:str,
         file_name:str,
         emails_tosend:List[EmailStr],
+        user_id:str,
         custom_fields:Optional[List[str]]=None
 ):
     async with AsyncLocalSession() as session:
@@ -69,7 +72,8 @@ async def create_excel_export(
             is_html=True,
             sender_email_id="crm@tibos.in"
         )
-
+        msg=sse_msg_builder(title=f"{report_name.title()} is Ready",description=f"Requested {report_name} is now ready to download, and also it was sended to your email ({emails_tosend[0]})",type="file",url=url)
+        await notify(client_id=user_id,data=msg)
         delete_graph_attachment_file(file_path=file_name)
 
         ic("Successfully excel generated and sent to the email")

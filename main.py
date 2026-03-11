@@ -15,6 +15,7 @@ from core.settings import SETTINGS,EnvironmentEnum
 from dotenv import load_dotenv
 from infras.primary_db.services.setting_service import SettingsService
 from infras.primary_db.repos.dropdown_repo import DropDownRepo
+from services.redis_pub_sub import redis_listener
 load_dotenv()
 
 # changing event loop for better permformance *It works only on (linux,macos)
@@ -45,6 +46,7 @@ async def api_lifespan(app:FastAPI):
             ...
         await check_redis_health()
         # await redis_client.flushall()
+        asyncio.create_task(redis_listener())
         yield
     except Exception as e:
         ic(f"❌ Error At Executing API Lifespan {e}")

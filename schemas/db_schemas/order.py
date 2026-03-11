@@ -36,3 +36,6 @@ class UpdateOrderDbSchema(BaseModel):
     status_info:Optional[List[StatusInfo]]=None
     logistic_info:Optional[LogisticsInfo]=None
     vendor_commision:Optional[str]=None
+
+class OrderBulkDeleteDbSchema(BaseModel):
+    order_ids:List[str]
