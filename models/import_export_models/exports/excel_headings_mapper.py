@@ -82,6 +82,7 @@ ORDERS_MAPPER={
     'requested_date': 'order_cnf_date',
     'shipping_method': 'shipping_method',
     'bill_to': 'bill_to',
+    'activated':'activation_status',
     'delivery_date': 'activation_date',
 }
 

@@ -73,5 +73,7 @@ ORDERS_MAPPER={
     'invoice_status':'invoice_status',
     'invoice_number':'invoice_number',
     'invoice_date':'invoice_date',
-    'product_rebate_type':'distributor_type'
+    'product_rebate_type':'distributor_type',
+    'activation_status':'activated'
+
 }

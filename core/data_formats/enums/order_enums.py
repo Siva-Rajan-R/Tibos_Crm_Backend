@@ -6,6 +6,10 @@ class PaymentTermsEnum(Enum):
     FIFTEN_DAYS="15-DAYS"
     THIRTY_DAYS="30-DAYS"
 
+class ActivationStatusEnum(Enum):
+    ACTIVATED="ACTIVATED"
+    NOT_ACTIVATED="NOT-ACTIVATED"
+
 
 class PaymentStatus(Enum):
     PAID="PAID"

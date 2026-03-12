@@ -3,6 +3,7 @@ from typing import Optional
 from icecream import ic
 import json
 from infras.caching.main import set_redis,get_redis,unlink_redis
+from core.utils.uuid_generator import generate_uuid
 
 class SSEManager:
 
@@ -30,6 +31,8 @@ class SSEManager:
         queue = self.connections.get(client_id)
         ic(queue)
         if queue:
+            notification_id=generate_uuid()
+            data['id']=notification_id
             await queue.put(data)
             return True
         else:

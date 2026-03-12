@@ -33,6 +33,7 @@ import pandas as pd
 from schemas.request_schemas.order import OrderFilterSchema
 from core.utils.calculations import get_distributor_price,get_remaining_days,get_customer_addon_price
 from core.data_formats.typed_dicts.order_typdict import DeliveryInfo,StatusInfo,LogisticsInfo,InvoiceStatus,PaymentStatus,PurchaseTypes,RenewalTypes
+from core.data_formats.enums.order_enums import ActivationStatusEnum
 import json
 from datetime import datetime
 from pathlib import Path
@@ -198,6 +199,7 @@ class OrdersService(BaseServiceModel):
         purchase_types = [e.value for e in PurchaseTypes]
         invoice_status = [e.value for e in InvoiceStatus]
         payment_status = [e.value for e in PaymentStatus]
+        activation_satus=[e.value for e in ActivationStatusEnum]
 
         
             
@@ -227,6 +229,11 @@ class OrdersService(BaseServiceModel):
                 skipped_items.append(data)
                 continue
 
+            if data['activated'] not in activation_satus:
+                data['reason']=f"Invalid Activation Status, Activation Status should be {activation_satus}"
+                skipped_items.append(data)
+                continue
+
             cust_exists=await CustomersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(customer_id=data['customer_id'])
             if not cust_exists['customer'] or len(cust_exists['customer'])<1:
                 data['reason']="Customer id not Found"
@@ -244,10 +251,19 @@ class OrdersService(BaseServiceModel):
                 data['reason']="Distributor Not Found"
                 skipped_items.append(data)
                 continue
-            # ic("Hii da mapla")
-            ic(distri_exists['distributors']['discounts'],distri_exists['distributors']['discounts'].values(),data['distributor_type'].upper(),prod_exists['product']['price'],data['quantity'])
+                
+            is_activated=False
+            ic(data['activated'])
+            if data['activated']==ActivationStatusEnum.ACTIVATED.value:
+                is_activated=True
+            
+            ic(is_activated)
+            data['activated']=is_activated
+            ic(data['activated'])
+            
+
             discounts:dict=distri_exists['distributors']['discounts']
-            # ic(discounts)
+            ic(discounts)
             discount_id=None
             converted_discounts=[]
             existing_discounts=[]
@@ -265,6 +281,8 @@ class OrdersService(BaseServiceModel):
                     discount['rebate_type'].upper() == data['distributor_type'].upper()
                     and converted_discount_val == existing_discount_val
                 ):
+                    ic(discount)
+                    ic(discount['id'])
                     discount_id = discount['id']
                     break
             data['converted_discounts']=converted_discounts
@@ -275,6 +293,7 @@ class OrdersService(BaseServiceModel):
                 continue
 
             data['discount_id']=discount_id
+            
             data['customer_id']=cust_exists['customer']['id']
             data['distributor_id']=distri_exists['distributors']['id']
             data['product_id']=prod_exists['product']['id']
@@ -343,7 +362,6 @@ class OrdersService(BaseServiceModel):
                     paid_amount=0
 
             data['status_info']['paid_amount']=round(paid_amount)
-            data['activated']=False
 
             data['logistic_info']=LogisticsInfo(
                 purchase_type=data['purchase_type'],
@@ -362,23 +380,29 @@ class OrdersService(BaseServiceModel):
             del data['converted_discounts']
 
             
-            
+            # skipped_items.append(data)
             ic(data['logistic_info']['renewal_type'])
             if data['logistic_info']['renewal_type']==RenewalTypes.YEARLY_YEARLY_BILL.value or data['logistic_info']['renewal_type']==RenewalTypes.MONTHLY_BILL_MONTHLY_COMMITMENT.value:
                 status_infotoadd.append(OrdersPaymentInvoiceInfo(**data['status_info'],order_id=order_id))
                 data['status_info']=[data['status_info']]
+                ic(data['activated'])
+                ic("Hii inside")
                 formatted_schema=AddOrderDbSchema(**data,id=order_id,ui_id=cur_uiid).model_dump(mode='json',exclude_unset=True,exclude_none=True,exclude=['status_info'])
                 datas_toadd.append(Orders(**formatted_schema))
             else:
                 data['reason']="YEARLY_YEARLY_BILL and MONTHLY_BILL_MONTHLY_COMMITMENT only Allowed"
                 skipped_items.append(data)
+            
+            is_activated=False
+            discount_id=None
 
-
+        
         skipped_file_path = write_skipped_items_to_excel(skipped_items)
         
         ic("skipped_items_count", len(skipped_items))
         ic("orders_to_insert_count", len(datas_toadd))
         ic("Skipped file path",skipped_file_path)
+        data['is_deleted']=True
         if len(skipped_items)>0:
             blob_name=upload_excel_to_blob(local_file_path=skipped_file_path)
             url=generate_sas_url(blob_name=blob_name)
