@@ -32,7 +32,7 @@ from services.sse import sse_manager,sse_msg_builder
 import pandas as pd
 from schemas.request_schemas.order import OrderFilterSchema
 from core.utils.calculations import get_distributor_price,get_remaining_days,get_customer_addon_price
-from core.data_formats.typed_dicts.order_typdict import DeliveryInfo,StatusInfo,LogisticsInfo,InvoiceStatus,PaymentStatus,PurchaseTypes
+from core.data_formats.typed_dicts.order_typdict import DeliveryInfo,StatusInfo,LogisticsInfo,InvoiceStatus,PaymentStatus,PurchaseTypes,RenewalTypes
 import json
 from datetime import datetime
 from pathlib import Path
@@ -160,6 +160,8 @@ class OrdersService(BaseServiceModel):
         # then check customer is exists or not
         # then chck product is exists or not
 
+        
+
         order_obj=OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id)
         
         cust_exists=await CustomersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(customer_id=data.customer_id)
@@ -192,11 +194,38 @@ class OrdersService(BaseServiceModel):
         datas_toadd=[]
         status_infotoadd=[]
 
+        renewal_types=list(RenewalTypes._value2member_map_.values())
+        purchase_types=list(PurchaseTypes._value2member_map_.values())
+        invoice_status=list(InvoiceStatus._value2member_map_.values())
+        payment_status=list(PaymentStatus._value2member_map_.values())
+
+        
+            
+
         orders_obj=OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id)
         lui_id:str=(await self.session.execute(select(TablesUiLId.order_luiid))).scalar_one_or_none()
 
         for data in datas:
-            
+            if data['renewal_type'] not in renewal_types:   
+                data['reason']=f"Invalid Renewal Types, Renewal Types should be {renewal_types}"
+                skipped_items.append(data)
+                break
+
+            if data['purchase_type'] not in purchase_types:
+                data['reason']=f"Invalid Purchase Types, Purchase Types should be {purchase_types}"
+                skipped_items.append(data)
+                break
+
+            if data['payment_status'] not in payment_status:
+                data['reason']=f"Invalid Payment Status, Payment Status should be {payment_status}"
+                skipped_items.append(data)
+                break
+
+            if data['invoice_status'] not in invoice_status:
+                data['reason']=f"Invalid Invoice Status, Invoice Status should be {invoice_status}"
+                skipped_items.append(data)
+                break
+
             cust_exists=await CustomersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(customer_id=data['customer_id'])
             if not cust_exists['customer'] or len(cust_exists['customer'])<1:
                 data['reason']="Customer id not Found"
@@ -281,7 +310,7 @@ class OrdersService(BaseServiceModel):
                 if data['purchase_type']==PurchaseTypes.EXISTING_ADD_ON.value:
                     last_order=(await orders_obj.get_last_order(customer_id=data['customer_id'],product_id=data['product_id']))
                     if not last_order['last_order'] or len(last_order['last_order'])<1:
-                        data['reason']="This customer+Product doesn't have on order"
+                        data['reason']="This Customer+Product doesn't have on existing order for creating a ADD-ON"
                         skipped_items.append(data)
                         continue
 
@@ -290,7 +319,7 @@ class OrdersService(BaseServiceModel):
                     if remaining_days>365:
                         data['last_order']=last_order
                         data['remaing_days']=remaining_days
-                        data['reason']="Date excedding >365"
+                        data['reason']="Date mistmatch for creating ADD-ON,Date excedding >365"
                         skipped_items.append(data)
                         continue
                     
@@ -304,7 +333,7 @@ class OrdersService(BaseServiceModel):
             if data['purchase_type']==PurchaseTypes.EXISTING_ADD_ON.value:
                 last_order=(await orders_obj.get_last_order(customer_id=data['customer_id'],product_id=data['product_id']))
                 if not last_order['last_order'] or len(last_order['last_order'])<1:
-                    data['reason']="This customer+Product doesn't have on order"
+                    data['reason']="This Customer+Product doesn't have on existing order for creating a ADD-ON"
                     skipped_items.append(data)
                     continue
                 else:   
@@ -349,17 +378,17 @@ class OrdersService(BaseServiceModel):
         ic("skipped_items_count", len(skipped_items))
         ic("orders_to_insert_count", len(datas_toadd))
         ic("Skipped file path",skipped_file_path)
-        if skipped_file_path:
+        if len(skipped_file_path)>0:
             blob_name=upload_excel_to_blob(local_file_path=skipped_file_path)
             url=generate_sas_url(blob_name=blob_name)
             ic(url)
             msg=sse_msg_builder(title="Skiped datas report",description="During bulk upload these are the datas are skipped",type="file",url=url)
-            await sse_manager.send(self.cur_user_id,data=msg)
-        else:
-            user=await UserRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(userid_toget=self.cur_user_id)
-            user_email=user['user']['email']
+            is_sended=await sse_manager.send(self.cur_user_id,data=msg)
+            if not is_sended:
+                user=await UserRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(userid_toget=self.cur_user_id)
+                user_email=user['user']['email']
 
-            await send_email(client_ip="",reciver_emails=[user_email],subject="Skiped datas report",body="During bulk upload these are the datas are skipped",is_html=False,sender_email_id="crm@tibos.in")
+                await send_email(client_ip="",reciver_emails=[user_email],subject="Skiped datas report",body=f"During bulk upload these are the datas are skipped -> {url}",is_html=False,sender_email_id="crm@tibos.in")
 
         return await orders_obj.add_bulk(datas=datas_toadd,lui_id=lui_id,status_datas=status_infotoadd)
     

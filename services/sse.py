@@ -31,6 +31,9 @@ class SSEManager:
         ic(queue)
         if queue:
             await queue.put(data)
+            return True
+        else:
+            return False
 
     async def remove(self, client_id):
         self.connections.pop(client_id, None)
