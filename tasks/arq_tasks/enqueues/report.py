@@ -7,6 +7,7 @@ from pydantic import EmailStr
 
 async def enqueue_excel_report_job(
         data_cls,
+        kwargs:dict,
         user_id:str,
         data_key:str,
         mapper:dict,
@@ -24,6 +25,7 @@ async def enqueue_excel_report_job(
     await redis.enqueue_job(
         "generate_excel_report",
         data_cls=data_cls,
+        kwargs=kwargs,
         user_id=user_id,
         data_key=data_key,
         mapper=mapper,

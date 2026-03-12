@@ -14,6 +14,8 @@ from models.import_export_models.exports.excel_headings_mapper import ORDERS_MAP
 from schemas.request_schemas.export import ExportFields
 from tasks.arq_tasks.enqueues.report import enqueue_excel_report_job
 from pydantic import EmailStr
+from icecream import ic
+
 
 
 
@@ -104,6 +106,8 @@ async def recover_order(data:RecoverOrderSchema,user:dict=Depends(verify_user),s
 
 @router.post('/export')
 async def export(data:ExportFields,bgt:BackgroundTasks,user:dict=Depends(verify_user)):
+    ic(data.filters)
+    ic("Hello Hii")
     if user['role']!=UserRoles.SUPER_ADMIN.value:
         raise HTTPException(
             status_code=401,
@@ -119,6 +123,7 @@ async def export(data:ExportFields,bgt:BackgroundTasks,user:dict=Depends(verify_
     
     await enqueue_excel_report_job(
         user_id=user['id'],
+        kwargs={"filter":data.filters},
         emails_tosend=[user_email],
         custom_fields=data.fields,
         mapper=ORDERS_MAPPER,

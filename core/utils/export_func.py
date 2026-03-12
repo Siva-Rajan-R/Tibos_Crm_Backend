@@ -24,6 +24,7 @@ from services.redis_pub_sub import notify
 
 async def create_excel_export(
         data_cls,
+        kwargs:dict,
         data_key:str,
         mapper:dict,
         report_name:str,
@@ -37,7 +38,7 @@ async def create_excel_export(
     async with AsyncLocalSession() as session:
         CHUNK_SIZE=500
         OFFSET=1
-
+        ic(kwargs)
         if custom_fields and len(mapper)!=len(custom_fields):
             temp_mapper={}
             for key,val in mapper.items():
@@ -48,7 +49,7 @@ async def create_excel_export(
         write_header = True
         while True:
             if OFFSET is not None:
-                data=(await data_cls(session=session,user_role=UserRoles.SUPER_ADMIN,cur_user_id="").get(cursor=OFFSET,limit=CHUNK_SIZE))
+                data=(await data_cls(session=session,user_role=UserRoles.SUPER_ADMIN,cur_user_id="").get(**kwargs,cursor=OFFSET,limit=CHUNK_SIZE))
                 ic("data-1",data)
             if not OFFSET or not data[data_key] or len(data[data_key])<1:
                 break

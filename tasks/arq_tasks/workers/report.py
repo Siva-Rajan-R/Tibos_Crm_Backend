@@ -8,6 +8,7 @@ async def generate_excel_report(
     data_cls,
     data_key:str,
     user_id:str,
+    kwargs:dict,
     mapper:dict,
     report_name:str,
     converter_name:str,
@@ -19,6 +20,7 @@ async def generate_excel_report(
     await create_excel_export(
         data_cls=data_cls,
         data_key=data_key,
+        kwargs=kwargs,
         mapper=mapper,
         user_id=user_id,
         report_name=report_name,
