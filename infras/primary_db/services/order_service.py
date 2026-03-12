@@ -372,7 +372,7 @@ class OrdersService(BaseServiceModel):
 
             
             
-            data['additional_discount']=str(data['discount'])
+            data['additional_discount']=f"{data['discount']*100}%"
             order_id:str=generate_uuid()
             cur_uiid=generate_ui_id(prefix=LUI_ID_ORDER_PREFIX,last_id=lui_id)
             lui_id=cur_uiid
