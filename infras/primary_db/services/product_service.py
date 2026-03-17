@@ -9,13 +9,14 @@ from core.data_formats.enums.user_enums import UserRoles
 from core.decorators.error_handler_dec import catch_errors
 from ..repos.product_repo import ProductsRepo
 from schemas.db_schemas.product import AddProductDbSchema,UpdateProductDbSchema
-from schemas.request_schemas.product import AddProductSchema,UpdateProductSchema
+from schemas.request_schemas.product import AddProductSchema,UpdateProductSchema,AddSearchFields,UpdateSearchFields
 from math import ceil
 from typing import Optional,List
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
 from ..models.ui_id import TablesUiLId
 from core.utils.ui_id_generator import generate_ui_id
 from core.constants import UI_ID_STARTING_DIGIT,LUI_ID_PRODUCT_PREFIX
+from ...search_engine.models.product import ProductSearch
 
 
 class ProductsService(BaseServiceModel):
@@ -31,12 +32,26 @@ class ProductsService(BaseServiceModel):
         prod_id:str=generate_uuid()
         lui_id:str=(await self.session.execute(select(TablesUiLId.product_luiid))).scalar_one_or_none()
         cur_uiid=generate_ui_id(prefix=LUI_ID_PRODUCT_PREFIX,last_id=lui_id)
+
+        search_fields=AddSearchFields(
+            ui_id=cur_uiid,
+            id=prod_id,
+            name=data.name,
+            description=data.description,
+            part_number=data.part_number,
+            product_type=data.product_type
+        ).model_dump(mode="json")
+
+        # await ProductSearch().create_document(data=search_fields)
+
         return await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(data=AddProductDbSchema(**data.model_dump(mode='json'),id=prod_id,ui_id=cur_uiid))
 
     @catch_errors
     async def add_bulk(self,datas:List[dict]):
         datas_toadd=[]
         skipped_items=[]
+        searchable_datas=[]
+
         lui_id:str=(await self.session.execute(select(TablesUiLId.product_luiid))).scalar_one_or_none()
         for data in datas:
             ic(data)
@@ -49,9 +64,20 @@ class ProductsService(BaseServiceModel):
             ic("Before increment : ",lui_id)
             lui_id=cur_uiid
             ic("After increment : ",lui_id)
+            search_fields=AddSearchFields(
+                ui_id=cur_uiid,
+                id=prod_id,
+                name=data['name'],
+                description=data['description'],
+                part_number=data['part_number'],
+                product_type=data['product_type']
+            ).model_dump(mode="json")
+
+            searchable_datas.append(search_fields)
             datas_toadd.append(Products(**data,id=prod_id,ui_id=cur_uiid))
             
         ic(datas_toadd,skipped_items)
+        # await ProductSearch().create_bulk_doc(datas=searchable_datas)
         return await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add_bulk(datas=datas_toadd,lui_id=lui_id)
 
     @catch_errors   
@@ -59,14 +85,37 @@ class ProductsService(BaseServiceModel):
         data_toupdate=data.model_dump(mode='json',exclude_none=True,exclude_unset=True)
         if not data_toupdate or len(data_toupdate)<1:
             return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Product",description="No valid fields to update provided")
+        
+        search_fields=UpdateSearchFields(
+            name=data.name,
+            description=data.description,
+            part_number=data.part_number,
+            product_type=data.product_type
+        ).model_dump(mode="json")
+
+        # await ProductSearch().update_document(data=search_fields,id=data.product_id)
         return await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateProductDbSchema(**data_toupdate))
 
     @catch_errors
     async def recover(self,product_torecover:str):
+        product=await self.get_by_id(product_id=product_torecover,include_delete=True)
+        product_info=product['product']
+        search_fields=AddSearchFields(
+            ui_id=product_info['ui_id'],
+            id=product_info['id'],
+            name=product_info['name'],
+            description=product_info['description'],
+            part_number=product_info['part_number'],
+            product_type=product_info['product_type']
+        ).model_dump(mode="json")
+
+        # await ProductSearch().create_document(data=search_fields)
+
         return await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).recover(product_torecover=product_torecover)
 
     @catch_errors
     async def delete(self,product_id:str,soft_delete:bool=True):
+        # await ProductSearch().delete_document(id=product_id)
         return await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete(product_id=product_id,soft_delete=soft_delete)
 
     @catch_errors   
@@ -78,8 +127,8 @@ class ProductsService(BaseServiceModel):
         return await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).search(query=query)
     
     @catch_errors
-    async def get_by_id(self,product_id:str):
-        return await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(product_id=product_id)
+    async def get_by_id(self,product_id:str,include_delete:bool=False):
+        return await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(product_id=product_id,include_delete=include_delete)
 
 
 

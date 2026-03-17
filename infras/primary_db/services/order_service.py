@@ -15,7 +15,7 @@ from core.data_formats.enums.user_enums import UserRoles
 from core.data_formats.enums.order_enums import PurchaseTypes
 from core.data_formats.typed_dicts.order_typdict import DeliveryInfo
 from schemas.db_schemas.order import AddOrderDbSchema,UpdateOrderDbSchema,OrderBulkDeleteDbSchema
-from schemas.request_schemas.order import AddOrderSchema,UpdateOrderSchema,OrderBulkDeleteSchema
+from schemas.request_schemas.order import AddOrderSchema,UpdateOrderSchema,OrderBulkDeleteSchema,AddSearchField,UpdateSearchField
 from core.decorators.error_handler_dec import catch_errors
 from math import ceil
 from typing import Optional,List
@@ -38,94 +38,15 @@ import json
 from datetime import datetime
 from pathlib import Path
 from services.email_service import send_email
+from ...search_engine.models.order import OrderSearch
+from core.utils.percentage_convertor import normalize_percent
+from core.utils.safe_date_convertor import safe_date
+from core.utils.skipped_data_convertor import write_skipped_items_to_excel
 
 
-def normalize_percent(value) -> Decimal:
-    """
-    Accepts:
-      - '0.044'
-      - '4.4%'
-      - 0.044
-      - 4.4
-    Returns:
-      Decimal('4.40')
-    """
-    if value is None:
-        return None
-
-    value = str(value).strip()
-
-    if value.endswith('%'):
-        return Decimal(value.replace('%', '')).quantize(Decimal('0.01'))
-
-    d = Decimal(value)
-
-    # if <= 1 assume fraction (0.044 → 4.4)
-    if d <= 1:
-        d = d * 100
-
-    return d.quantize(Decimal('0.01'), rounding=ROUND_HALF_UP)
-
-def make_json_safe(obj):
-    if isinstance(obj, dict):
-        return {k: make_json_safe(v) for k, v in obj.items()}
-
-    if isinstance(obj, (list, tuple, set)):
-        return [make_json_safe(v) for v in obj]
-
-    if hasattr(obj, "model_dump"):
-        return make_json_safe(obj.model_dump())
-
-    from datetime import datetime, date
-    if isinstance(obj, (datetime, date)):
-        return obj.isoformat()
-
-    try:
-        import pandas as pd
-        if isinstance(obj, pd.Timestamp):
-            return obj.isoformat()
-    except Exception:
-        pass
-
-    return str(obj)
 
 
-def write_skipped_items_to_excel(skipped_items: list, prefix="skipped_orders"):
-    if not skipped_items:
-        return None
 
-    ts = datetime.utcnow().strftime("%Y%m%d_%H%M%S")
-
-    output_dir = Path("skipped_reports")
-    output_dir.mkdir(exist_ok=True)
-
-    file_path = output_dir / f"{prefix}_{ts}.xlsx"
-
-    # convert nested objects safely
-    safe_items = [make_json_safe(item) for item in skipped_items]
-
-    df = pd.DataFrame(safe_items)
-
-    df.to_excel(file_path, index=False)
-
-    return file_path.as_posix()
-
-def safe_date(value, fmt="%Y-%m-%d"):
-    if value is None:
-        return None
-
-    if isinstance(value, str):
-        value = value.strip()
-        if value == "":
-            return None
-
-    try:
-        ts = pd.to_datetime(value, errors="coerce")
-        if pd.isna(ts):
-            return None
-        return ts.strftime(fmt)
-    except Exception:
-        return None
     
 def get_best_discount_id(discounts, distributor_type, product_price, quantity):
     order_amount = product_price * quantity
@@ -155,14 +76,7 @@ class OrdersService(BaseServiceModel):
         self.cur_user_id=cur_user_id
 
 
-    @catch_errors
     async def add(self,data:AddOrderSchema):
-        # need to check if the customer and the product is exists on the order
-        # then check customer is exists or not
-        # then chck product is exists or not
-
-        
-
         order_obj=OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id)
         
         cust_exists=await CustomersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(customer_id=data.customer_id)
@@ -187,6 +101,24 @@ class OrdersService(BaseServiceModel):
 
         lui_id:str=(await self.session.execute(select(TablesUiLId.order_luiid))).scalar_one_or_none()
         cur_uiid=generate_ui_id(prefix=LUI_ID_ORDER_PREFIX,last_id=lui_id)
+
+        search_fields=AddSearchField(
+            ui_id=cur_uiid,
+            id=order_id,
+            distributor_id=data.distributor_id,
+            customer_id=data.customer_id,
+            product_id=data.product_id,
+            distributor_name=distri_exists['distributors']['name'],
+            distributor_ui_id=distri_exists['distributors']['ui_id'],
+            product_name=prod_exists['product']['name'],
+            product_type=prod_exists['product']['product_type'],
+            product_ui_id=prod_exists['product']['ui_id'],
+            customer_email=', '.join(cust_exists['customer']['emails']),
+            customer_name=cust_exists['customer']['name'],
+            customer_ui_id=cust_exists['customer']['ui_id'],
+        ).model_dump(mode="json")
+
+        # await OrderSearch().create_document(data=search_fields)
         return await order_obj.add(data=AddOrderDbSchema(**data_toadd,id=order_id,ui_id=cur_uiid))
     
     # @catch_errors
@@ -194,6 +126,7 @@ class OrdersService(BaseServiceModel):
         skipped_items=[]
         datas_toadd=[]
         status_infotoadd=[]
+        searchable_data=[]
 
         renewal_types = [e.value for e in RenewalTypes]
         purchase_types = [e.value for e in PurchaseTypes]
@@ -388,6 +321,23 @@ class OrdersService(BaseServiceModel):
                 ic(data['activated'])
                 ic("Hii inside")
                 formatted_schema=AddOrderDbSchema(**data,id=order_id,ui_id=cur_uiid).model_dump(mode='json',exclude_unset=True,exclude_none=True,exclude=['status_info'])
+                search_fields=AddSearchField(
+                    ui_id=cur_uiid,
+                    id=order_id,
+                    distributor_id=data['discount_id'],
+                    customer_id=data['customer_id'],
+                    product_id=data['product_id'],
+                    distributor_name=distri_exists['distributors']['name'],
+                    distributor_ui_id=distri_exists['distributors']['ui_id'],
+                    product_name=prod_exists['product']['name'],
+                    product_type=prod_exists['product']['product_type'],
+                    product_ui_id=prod_exists['product']['ui_id'],
+                    customer_email=', '.join(cust_exists['customer']['emails']),
+                    customer_name=cust_exists['customer']['name'],
+                    customer_ui_id=cust_exists['customer']['ui_id'],
+                )
+
+                searchable_data.append(search_fields)
                 datas_toadd.append(Orders(**formatted_schema))
             else:
                 data['reason']="YEARLY_YEARLY_BILL and MONTHLY_BILL_MONTHLY_COMMITMENT only Allowed"
@@ -402,7 +352,6 @@ class OrdersService(BaseServiceModel):
         ic("skipped_items_count", len(skipped_items))
         ic("orders_to_insert_count", len(datas_toadd))
         ic("Skipped file path",skipped_file_path)
-        data['is_deleted']=True
         if len(skipped_items)>0:
             blob_name=upload_excel_to_blob(local_file_path=skipped_file_path)
             url=generate_sas_url(blob_name=blob_name)
@@ -412,9 +361,9 @@ class OrdersService(BaseServiceModel):
             if not is_sended:
                 user=await UserRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(userid_toget=self.cur_user_id)
                 user_email=user['user']['email']
-
                 await send_email(client_ip="",reciver_emails=[user_email],subject="Skiped datas report",body=f"Skipped Items Count ({len(skipped_items)}), Added Items Count ({len(datas_toadd)}), During bulk upload these are the datas are skipped -> {url}",is_html=False,sender_email_id="crm@tibos.in")
 
+        # await OrderSearch().create_bulk_doc(searchable_data)
         return await orders_obj.add_bulk(datas=datas_toadd,lui_id=lui_id,status_datas=status_infotoadd)
     
 
@@ -442,20 +391,53 @@ class OrdersService(BaseServiceModel):
             return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updaing Order",description="Distributor with the given id does not exist")
 
 
+        search_fields=UpdateSearchField(
+            distributor_name=distri_exists['distributors']['name'],
+            distributor_ui_id=distri_exists['distributors']['ui_id'],
+            product_name=prod_exists['product']['name'],
+            product_type=prod_exists['product']['product_type'],
+            product_ui_id=prod_exists['product']['ui_id'],
+            customer_email=', '.join(cust_exists['customer']['emails']),
+            customer_name=cust_exists['customer']['name'],
+            customer_ui_id=cust_exists['customer']['ui_id'],
+        ).model_dump(mode="json")
+
+        # await OrderSearch().update_document(data=search_fields,id=data.order_id)
+
         return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateOrderDbSchema(**data_toupdate))
 
 
     @catch_errors    
     async def delete(self,order_id:str,customer_id:str,soft_delete:bool=True):
+        # await OrderSearch().delete_document(id=order_id)
         return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete(order_id=order_id,customer_id=customer_id,soft_delete=soft_delete)
     
+
     @catch_errors    
     async def delete_bulk(self,data:OrderBulkDeleteSchema,soft_delete:bool=True):
         data=OrderBulkDeleteDbSchema(order_ids=data.order_ids)
+        await OrderSearch().delete_bulk_doc(ids=data.order_ids)
         return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete_bulk(data=data,soft_delete=soft_delete)
     
     @catch_errors  
     async def recover(self,order_id:str,customer_id:str):
+        order=await self.get_by_id(order_id=order_id,include_delete=True)
+        order_info=order['order']
+        search_fields=AddSearchField(
+            distributor_id=order_info['distributor_id'],
+            customer_id=order_info['customer_id'],
+            product_id=order_info['product_id'],
+            distributor_name=order_info['distributors_name'],
+            distributor_ui_id=order_info['distributors_ui_id'],
+            product_name=order_info['product_name'],
+            product_type=order_info['product_type'],
+            product_ui_id=order_info['product_ui_id'],
+            customer_email=order_info['customer_email'],
+            customer_name=order_info['customer_name'],
+            customer_ui_id=order_info['customer_ui_id'],
+        ).model_dump(mode="json")
+
+        # await OrderSearch().create_document(data=search_fields)
         return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).recover(order_id=order_id,customer_id=customer_id)
 
     @catch_errors
@@ -473,8 +455,8 @@ class OrdersService(BaseServiceModel):
         return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).search(query=query)
 
     @catch_errors  
-    async def get_by_id(self,order_id:str):
-        return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(order_id=order_id)
+    async def get_by_id(self,order_id:str,include_delete:bool=False):
+        return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(order_id=order_id,include_delete=include_delete)
         
     @catch_errors
     async def get_by_customer_id(self,customer_id:str,cursor:int,limit:int):

@@ -1,5 +1,5 @@
 from fastapi import Depends,APIRouter,Query,File,UploadFile,Form,BackgroundTasks,HTTPException
-from schemas.request_schemas.customer import AddCustomerSchema,UpdateCustomerSchema,RecoverCustomerSchema
+from schemas.request_schemas.customer import AddCustomerSchema,UpdateCustomerSchema,RecoverCustomerSchema,ResponseSearch,FinalResponseModel
 from infras.primary_db.main import get_pg_db_session,AsyncSession
 from api.dependencies.token_verification import verify_user
 from ..handlers.customer_handler import HandleCustomersRequest
@@ -13,6 +13,8 @@ from schemas.request_schemas.export import ExportFields
 from infras.primary_db.repos.customer_repo import CustomersRepo
 from tasks.arq_tasks.enqueues.report import enqueue_excel_report_job
 from pydantic import EmailStr
+from typing import List,Optional
+from icecream import ic
 
 router=APIRouter(
     tags=['Customer Crud'],
@@ -131,15 +133,26 @@ async def recover_customer(data:RecoverCustomerSchema,user:dict=Depends(verify_u
 
 
 @router.get('')
-async def get_all_customer(user:dict=Depends(verify_user),q:str=Query(''),cursor:Optional[int]=Query(1),limit:Optional[int]=Query(10),session:AsyncSession=Depends(get_pg_db_session)):
+async def get_all_customer(user:dict=Depends(verify_user),q:str=Query(''),cursor:Optional[str]=Query('1'),page:Optional[str]=Query('1'),limit:Optional[int]=Query(10),session:AsyncSession=Depends(get_pg_db_session)):
+    ic(cursor)
+    ic(page)
+    try:
+        cursor=int(cursor)
+    except:
+        cursor=None
+
+    try:
+        page=int(page)
+    except:
+        page=None
     return await HandleCustomersRequest(
         session=session,
         user_role=user['role'],
         cur_user_id=user['id']
-    ).get(cursor=cursor,limit=limit,query=q)
+    ).get(cursor=cursor,limit=limit,query=q,page=page)
 
 
-@router.get('/search')
+@router.get('/search',response_model=FinalResponseModel)
 async def get_searched_customers(q:str=Query(...),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleCustomersRequest(
         session=session,

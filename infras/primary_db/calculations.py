@@ -123,6 +123,8 @@ customer_final_price=case(
 
 )
 
+
+
 vendor_disc_price=case(
     (
         Orders.vendor_commision.ilike("%\%%"),

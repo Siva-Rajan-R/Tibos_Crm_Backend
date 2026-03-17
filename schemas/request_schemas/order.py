@@ -39,6 +39,35 @@ class UpdateOrderSchema(BaseModel):
     vendor_commision:Optional[str]=None
     emailto_send_id:Optional[str]=None
 
+
+class AddSearchField(BaseModel):
+    ui_id:str
+    id:str
+    distributor_name:str
+    distributor_ui_id:str
+    product_type:str
+    product_name:str
+    product_ui_id:str
+    customer_email:str
+    customer_name:str
+    customer_ui_id:str
+    product_id:str
+    distributor_id:str
+    customer_id:str
+
+class UpdateSearchField(BaseModel):
+    distributor_name:Optional[str]=None
+    distributor_ui_id:Optional[str]=None
+    product_type:Optional[str]=None
+    product_name:Optional[str]=None
+    product_ui_id:Optional[str]=None
+    customer_email:Optional[str]=None
+    customer_name:Optional[str]=None
+    customer_ui_id:Optional[str]=None
+    product_id:Optional[str]=None
+    distributor_id:Optional[str]=None
+    customer_id:Optional[str]=None
+
 class RecoverOrderSchema(BaseModel):
     order_id:str
     customer_id:str

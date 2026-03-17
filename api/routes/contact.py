@@ -133,12 +133,23 @@ async def export(bgt:BackgroundTasks,user:dict=Depends(verify_user)):
 
 
 @router.get('')
-async def get_all_contact(user:dict=Depends(verify_user),q:str=Query(''),cursor:Optional[int]=Query(1),limit:Optional[int]=Query(10),session:AsyncSession=Depends(get_pg_db_session)):
+async def get_all_contact(user:dict=Depends(verify_user),q:str=Query(''),page:Optional[str]=Query('1'),cursor:Optional[str]=Query('1'),limit:Optional[int]=Query(10),session:AsyncSession=Depends(get_pg_db_session)):
+    try:
+        cursor=int(cursor)
+    except:
+        cursor=None
+
+    try:
+        page=int(page)
+    except:
+        page=None
+    
+      
     return await HandleContactsRequest(
         session=session,
         user_role=user['role'],
         cur_user_id=user['id']
-    ).get(cursor=cursor,limit=limit,query=q)
+    ).get(cursor=cursor,limit=limit,query=q,page=page)
 
 
 @router.get('/search')

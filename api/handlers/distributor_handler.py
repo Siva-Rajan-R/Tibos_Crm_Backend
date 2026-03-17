@@ -5,7 +5,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
 from core.data_formats.enums.user_enums import UserRoles
 from pydantic import EmailStr
-from typing import Optional,List
+from typing import Optional,List,Union
 from schemas.db_schemas.customer import AddCustomerDbSchema,UpdateCustomerDbSchema
 from schemas.request_schemas.distributor import CreateDistriSchema,UpdateDistriSchema,RecoverDistriSchema
 from core.decorators.error_handler_dec import catch_errors
@@ -16,6 +16,7 @@ from fastapi import UploadFile
 from core.utils.excel_data_extractor import extract_excel_data
 from core.data_formats.enums.dd_enums import ImportExportTypeEnum
 from models.import_export_models.imports.excel_headings_mapper import DISTRI_MAPPER
+from infras.search_engine.models.distributor import DistributorSearch
 
 
 
@@ -184,7 +185,7 @@ class HandleDistributorRequest:
         )
         
     @catch_errors
-    async def get(self,cursor:int=1,limit:int=10,query:str=''):
+    async def get(self,cursor:Optional[Union[int,None]]=1,limit:int=10,query:str='',page:Optional[Union[int,None]]=1):
         if cursor is None:
             raise HTTPException(
                 status_code=400,
@@ -193,12 +194,15 @@ class HandleDistributorRequest:
                     description="No more datas found for distributor",
                     msg="Error : fetching distributor",
                     success=False
-                )
+                ).model_dump(mode='json')
             )
+        
+        # return await DistributorSearch().search_document(query=query,limit=limit,page=page,cursor=cursor)
         return await DistributorService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(cursor=cursor,limit=limit,query=query)
         
     @catch_errors
     async def search(self,query:str):
+        # return await DistributorSearch().search_document(query=query,limit=30,page=1,cursor=1)
         return await DistributorService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).search(query=query)
 
     @catch_errors

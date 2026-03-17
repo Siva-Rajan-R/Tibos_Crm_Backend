@@ -15,7 +15,7 @@ class Products(PG_BASE):
     available_qty=Column(Integer,nullable=False)
     product_type=Column(String,nullable=False)
 
-    created_at=Column(TIMESTAMP(timezone=True),server_default=func.now())
+    created_at= Column(TIMESTAMP(timezone=True),server_default=func.now())
 
     is_deleted=Column(Boolean,server_default=text("false"),nullable=False)
     deleted_at=Column(DateTime(timezone=True),nullable=True)

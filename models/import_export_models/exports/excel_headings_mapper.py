@@ -46,7 +46,6 @@ CONTACTS_MAPPER={
 
 DISTRI_MAPPER={
     'ui_id':'id',
-    'name':'name',
     'discounts':'discounts',
     'created_at':'distributor_created_at'
 }

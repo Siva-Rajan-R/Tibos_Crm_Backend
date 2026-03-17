@@ -116,7 +116,7 @@ class ContactsRepo(BaseRepoModel):
         return is_recovered if is_recovered else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Recovering Contact",description="Unable to recover the contact, may contact is not deleted or already recovered")
         
 
-    async def get(self,cursor:int,limit:int,query:str='',include_deleted:bool=False):
+    async def get(self,cursor:int=1,limit:int=30,query:str='',include_deleted:bool=False,in_search:List=[]):
         search_term=f"%{query.lower()}%"
         cursor=0 if cursor==1 else cursor
         date_expr=func.date(func.timezone("Asia/Kolkata",Contacts.created_at))
@@ -126,8 +126,7 @@ class ContactsRepo(BaseRepoModel):
         ]
         if include_deleted:
             cols.extend([Users.name.label('deleted_by'),deleted_at.label('deleted_at')])
-
-        queried_contacts=(await self.session.execute(
+        contact_stmt=(
             select(
                 *cols,
                 date_expr.label("contact_created_at")
@@ -147,10 +146,15 @@ class ContactsRepo(BaseRepoModel):
                     Customers.email.ilike(search_term),
                     Customers.website_url.ilike(search_term)
                 ),
+                
                 Contacts.sequence_id>cursor,
                 Contacts.is_deleted==include_deleted
             ).order_by(Contacts.sequence_id.asc())
-        )).mappings().all()
+        )
+        if in_search and len(in_search)>0:
+            ic("in search")
+            contact_stmt=contact_stmt.where(Contacts.id.in_(in_search))
+        queried_contacts=(await self.session.execute(contact_stmt)).mappings().all()
 
         total_contacts:int=0
         if cursor==0:
@@ -190,7 +194,7 @@ class ContactsRepo(BaseRepoModel):
 
         return {'contacts':queried_contacts}
         
-    async def get_by_id(self,contact_id:str):
+    async def get_by_id(self,contact_id:str,include_delete:bool=False):
         date_expr=func.date(func.timezone("Asia/Kolkata",Contacts.created_at))
         
         queried_contacts=(await self.session.execute(
@@ -199,7 +203,7 @@ class ContactsRepo(BaseRepoModel):
                 date_expr.label("contact_created_at")
             )
             .join(Customers,Customers.id==Contacts.customer_id,isouter=True)
-            .where(or_(Contacts.id==contact_id,Contacts.ui_id==contact_id),Contacts.is_deleted==False)
+            .where(or_(Contacts.id==contact_id,Contacts.ui_id==contact_id),Contacts.is_deleted==include_delete)
         )).mappings().one_or_none()
 
         return {'contact':queried_contacts}

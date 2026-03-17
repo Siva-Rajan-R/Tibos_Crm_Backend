@@ -103,7 +103,7 @@ class ProductsRepo(BaseRepoModel):
         is_recovered=(await self.session.execute(prod_torecover)).scalar_one_or_none()
         return is_recovered if is_recovered else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Recovering Product",description="Unable to recover the product, may product is not deleted or already recovered")
         
-    async def get(self,cursor:int=1,limit:int=10,query:str='',include_deleted:bool=False):
+    async def get(self,cursor:int=1,limit:int=10,query:str='',include_deleted:bool=False,in_search:List=[]):
         search_term=f"%{query.lower()}%"
         date_expr=func.date(func.timezone("Asia/Kolkata",Products.created_at))
         deleted_at=func.date(func.timezone("Asia/Kolkata",Products.deleted_at))
@@ -111,8 +111,7 @@ class ProductsRepo(BaseRepoModel):
         cols=[*self.products_cols]
         if include_deleted:
             cols.extend([Users.name.label('deleted_by'),deleted_at.label('deleted_at')])
-
-        queried_products=(await self.session.execute(
+        product_stmt=(
             select(
                 *cols,
                 date_expr.label("product_created_at")
@@ -128,13 +127,19 @@ class ProductsRepo(BaseRepoModel):
                     Products.product_type.ilike(search_term),
                     func.cast(Products.created_at,String).ilike(search_term)
                 ),
+                
                 Products.sequence_id>cursor,
                 Products.is_deleted==include_deleted
 
             )
             .limit(limit)
             .order_by(Products.sequence_id.asc())
-        )).mappings().all()
+        )
+
+        if in_search and len(in_search)>0:
+            ic("Inside Search")
+            product_stmt=product_stmt.where(Products.id.in_(in_search))
+        queried_products=(await self.session.execute(product_stmt)).mappings().all()
 
         total_products:int=0
         low_qty:int=0
@@ -185,14 +190,14 @@ class ProductsRepo(BaseRepoModel):
         ic(products)
         return {"products": products}
         
-    async def get_by_id(self,product_id:str):
+    async def get_by_id(self,product_id:str,include_delete:bool=False):
         date_expr=func.date(func.timezone("Asia/Kolkata",Products.created_at))
         queried_products=(await self.session.execute(
             select(
                 *self.products_cols,
                 date_expr.label("product_created_at")
             )
-            .where(or_(Products.id==product_id,Products.ui_id==product_id,Products.part_number==product_id),Products.is_deleted==False)
+            .where(or_(Products.id==product_id,Products.ui_id==product_id,Products.part_number==product_id),Products.is_deleted==include_delete)
             .order_by(Products.name)
         )).mappings().one_or_none()
 

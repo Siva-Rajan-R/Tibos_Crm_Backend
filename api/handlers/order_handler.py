@@ -27,7 +27,6 @@ class HandleOrdersRequest:
         self.user_role=user_role
         self.cur_user_id=cur_user_id
 
-    @catch_errors
     async def add(self,data:AddOrderSchema,request:Request,bgt:BackgroundTasks):
         # invoice_no=data.status_info.get('invoice_number')
         # invoice_date=data.status_info.get('invoice_date')

@@ -13,7 +13,8 @@ from core.utils.excel_data_extractor import extract_excel_data
 from models.import_export_models.imports.excel_headings_mapper import PRODUCTS_MAPPER
 from fastapi import UploadFile
 from core.data_formats.enums.dd_enums import ImportExportTypeEnum
-
+from infras.search_engine.models.product import ProductSearch
+from typing import Optional,Union
 
 class HandleProductsRequest:
     def __init__(self,session:AsyncSession,user_role:UserRoles,cur_user_id:str):
@@ -170,7 +171,7 @@ class HandleProductsRequest:
         )   
 
     @catch_errors   
-    async def get(self,cursor:int=1,limit:int=10,query:str=''):
+    async def get(self,cursor:Optional[Union[None,int]]=1,limit:int=10,query:str='',page:Optional[Union[int,None]]=1):
         if cursor is None:
             raise HTTPException(
                 status_code=400,
@@ -179,12 +180,15 @@ class HandleProductsRequest:
                     description="No more datas found for products",
                     msg="Error : fetching products",
                     success=False
-                )
+                ).model_dump(mode="json")
             )
+        
+        # return await ProductSearch().search_document(query=query,limit=limit,page=page,cursor=cursor)
         return await ProductsService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(cursor=cursor,limit=limit,query=query)
     
     @catch_errors
     async def search(self, query: str):
+        # return await ProductSearch().search_document(query=query,limit=30,page=1,cursor=1)
         return await ProductsService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).search(query=query)
     
     @catch_errors

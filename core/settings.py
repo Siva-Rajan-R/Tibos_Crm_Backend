@@ -36,6 +36,8 @@ class TibosCrmSettings(BaseSettings):
 
     AZURE_STORAGE_CONNECTION_STRING:str
 
+    ELASTIC_SEARCH_URL:str
+
     model_config={
         'case_sensitive':False
     }

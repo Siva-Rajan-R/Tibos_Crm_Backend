@@ -87,7 +87,7 @@ class DistributorsRepo(BaseRepoModel):
         is_recovered=(await self.session.execute(distributor_torecover)).scalar_one_or_none()
         return is_recovered if is_recovered else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Recovering Distributor",description="Unable to recover the distributor, may distributor is not deleted or already recovered")
 
-    async def get(self,cursor:int=1,limit:int=10,query:str='',include_deleted:bool=False):
+    async def get(self,cursor:int=1,limit:int=10,query:str='',include_deleted:bool=False,in_search:List=[]):
         search_term=f"%{query.lower()}%"
         date_expr=func.date(func.timezone("Asia/Kolkata",Distributors.created_at))
         deleted_at=func.date(func.timezone("Asia/Kolkata",Distributors.deleted_at))
@@ -95,8 +95,7 @@ class DistributorsRepo(BaseRepoModel):
         cols=[*self.distri_cols]
         if include_deleted:
             cols.extend([Users.name.label('deleted_by'),deleted_at.label('deleted_at')])
-
-        queried_distri=(await self.session.execute(
+        distri_stmt=(
             select(
                 *cols,
                 date_expr.label("created_at")
@@ -110,10 +109,17 @@ class DistributorsRepo(BaseRepoModel):
                     func.cast(Distributors.created_at,String).ilike(search_term),
 
                 ),
+                
                 Distributors.sequence_id>cursor,
                 Distributors.is_deleted==include_deleted
             ).order_by(Distributors.sequence_id.asc())
-        )).mappings().all()
+        )
+
+        if in_search and len(in_search)>0:
+            ic("In search")
+            distri_stmt=distri_stmt.where(Distributors.id.in_(in_search))
+
+        queried_distri=(await self.session.execute(distri_stmt)).mappings().all()
 
         total_distributors:int=0
         if cursor==0:
@@ -151,14 +157,14 @@ class DistributorsRepo(BaseRepoModel):
         return {'distributors':queried_distributors}
 
        
-    async def get_by_id(self,distributor_id:str):
+    async def get_by_id(self,distributor_id:str,include_delete:bool=False):
         date_expr=func.date(func.timezone("Asia/Kolkata",Distributors.created_at))
         queried_distributors=(await self.session.execute(
             select(
                 *self.distri_cols,
                 date_expr.label("created_at")
             )
-            .where(or_(Distributors.id==distributor_id,Distributors.ui_id==distributor_id,Distributors.name==distributor_id),Distributors.is_deleted==False)
+            .where(or_(Distributors.id==distributor_id,Distributors.ui_id==distributor_id,Distributors.name==distributor_id),Distributors.is_deleted==include_delete)
         )).mappings().one_or_none()
         
         return {'distributors':queried_distributors}

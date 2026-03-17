@@ -33,6 +33,34 @@ class UpdateCustomerSchema(BaseModel):
     tenant_id:Optional[str]=None
     secondary_domain:Optional[str]=None
     is_active:Optional[bool]=None
-    
+
+class AddSearchFields(BaseModel):
+    ui_id:str
+    id:str
+    name:str
+    mobile_number:str
+    email:str
+    tenant_id:str
+    secondary_domain:Optional[str]=None
+    sector:str
+    industry:str
+
+class UpdateSearchFields(BaseModel):
+    name:Optional[str]=None
+    mobile_number:Optional[str]=None
+    email:Optional[str]=None
+    tenant_id:Optional[str]=None
+    secondary_domain:Optional[str]=None
+    sector:Optional[str]=None
+    industry:Optional[str]=None
+
+
 class RecoverCustomerSchema(BaseModel):
     customer_id:str
+
+class ResponseSearch(BaseModel):
+    id:str
+    name:str
+
+class FinalResponseModel(BaseModel):
+    customers:List[ResponseSearch]

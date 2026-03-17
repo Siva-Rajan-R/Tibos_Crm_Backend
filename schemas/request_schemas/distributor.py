@@ -7,6 +7,13 @@ class CreateDistriSchema(BaseModel):
     name:str
     discounts:List[DistributorDiscountsTypDict]
 
+class AddSearchFields(BaseModel):
+    name:str
+    id:str
+    ui_id:str
+
+class UpdateSearchFields(BaseModel):
+    name:Optional[str]=None
 
 class UpdateDistriSchema(BaseModel):
     id:str

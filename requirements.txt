@@ -28,3 +28,5 @@ requests
 azure-storage-blob
 arq
 sse-starlette
+elasticsearch
+elasticsearch[async]

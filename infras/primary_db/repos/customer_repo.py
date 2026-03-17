@@ -14,6 +14,7 @@ from math import ceil
 from ..models.user import Users
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
 from ..models.ui_id import TablesUiLId
+from typing import List
 
 
 
@@ -122,7 +123,7 @@ class CustomersRepo(BaseRepoModel):
         return is_recovered if is_recovered else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Recovering Customer",description="Unable to recover the customer, may customer is not deleted or already recovered")
         
 
-    async def get(self,cursor:int=1,limit:int=10,query:str='',include_deleted:bool=False):
+    async def get(self,cursor:int=1,limit:int=10,query:str='',include_deleted:bool=False,in_search:List=[]):
         search_term=f"%{query.lower()}%"
         cursor=0 if cursor==1 else cursor
         date_expr=func.date(func.timezone("Asia/Kolkata",Customers.created_at))
@@ -130,7 +131,8 @@ class CustomersRepo(BaseRepoModel):
         cols=[*self.customer_cols]
         if include_deleted:
             cols.extend([Users.name.label('deleted_by'),deleted_at.label('deleted_at')])
-        queried_customers=(await self.session.execute(
+
+        cust_stmt=(
             select(
                 *cols,
                 date_expr.label("customer_created_at")
@@ -152,10 +154,17 @@ class CustomersRepo(BaseRepoModel):
                     Customers.tenant_id.ilike(search_term),
                     Customers.secondary_domain.ilike(search_term)
                 ),
+                
                 Customers.sequence_id>cursor,
                 Customers.is_deleted==include_deleted
             ).limit(limit).order_by(Customers.sequence_id.asc())
-        )).mappings().all()
+        )
+        ic(in_search)
+        if in_search and len(in_search)>0:
+            ic("inside insearch")
+            cust_stmt=cust_stmt.where(Customers.id.in_(in_search))
+
+        queried_customers=(await self.session.execute(cust_stmt)).mappings().all()
 
         total_customers:int=0
         total_active_customer:int=0
@@ -213,14 +222,14 @@ class CustomersRepo(BaseRepoModel):
         return {'customers':queried_customers}
 
        
-    async def get_by_id(self,customer_id:str):
+    async def get_by_id(self,customer_id:str,include_delete:bool=False):
         date_expr=func.date(func.timezone("Asia/Kolkata",Customers.created_at))
         queried_customers=(await self.session.execute(
             select(
                 *self.customer_cols,
                 date_expr.label("customer_created_at")
             )
-            .where(or_(Customers.id==customer_id,Customers.ui_id==customer_id),Customers.is_deleted==False)
+            .where(or_(Customers.id==customer_id,Customers.ui_id==customer_id),Customers.is_deleted==include_delete)
         )).mappings().one_or_none()
         
         

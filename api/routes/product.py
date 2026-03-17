@@ -1,5 +1,5 @@
 from fastapi import Depends,APIRouter,Query,File,UploadFile,Form,BackgroundTasks,HTTPException
-from schemas.request_schemas.product import AddProductSchema,UpdateProductSchema,RecoverProductSchema
+from schemas.request_schemas.product import AddProductSchema,UpdateProductSchema,RecoverProductSchema,FinalResponseModel
 from infras.primary_db.main import get_pg_db_session,AsyncSession
 from api.dependencies.token_verification import verify_user
 from ..handlers.product_handler import HandleProductsRequest
@@ -13,6 +13,8 @@ from schemas.request_schemas.export import ExportFields
 from infras.primary_db.repos.product_repo import ProductsRepo
 from tasks.arq_tasks.enqueues.report import enqueue_excel_report_job
 from pydantic import EmailStr
+from typing import Optional,Union
+from icecream import ic
 
 router=APIRouter(
     tags=['Product Crud'],
@@ -130,14 +132,26 @@ async def export(bgt:BackgroundTasks,user:dict=Depends(verify_user)):
     )
 
 @router.get('')
-async def get_all_product(q:str=Query(''),cursor:Optional[int]=Query(1),limit:Optional[int]=Query(10),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+async def get_all_product(q:str=Query(''),cursor:Optional[str]=Query("1"),page:Optional[str]=Query("1"),limit:Optional[int]=Query(10),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+    ic(cursor)
+    ic(page)
+    try:
+        cursor=int(cursor)
+    except:
+        cursor=None
+
+    try:
+        page=int(page)
+    except:
+        page=None
+        
     return await HandleProductsRequest(
         session=session,
         user_role=user['role'],
         cur_user_id=user['id']
-    ).get(cursor=cursor,limit=limit,query=q)
+    ).get(cursor=cursor,limit=limit,query=q,page=page)
 
-@router.get('/search')
+@router.get('/search',response_model=FinalResponseModel)
 async def get_searched_product(q:str=Query(...),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleProductsRequest(
         session=session,

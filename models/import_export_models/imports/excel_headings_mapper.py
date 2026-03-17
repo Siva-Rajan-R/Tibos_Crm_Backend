@@ -48,8 +48,7 @@ CONTACTS_MAPPER={
 
 DISTRI_MAPPER={
     'name':'name',
-    'discount':'discount',
-    'rebate_type':'rebate_type',
+    'discounts':'discounts',
     'minimum_thershold':'minimum_thershold'
 }
 

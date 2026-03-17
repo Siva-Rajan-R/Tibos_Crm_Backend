@@ -6,7 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
 from core.data_formats.enums.user_enums import UserRoles
 from pydantic import EmailStr
-from typing import Optional,List
+from typing import Optional,List,Union
 from schemas.db_schemas.customer import AddCustomerDbSchema,UpdateCustomerDbSchema
 from schemas.request_schemas.customer import AddCustomerSchema,UpdateCustomerSchema,RecoverCustomerSchema
 from core.decorators.error_handler_dec import catch_errors
@@ -17,6 +17,7 @@ from core.utils.excel_data_extractor import extract_excel_data
 from models.import_export_models.imports.excel_headings_mapper import ACCOUNTS_MAPPER
 from fastapi import UploadFile
 from core.data_formats.enums.dd_enums import ImportExportTypeEnum
+from infras.search_engine.models.customer import CustomerSearch
 
 
 class HandleCustomersRequest:
@@ -39,7 +40,7 @@ class HandleCustomersRequest:
         #         ).model_dump(mode='json')
         #     )
        
-    @catch_errors
+
     async def add(self,data:AddCustomerSchema):
         if not mobile_number_validator(mob_no=data.mobile_number):
             raise HTTPException(
@@ -74,7 +75,6 @@ class HandleCustomersRequest:
         )
     
 
-    @catch_errors
     async def add_bulk(self,type:ImportExportTypeEnum,file:UploadFile):
         if type.value==ImportExportTypeEnum.EXCEL.value:
             datas_toadd=extract_excel_data(excel_file=file.file,headings_mapper=ACCOUNTS_MAPPER)
@@ -113,7 +113,7 @@ class HandleCustomersRequest:
 
 
         
-    @catch_errors  
+
     async def update(self,data:UpdateCustomerSchema):
         if data.mobile_number and not mobile_number_validator(mob_no=data.mobile_number):
             raise HTTPException(
@@ -197,7 +197,7 @@ class HandleCustomersRequest:
         )
         
     @catch_errors
-    async def get(self,cursor:int=1,limit:int=10,query:str=''):
+    async def get(self,cursor:Optional[Union[int,None]]=1,page:Optional[Union[int,None]]=1,limit:int=10,query:str=''):
         if cursor is None:
             raise HTTPException(
                 status_code=400,
@@ -206,12 +206,16 @@ class HandleCustomersRequest:
                     description="No more datas found for customer|accounts",
                     msg="Error : fetching customer|accounts",
                     success=False
-                )
+                ).model_dump(mode='json')
             )
+        
+        # return await CustomerSearch().search_document(query=query,limit=limit,page=page,cursor=cursor)
         return await CustomersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(cursor=cursor,limit=limit,query=query)
         
     @catch_errors
     async def search(self,query:str):
+        # res=await CustomerSearch().search_document(query=query,limit=30,page=1,cursor=1)
+        # return res
         return await CustomersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).search(query=query)
 
     @catch_errors
