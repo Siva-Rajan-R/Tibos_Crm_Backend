@@ -268,6 +268,8 @@ class OrdersService(BaseServiceModel):
                 data['status_info']['invoice_date']=invoice_date
             
             paid_amount=0
+            last_ord_expiry_date=None
+            last_order_id=None
             ic(data['status_info'])
             if  data['status_info']['invoice_status']==InvoiceStatus.COMPLETED.value and data['status_info']['payment_status']==PaymentStatus.FULL_PAYMENT_RECEIVED.value:
                 if data['purchase_type']==PurchaseTypes.EXISTING_ADD_ON.value:
@@ -277,8 +279,11 @@ class OrdersService(BaseServiceModel):
                         data['reason']="This Customer+Product doesn't have on existing order for creating a ADD-ON or Invalid Last Order Id"
                         skipped_items.append(data)
                         continue
-
-                    expiry_date=last_order['order']['delivery_info']['delivery_date']+timedelta(days=DEFAULT_ADDON_YEAR+1)
+                    delivery_date = datetime.strptime(
+                        last_order['order']['delivery_info']['delivery_date'],
+                        "%Y-%m-%d"
+                    ).date()
+                    expiry_date=delivery_date+timedelta(days=DEFAULT_ADDON_YEAR+1)
                     remaining_days=get_remaining_days(from_date=expiry_date,to_date=data['delivery_info']['delivery_date'])
                     if remaining_days>365:
                         data['last_order']=last_order
@@ -286,7 +291,7 @@ class OrdersService(BaseServiceModel):
                         data['reason']="Date mistmatch for creating ADD-ON,Date excedding >365"
                         skipped_items.append(data)
                         continue
-                    
+                    ic(last_order)
                     data['unit_price']=last_order['order']['unit_price']
                     paid_amount=get_customer_addon_price(customer_price=data['unit_price'],qty=data['quantity'],expiry_date=expiry_date,delivery_date=data['delivery_info']['delivery_date']).get("with_gst")
                 
@@ -294,8 +299,6 @@ class OrdersService(BaseServiceModel):
                     paid_amount=get_customer_price(customer_price=data['unit_price'],qty=data['quantity']).get('with_gst')
                     ic(paid_amount)
 
-            last_ord_expiry_date=None
-            last_order_id=None
 
             if data['purchase_type']==PurchaseTypes.EXISTING_ADD_ON.value:
                 last_order=(await orders_obj.get_by_id(order_id=data['last_order_id']))
@@ -304,9 +307,13 @@ class OrdersService(BaseServiceModel):
                     data['reason']="This Customer+Product doesn't have on existing order for creating a ADD-ON or Invalid Last Order Id"
                     skipped_items.append(data)
                     continue
-                else:   
-                    last_order_date=last_order['order']['delivery_info']['delivery_date']
-                    last_ord_expiry_date=last_order=last_order_date+(DEFAULT_ADDON_YEAR + 1)
+                else:  
+                    delivery_date = datetime.strptime(
+                        last_order['order']['delivery_info']['delivery_date'],
+                        "%Y-%m-%d"
+                    ).date() 
+                    last_order_date=delivery_date
+                    last_ord_expiry_date=last_order_date
                     last_order_id=data['last_order_id']
                     data['unit_price']=last_order['order']['unit_price']
                     paid_amount=0
@@ -331,6 +338,7 @@ class OrdersService(BaseServiceModel):
             lui_id=cur_uiid
             del data['existing_discounts']
             del data['converted_discounts']
+            del data['last_order_id']
 
             
             # skipped_items.append(data)
@@ -340,7 +348,7 @@ class OrdersService(BaseServiceModel):
                 data['status_info']=[data['status_info']]
                 ic(data['activated'])
                 ic("Hii inside")
-                formatted_schema=AddOrderDbSchema(**data,id=order_id,ui_id=cur_uiid).model_dump(mode='json',exclude_unset=True,exclude_none=True,exclude=['status_info'])
+                formatted_schema=AddOrderDbSchema(**data,id=order_id,ui_id=cur_uiid).model_dump(mode='json',exclude_unset=True,exclude_none=True,exclude=['status_info','last_order_id'])
                 search_fields=AddSearchField(
                     ui_id=cur_uiid,
                     id=order_id,

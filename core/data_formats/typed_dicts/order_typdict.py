@@ -19,8 +19,8 @@ class StatusInfo(TypedDict):
 
 class LogisticsInfo(TypedDict):
     purchase_type:Union[str,PurchaseTypes]
-    last_ord_expiry_date:NotRequired[date]
-    last_order_id:NotRequired[str]
+    last_ord_expiry_date:NotRequired[Union[date,None]]
+    last_order_id:NotRequired[Union[str,None]]
     renewal_type:Union[str,RenewalTypes]
     bill_to:NotRequired[str]
     distributor_type:Union[str,DistributorType]
