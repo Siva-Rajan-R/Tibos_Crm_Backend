@@ -183,7 +183,7 @@ class ProductsRepo(BaseRepoModel):
                 Products.is_deleted==False
             )
             .order_by(Products.name)
-            .limit(5)
+            .limit(30)
         )
 
         products = result.mappings().all()

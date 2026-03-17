@@ -14,7 +14,7 @@ class AddOrderSchema(BaseModel):
     quantity:int
     activated:bool
     additional_discount:str
-    additional_price:Optional[int]=None
+    additional_price:Optional[float]=None
     unit_price:float
     delivery_info:DeliveryInfo
     status_info:List[StatusInfo]
@@ -29,7 +29,7 @@ class UpdateOrderSchema(BaseModel):
     product_id:str
     last_order_id:Optional[str]=None
     activated:Optional[bool]=None
-    additional_price:Optional[int]=None
+    additional_price:Optional[float]=None
     unit_price:Optional[float]=None
     distributor_id:Optional[str]=None
     discount_id:Optional[str]=None
@@ -84,6 +84,9 @@ class OrderFilterSchema(BaseModel):
     activation_status:Optional[Union[bool,None]]=None
     distributor_type:Optional[Union[str,DistributorType,None]]=None
     distributor_id:Optional[str]=None
+    customer_id:Optional[str]=None
+    distributor_id:Optional[str]=None
+    product_id:Optional[str]=None
     revenue_type:Optional[Union[str,OrderFilterRevenueEnum,None]]=None
     date_filter:Optional[OrderDateFilterTypDict]=OrderDateFilterTypDict()
 

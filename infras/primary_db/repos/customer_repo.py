@@ -216,7 +216,7 @@ class CustomersRepo(BaseRepoModel):
                 ),
                 Customers.is_deleted==False
             )
-            .limit(5)
+            .limit(30)
         )).mappings().all()
 
         return {'customers':queried_customers}

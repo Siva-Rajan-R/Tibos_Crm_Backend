@@ -5,7 +5,7 @@ from ..models.product import Products
 from ..models.customer import Customers
 from ..models.distributor import Distributors
 from core.utils.uuid_generator import generate_uuid
-from sqlalchemy import Numeric, select,delete,update,or_,func,String,cast,case,and_,Date,desc,text
+from sqlalchemy import Numeric, select,delete,update,or_,func,String,cast,case,and_,Date,desc,text,exists
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
 from sqlalchemy.dialects.postgresql import JSONB
@@ -243,7 +243,7 @@ class OrdersRepo(BaseRepoModel):
         in_search:List=[]
     ):
 
-        
+        ic(filter)
         conditions = []
         total_orders_condition=[]
         filters=[]
@@ -254,7 +254,10 @@ class OrdersRepo(BaseRepoModel):
             'invoice_status':OrdersPaymentInvoiceInfo.invoice_status,
             'purchase_type':Orders.logistic_info['purchase_type'].astext,
             'renewal_type':Orders.logistic_info['renewal_type'].astext,
-            'distributor_type':Orders.logistic_info['distributor_type'].astext
+            'distributor_type':Orders.logistic_info['distributor_type'].astext,
+            'customer_id':Orders.customer_id,
+            'distributor_id':Orders.distributor_id,
+            'product_id':Orders.product_id
         }
         cursor=0 if cursor==1 else cursor
         search_term = f"%{query.lower()}%"
@@ -297,9 +300,32 @@ class OrdersRepo(BaseRepoModel):
 
         ic("hello 2")
         for key,value in filter.model_dump(mode='json').items():
-            if value is not None and key!="date_filter" and key!="revenue_type":
-                filters.append(filter_mapper[key]==value)
-        
+            if value is None:
+                continue
+
+            if key == "payment_status":
+                filters.append(
+                    exists().where(
+                        and_(
+                            OrdersPaymentInvoiceInfo.order_id == Orders.id,
+                            OrdersPaymentInvoiceInfo.payment_status == value
+                        )
+                    )
+                )
+
+            elif key == "invoice_status":
+                filters.append(
+                    exists().where(
+                        and_(
+                            OrdersPaymentInvoiceInfo.order_id == Orders.id,
+                            OrdersPaymentInvoiceInfo.invoice_status == value
+                        )
+                    )
+                )
+
+            elif key != "date_filter" and key != "revenue_type":
+                filters.append(filter_mapper[key] == value)
+                
 
         ic(filters)
         orders_toquery = (
@@ -688,11 +714,11 @@ class OrdersRepo(BaseRepoModel):
                 Orders.customer_id==customer_id,
                 Orders.product_id==product_id,
                 Orders.is_deleted==False,
-                Orders.logistic_info['purchase_type'].astext!=PurchaseTypes.EXISTING_ADD_ON.value
+                Orders.logistic_info['purchase_type'].astext==PurchaseTypes.EXISTING_RENEWAL.value
             )
             .order_by(desc(date_expr))
         )
-        
+         
         last_ord=(await self.session.execute(last_ord_stmt)).mappings().all()
         return {'last_order':last_ord}
         return {'last_order':{**last_ord,'expiry_date':last_ord['last_date']+timedelta(days=DEFAULT_ADDON_YEAR+1)}if last_ord else last_ord}

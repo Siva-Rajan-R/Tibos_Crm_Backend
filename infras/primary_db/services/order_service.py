@@ -314,7 +314,7 @@ class OrdersService(BaseServiceModel):
                     ).date() 
                     last_order_date=delivery_date
                     last_ord_expiry_date=last_order_date
-                    last_order_id=data['last_order_id']
+                    last_order_id=last_order['order']['id']
                     data['unit_price']=last_order['order']['unit_price']
                     paid_amount=0
 

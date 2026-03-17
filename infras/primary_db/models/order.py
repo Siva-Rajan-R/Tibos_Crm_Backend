@@ -42,6 +42,6 @@ class OrdersPaymentInvoiceInfo(PG_BASE):
     invoice_status=Column(String,nullable=False)
     invoice_number=Column(String,nullable=True)
     invoice_date=Column(String,nullable=True)
-    paid_amount=Column(BigInteger,nullable=True)
+    paid_amount=Column(Float,nullable=True)
 
     order=relationship("Orders",back_populates='order_payment_invoice_info')
