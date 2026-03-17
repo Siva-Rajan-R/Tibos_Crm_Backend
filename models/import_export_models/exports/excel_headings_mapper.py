@@ -52,6 +52,7 @@ DISTRI_MAPPER={
 
 ORDERS_MAPPER={
     'ui_id':'id',
+    'last_order_id':'last_order_id',
     'customer_id': 'customer_id',
     'customer_name':'customer_name',
     'product_id': 'product_id',

@@ -20,22 +20,24 @@ distributor_tot_price=func.round(func.coalesce((Products.price+func.coalesce(Ord
 
 
 distri_discount=(select(Distributors.discounts[Orders.discount_id]).where(Distributors.id==Orders.distributor_id).correlate_except(Distributors)).scalar_subquery()
-last_order_delivery_date = (
-    select(
-        cast(PrevOrder.delivery_info['delivery_date'].astext, Date)
-    )
-    .where(
-        PrevOrder.customer_id == Orders.customer_id,
-        PrevOrder.product_id == Orders.product_id,
-        PrevOrder.is_deleted == False,
-        PrevOrder.logistic_info['purchase_type'].astext != PurchaseTypes.EXISTING_ADD_ON.value
-    )
-    .order_by(
-        cast(PrevOrder.delivery_info['delivery_date'].astext, Date).desc()
-    )
-    .limit(1)
-    .scalar_subquery()
-)
+# last_order_delivery_date = (
+#     select(
+#         cast(PrevOrder.delivery_info['delivery_date'].astext, Date)
+#     )
+#     .where(
+#         PrevOrder.customer_id == Orders.customer_id,
+#         PrevOrder.product_id == Orders.product_id,
+#         PrevOrder.is_deleted == False,
+#         PrevOrder.logistic_info['purchase_type'].astext != PurchaseTypes.EXISTING_ADD_ON.value
+#     )
+#     .order_by(
+#         cast(PrevOrder.delivery_info['delivery_date'].astext, Date).desc()
+#     )
+#     .limit(1)
+#     .scalar_subquery()
+# )
+
+last_order_delivery_date=cast(Orders.logistic_info['last_ord_expiry_date'].astext, Date)
 
 cur_order_delivery_date = cast(
     Orders.delivery_info['delivery_date'].astext,

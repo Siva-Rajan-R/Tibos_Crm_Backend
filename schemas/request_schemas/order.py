@@ -10,6 +10,7 @@ class AddOrderSchema(BaseModel):
     product_id:str
     distributor_id:str
     discount_id:str
+    last_order_id:Optional[str]=None
     quantity:int
     activated:bool
     additional_discount:str
@@ -26,6 +27,7 @@ class UpdateOrderSchema(BaseModel):
     order_id:str
     customer_id:str
     product_id:str
+    last_order_id:Optional[str]=None
     activated:Optional[bool]=None
     additional_price:Optional[int]=None
     unit_price:Optional[float]=None

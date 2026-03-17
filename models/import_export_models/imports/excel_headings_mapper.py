@@ -53,6 +53,7 @@ DISTRI_MAPPER={
 }
 
 ORDERS_MAPPER={
+    'last_order_id':'last_order_id',
     'customer_id':'customer_id',
     'product_id':'product_id',
     'distributor_id':'distributor_id',

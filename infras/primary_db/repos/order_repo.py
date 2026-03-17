@@ -670,12 +670,19 @@ class OrdersRepo(BaseRepoModel):
             Date
         )
 
+        expiry_expr = cast(
+            date_expr + text(f"INTERVAL '{DEFAULT_ADDON_YEAR + 1} days'"),
+            Date
+        )
+
         last_ord_stmt=(
             select(
+                Orders.id,
                 Orders.unit_price,
                 Orders.logistic_info,
                 Orders.delivery_info,
-                date_expr.label("last_date")
+                date_expr.label("last_date"),
+                expiry_expr.label("expiry_date")
             )
             .where(
                 Orders.customer_id==customer_id,
@@ -684,10 +691,10 @@ class OrdersRepo(BaseRepoModel):
                 Orders.logistic_info['purchase_type'].astext!=PurchaseTypes.EXISTING_ADD_ON.value
             )
             .order_by(desc(date_expr))
-            .limit(1)
         )
         
-        last_ord=(await self.session.execute(last_ord_stmt)).mappings().one_or_none()
+        last_ord=(await self.session.execute(last_ord_stmt)).mappings().all()
+        return {'last_order':last_ord}
         return {'last_order':{**last_ord,'expiry_date':last_ord['last_date']+timedelta(days=DEFAULT_ADDON_YEAR+1)}if last_ord else last_ord}
     
 

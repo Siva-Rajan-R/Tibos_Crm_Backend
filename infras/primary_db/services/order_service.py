@@ -23,7 +23,7 @@ from decimal import Decimal, ROUND_HALF_UP
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
 from ..models.ui_id import TablesUiLId
 from core.utils.ui_id_generator import generate_ui_id
-from core.constants import UI_ID_STARTING_DIGIT,LUI_ID_ORDER_PREFIX
+from core.constants import UI_ID_STARTING_DIGIT,LUI_ID_ORDER_PREFIX,DEFAULT_ADDON_YEAR
 from core.utils.discount_validator import parse_discount,validate_discount
 from core.data_formats.enums.order_enums import RenewalTypes
 from core.utils.calculations import get_customer_price
@@ -35,13 +35,14 @@ from core.utils.calculations import get_distributor_price,get_remaining_days,get
 from core.data_formats.typed_dicts.order_typdict import DeliveryInfo,StatusInfo,LogisticsInfo,InvoiceStatus,PaymentStatus,PurchaseTypes,RenewalTypes
 from core.data_formats.enums.order_enums import ActivationStatusEnum
 import json
-from datetime import datetime
+from datetime import datetime,timedelta
 from pathlib import Path
 from services.email_service import send_email
 from ...search_engine.models.order import OrderSearch
 from core.utils.percentage_convertor import normalize_percent
 from core.utils.safe_date_convertor import safe_date
 from core.utils.skipped_data_convertor import write_skipped_items_to_excel
+
 
 
 
@@ -101,6 +102,15 @@ class OrdersService(BaseServiceModel):
 
         lui_id:str=(await self.session.execute(select(TablesUiLId.order_luiid))).scalar_one_or_none()
         cur_uiid=generate_ui_id(prefix=LUI_ID_ORDER_PREFIX,last_id=lui_id)
+
+        if data.logistic_info.get("purchase_type")==PurchaseTypes.EXISTING_ADD_ON.value:
+            last_order=(await order_obj.get_by_id(order_id=data.last_order_id))
+            # last_order=(await orders_obj.get_last_order(customer_id=data['customer_id'],product_id=data['product_id']))
+            if not last_order['order'] or len(last_order['order'])<1:
+                return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Order",description="Invalid Last Order")
+            ic(last_order)
+            data_toadd['logistic_info']['last_order_id']=data.last_order_id            
+            data_toadd['logistic_info']['last_ord_expiry_date']=last_order['order']['delivery_info']['delivery_date']
 
         search_fields=AddSearchField(
             ui_id=cur_uiid,
@@ -261,13 +271,14 @@ class OrdersService(BaseServiceModel):
             ic(data['status_info'])
             if  data['status_info']['invoice_status']==InvoiceStatus.COMPLETED.value and data['status_info']['payment_status']==PaymentStatus.FULL_PAYMENT_RECEIVED.value:
                 if data['purchase_type']==PurchaseTypes.EXISTING_ADD_ON.value:
-                    last_order=(await orders_obj.get_last_order(customer_id=data['customer_id'],product_id=data['product_id']))
-                    if not last_order['last_order'] or len(last_order['last_order'])<1:
-                        data['reason']="This Customer+Product doesn't have on existing order for creating a ADD-ON"
+                    last_order=(await orders_obj.get_by_id(order_id=data['last_order_id']))
+                    # last_order=(await orders_obj.get_last_order(customer_id=data['customer_id'],product_id=data['product_id']))
+                    if not last_order['order'] or len(last_order['order'])<1:
+                        data['reason']="This Customer+Product doesn't have on existing order for creating a ADD-ON or Invalid Last Order Id"
                         skipped_items.append(data)
                         continue
 
-                    expiry_date=last_order['last_order']['expiry_date']
+                    expiry_date=last_order['order']['delivery_info']['delivery_date']+timedelta(days=DEFAULT_ADDON_YEAR+1)
                     remaining_days=get_remaining_days(from_date=expiry_date,to_date=data['delivery_info']['delivery_date'])
                     if remaining_days>365:
                         data['last_order']=last_order
@@ -276,35 +287,44 @@ class OrdersService(BaseServiceModel):
                         skipped_items.append(data)
                         continue
                     
-                    data['unit_price']=last_order['last_order']['unit_price']
+                    data['unit_price']=last_order['order']['unit_price']
                     paid_amount=get_customer_addon_price(customer_price=data['unit_price'],qty=data['quantity'],expiry_date=expiry_date,delivery_date=data['delivery_info']['delivery_date']).get("with_gst")
                 
                 else:
                     paid_amount=get_customer_price(customer_price=data['unit_price'],qty=data['quantity']).get('with_gst')
                     ic(paid_amount)
-            
+
+            last_ord_expiry_date=None
+            last_order_id=None
+
             if data['purchase_type']==PurchaseTypes.EXISTING_ADD_ON.value:
-                last_order=(await orders_obj.get_last_order(customer_id=data['customer_id'],product_id=data['product_id']))
-                if not last_order['last_order'] or len(last_order['last_order'])<1:
-                    data['reason']="This Customer+Product doesn't have on existing order for creating a ADD-ON"
+                last_order=(await orders_obj.get_by_id(order_id=data['last_order_id']))
+                # last_order=(await orders_obj.get_last_order(customer_id=data['customer_id'],product_id=data['product_id']))
+                if not last_order['order'] or len(last_order['order'])<1:
+                    data['reason']="This Customer+Product doesn't have on existing order for creating a ADD-ON or Invalid Last Order Id"
                     skipped_items.append(data)
                     continue
                 else:   
-                    last_order=(await orders_obj.get_last_order(customer_id=data['customer_id'],product_id=data['product_id']))
-                    data['unit_price']=last_order['last_order']['unit_price']
+                    last_order_date=last_order['order']['delivery_info']['delivery_date']
+                    last_ord_expiry_date=last_order=last_order_date+(DEFAULT_ADDON_YEAR + 1)
+                    last_order_id=data['last_order_id']
+                    data['unit_price']=last_order['order']['unit_price']
                     paid_amount=0
 
             data['status_info']['paid_amount']=round(paid_amount)
 
             data['logistic_info']=LogisticsInfo(
+                last_ord_expiry_date=last_ord_expiry_date,
+                last_order_id=last_order_id,
                 purchase_type=data['purchase_type'],
                 renewal_type=data['renewal_type'],
                 bill_to=data['bill_to'],
                 distributor_type=data['distributor_type']
             )
 
-            
-            
+            last_ord_expiry_date=None
+            last_order_id=None
+
             data['additional_discount']=f"{data['discount']*100}%"
             order_id:str=generate_uuid()
             cur_uiid=generate_ui_id(prefix=LUI_ID_ORDER_PREFIX,last_id=lui_id)
@@ -390,6 +410,15 @@ class OrdersService(BaseServiceModel):
         if not distri_exists['distributors'] or len(distri_exists['distributors'])<1:
             return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updaing Order",description="Distributor with the given id does not exist")
 
+
+        if data.logistic_info.get("purchase_type")==PurchaseTypes.EXISTING_ADD_ON.value:
+            last_order=(await order_obj.get_by_id(order_id=data.last_order_id))
+            # last_order=(await orders_obj.get_last_order(customer_id=data['customer_id'],product_id=data['product_id']))
+            if not last_order['order'] or len(last_order['order'])<1:
+                return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Adding Order",description="Invalid Last Order")
+            ic(last_order)
+            data_toupdate['logistic_info']['last_order_id']=data.last_order_id
+            data_toupdate['logistic_info']['last_ord_expiry_date']=last_order['order']['delivery_info']['delivery_date']
 
         search_fields=UpdateSearchField(
             distributor_name=distri_exists['distributors']['name'],

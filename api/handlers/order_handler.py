@@ -4,7 +4,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
 from fastapi import Request,BackgroundTasks
 from core.data_formats.enums.user_enums import UserRoles
-from core.data_formats.enums.order_enums import PaymentStatus,InvoiceStatus
+from core.data_formats.enums.order_enums import PaymentStatus,InvoiceStatus,PurchaseTypes
 from core.data_formats.typed_dicts.order_typdict import DeliveryInfo
 from schemas.db_schemas.order import AddOrderDbSchema,UpdateOrderDbSchema
 from schemas.request_schemas.order import AddOrderSchema,UpdateOrderSchema,RecoverOrderSchema,OrderBulkDeleteSchema
@@ -41,7 +41,17 @@ class HandleOrdersRequest:
         #             description="Enter a vaid Inovice number or Date"
         #         ).model_dump(mode='json')
         #     )
-
+        if (data.logistic_info.get('purchase_type')==PurchaseTypes.EXISTING_ADD_ON.value and data.last_order_id is None):
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponseTypDict(
+                    status_code=400,
+                    success=False,
+                    msg="Error : Creading Order",
+                    description="Select previous order, previous order shouldn't be empty"
+                ).model_dump(mode='json')
+            )
+        
         if data.additional_discount and validate_discount(value=data.additional_discount) is None:
             raise HTTPException(
                 status_code=400,
@@ -63,6 +73,9 @@ class HandleOrdersRequest:
                     description="Invalid vendor discount format"
                 ).model_dump(mode='json')
             )
+        
+        ic(data.logistic_info)
+
         
         res=await OrdersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(data=data)
         if not res or isinstance(res,ErrorResponseTypDict):
@@ -139,7 +152,18 @@ class HandleOrdersRequest:
         #             description="Enter a vaid Inovice number or Date"
         #         ).model_dump(mode='json')
         #     )
-        
+        ic(data.logistic_info.get('purchase_type'))
+        if (data.logistic_info.get('purchase_type')==PurchaseTypes.EXISTING_ADD_ON.value and data.last_order_id is None):
+            raise HTTPException(
+                status_code=400,
+                detail=ErrorResponseTypDict(
+                    status_code=400,
+                    success=False,
+                    msg="Error : Creading Order",
+                    description="Select previous order, previous order shouldn't be empty"
+                ).model_dump(mode='json')
+            )
+         
         if data.additional_discount and validate_discount(value=data.additional_discount) is None:
             raise HTTPException(
                 status_code=400,
@@ -161,7 +185,7 @@ class HandleOrdersRequest:
                     description="Invalid vendor discount format"
                 ).model_dump(mode='json')
             )
-        
+        ic(data.logistic_info)
         res = await OrdersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=data)
         if not res or isinstance(res,ErrorResponseTypDict):
             detail:ErrorResponseTypDict=ErrorResponseTypDict(
