@@ -373,6 +373,7 @@ class OrdersService(BaseServiceModel):
             
             is_activated=False
             discount_id=None
+            paid_amount=0
 
         
         skipped_file_path = write_skipped_items_to_excel(skipped_items)
