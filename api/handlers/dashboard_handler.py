@@ -111,6 +111,7 @@ class HandleDashboardRequest:
             if len(order_infos['orders'])>0:
                 order_infos['name']=order_infos['orders'][0]['distributor_name'] 
                 order_infos['ui_id']=order_infos['orders'][0]['distributor_ui_id']
+                order_infos['id']=id
                 del order_infos['next_cursor']
                 del order_infos['orders']
                 distri_dashboard.append(order_infos)
