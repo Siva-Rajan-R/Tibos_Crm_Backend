@@ -236,7 +236,6 @@ class OrdersService(BaseServiceModel):
                 continue
 
             data['discount_id']=discount_id
-            
             data['customer_id']=cust_exists['customer']['id']
             data['distributor_id']=distri_exists['distributors']['id']
             data['product_id']=prod_exists['product']['id']
@@ -274,11 +273,17 @@ class OrdersService(BaseServiceModel):
             if  data['status_info']['invoice_status']==InvoiceStatus.COMPLETED.value and data['status_info']['payment_status']==PaymentStatus.FULL_PAYMENT_RECEIVED.value:
                 if data['purchase_type']==PurchaseTypes.EXISTING_ADD_ON.value:
                     last_order=(await orders_obj.get_by_id(order_id=data['last_order_id']))
-                    # last_order=(await orders_obj.get_last_order(customer_id=data['customer_id'],product_id=data['product_id']))
                     if not last_order['order'] or len(last_order['order'])<1:
                         data['reason']="This Customer+Product doesn't have on existing order for creating a ADD-ON or Invalid Last Order Id"
                         skipped_items.append(data)
                         continue
+
+                    if last_order['order']['logistic_info']['purchase_type']==PurchaseTypes.EXISTING_ADD_ON.value:
+                        data['reason']="The last order should not be EXISTING ADD ON"
+                        skipped_items.append(data)
+                        continue
+
+                    
                     delivery_date = datetime.strptime(
                         last_order['order']['delivery_info']['delivery_date'],
                         "%Y-%m-%d"
@@ -302,11 +307,17 @@ class OrdersService(BaseServiceModel):
 
             if data['purchase_type']==PurchaseTypes.EXISTING_ADD_ON.value:
                 last_order=(await orders_obj.get_by_id(order_id=data['last_order_id']))
-                # last_order=(await orders_obj.get_last_order(customer_id=data['customer_id'],product_id=data['product_id']))
                 if not last_order['order'] or len(last_order['order'])<1:
                     data['reason']="This Customer+Product doesn't have on existing order for creating a ADD-ON or Invalid Last Order Id"
                     skipped_items.append(data)
                     continue
+                
+                if last_order['order']['logistic_info']['purchase_type']==PurchaseTypes.EXISTING_ADD_ON.value:
+                    data['reason']="The last order should not be EXISTING ADD ON"
+                    skipped_items.append(data)
+                    continue
+                
+                
                 else:  
                     delivery_date = datetime.strptime(
                         last_order['order']['delivery_info']['delivery_date'],
@@ -454,19 +465,22 @@ class OrdersService(BaseServiceModel):
     @catch_errors    
     async def delete_bulk(self,data:OrderBulkDeleteSchema,soft_delete:bool=True):
         data=OrderBulkDeleteDbSchema(order_ids=data.order_ids)
-        await OrderSearch().delete_bulk_doc(ids=data.order_ids)
+        # await OrderSearch().delete_bulk_doc(ids=data.order_ids)
         return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete_bulk(data=data,soft_delete=soft_delete)
-    
-    @catch_errors  
+
+
     async def recover(self,order_id:str,customer_id:str):
         order=await self.get_by_id(order_id=order_id,include_delete=True)
         order_info=order['order']
+        ic(order_info)
         search_fields=AddSearchField(
+            id=order_info['id'],
+            ui_id=order_info['ui_id'],          
             distributor_id=order_info['distributor_id'],
             customer_id=order_info['customer_id'],
             product_id=order_info['product_id'],
-            distributor_name=order_info['distributors_name'],
-            distributor_ui_id=order_info['distributors_ui_id'],
+            distributor_name=order_info['distributor_name'],
+            distributor_ui_id=order_info['distributor_ui_id'],
             product_name=order_info['product_name'],
             product_type=order_info['product_type'],
             product_ui_id=order_info['product_ui_id'],

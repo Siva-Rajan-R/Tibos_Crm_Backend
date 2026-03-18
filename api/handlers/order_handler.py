@@ -270,8 +270,7 @@ class HandleOrdersRequest:
                 msg="Order Bulk Deleted Successfully"
             )
         )
-    
-    @catch_errors  
+      
     async def recover(self,data:RecoverOrderSchema): 
         res = await OrdersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).recover(order_id=data.order_id,customer_id=data.customer_id)
         if not res or isinstance(res,ErrorResponseTypDict):

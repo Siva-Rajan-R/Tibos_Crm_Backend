@@ -714,7 +714,7 @@ class OrdersRepo(BaseRepoModel):
                 Orders.customer_id==customer_id,
                 Orders.product_id==product_id,
                 Orders.is_deleted==False,
-                Orders.logistic_info['purchase_type'].astext==PurchaseTypes.EXISTING_RENEWAL.value
+                Orders.logistic_info['purchase_type'].astext!=PurchaseTypes.EXISTING_ADD_ON.value
             )
             .order_by(desc(date_expr))
         )
