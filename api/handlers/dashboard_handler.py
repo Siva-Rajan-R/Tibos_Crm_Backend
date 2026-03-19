@@ -7,13 +7,14 @@ from infras.primary_db.models.product import Products
 from infras.primary_db.models.distributor import Distributors
 from infras.primary_db.models.customer import Customers
 from datetime import datetime,date
-from sqlalchemy import select,func,case,cast,Numeric,Date,and_
+from sqlalchemy import select,func,case,cast,Numeric,Date,and_,exists
 from typing import Optional
 from icecream import ic
 from core.data_formats.enums.user_enums import UserRoles
 from core.data_formats.enums.order_enums import PaymentStatus,InvoiceStatus
 from schemas.request_schemas.order import OrderFilterSchema,OrderDateFilterTypDict
 from core.data_formats.enums.order_enums import OrderFilterDateByEnum
+from schemas.request_schemas.order import OrderFilterSchema
 from core.utils.calculations import get_customer_addon_price,get_customer_price,get_distri_addon_price,get_distributor_price,get_profit_loss_price,get_remaining_days,get_total_price
 from infras.primary_db.calculations import distri_final_price,customer_final_price,profit_loss_price
 
@@ -23,12 +24,55 @@ class HandleDashboardRequest:
         self.user_role=user_role,
         self.cur_user_id=cur_user_id
 
-    async def get_dashboard(self,from_date:Optional[date]=None,to_date:Optional[date]=None,timezone: Optional[str]="Asia/Kolkata"):
+    async def get_dashboard(self,from_date:Optional[date]=None,to_date:Optional[date]=None,filter:Optional[OrderFilterSchema]=OrderFilterSchema(),timezone: Optional[str]="Asia/Kolkata"):
         # day_expr = func.date(func.timezone(timezone, Orders.delivery_info['requested_date']))
         day_expr = cast(
             Orders.delivery_info["delivery_date"].astext,
             Date    
         ).label("day")
+
+        filters=[]
+        filter_mapper={
+            'activation_status':Orders.activated,
+            'distributor_id':Distributors.id,
+            'payment_status':OrdersPaymentInvoiceInfo.payment_status,
+            'invoice_status':OrdersPaymentInvoiceInfo.invoice_status,
+            'purchase_type':Orders.logistic_info['purchase_type'].astext,
+            'renewal_type':Orders.logistic_info['renewal_type'].astext,
+            'distributor_type':Orders.logistic_info['distributor_type'].astext,
+            'customer_id':Orders.customer_id,
+            'distributor_id':Orders.distributor_id,
+            'product_id':Orders.product_id
+        }
+
+
+        for key,value in filter.model_dump(mode='json').items():
+            if value is None:
+                continue
+
+            if key == "payment_status":
+                filters.append(
+                    exists().where(
+                        and_(
+                            OrdersPaymentInvoiceInfo.order_id == Orders.id,
+                            OrdersPaymentInvoiceInfo.payment_status == value
+                        )
+                    )
+                )
+
+            elif key == "invoice_status":
+                filters.append(
+                    exists().where(
+                        and_(
+                            OrdersPaymentInvoiceInfo.order_id == Orders.id,
+                            OrdersPaymentInvoiceInfo.invoice_status == value
+                        )
+                    )
+                )
+
+            elif key != "date_filter" and key != "revenue_type":
+                filters.append(filter_mapper[key] == value)
+                
         
         payment_subq = (
             select(
@@ -82,9 +126,10 @@ class HandleDashboardRequest:
             .join(Customers, Customers.id == Orders.customer_id, isouter=True)
             .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
             .join(Users, Users.id == Orders.deleted_by, isouter=True)
-            .where(Orders.is_deleted == False)
+            .where(*filters,Orders.is_deleted == False)
             .group_by(day_expr)
         )
+
 
 
         if from_date and to_date:
@@ -99,11 +144,8 @@ class HandleDashboardRequest:
         }
     
 
-    async def get_distri_dashboard(self,from_date:Optional[date]=None,to_date:Optional[date]=None,timezone: Optional[str]="Asia/Kolkata"):
+    async def get_distri_dashboard(self,filter:Optional[OrderFilterSchema]=OrderFilterSchema(),timezone: Optional[str]="Asia/Kolkata"):
         distri_ids=(await self.session.execute(select(Distributors.id))).scalars().all()
-        filter=OrderFilterSchema()
-        if from_date and to_date:
-            filter=OrderFilterSchema(date_filter=OrderDateFilterTypDict(from_date=from_date,to_date=to_date,by=OrderFilterDateByEnum.ACTIVATION_DATE))
         distri_dashboard=[]
         for id in distri_ids:
             order_infos=await OrdersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(filter=filter,limit=1,query=id)

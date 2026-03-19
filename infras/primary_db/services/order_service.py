@@ -274,7 +274,12 @@ class OrdersService(BaseServiceModel):
                 if data['purchase_type']==PurchaseTypes.EXISTING_ADD_ON.value:
                     last_order=(await orders_obj.get_by_id(order_id=data['last_order_id']))
                     if not last_order['order'] or len(last_order['order'])<1:
-                        data['reason']="This Customer+Product doesn't have on existing order for creating a ADD-ON or Invalid Last Order Id"
+                        data['reason']="Invalid Last Order Id, The given last order id doesn't exists for creating a ADD-ON"
+                        skipped_items.append(data)
+                        continue
+                        
+                    if last_order['order']['customer_id']!=cust_exists['customer']['id'] or last_order['order']['product_id']!=prod_exists['product']['id']:
+                        data['reason']="This Customer+Product doesn't have on existing order for creating a ADD-ON"
                         skipped_items.append(data)
                         continue
 
@@ -308,9 +313,14 @@ class OrdersService(BaseServiceModel):
             if data['purchase_type']==PurchaseTypes.EXISTING_ADD_ON.value:
                 last_order=(await orders_obj.get_by_id(order_id=data['last_order_id']))
                 if not last_order['order'] or len(last_order['order'])<1:
-                    data['reason']="This Customer+Product doesn't have on existing order for creating a ADD-ON or Invalid Last Order Id"
+                    data['reason']="Invalid Last Order Id, The given last order id doesn't exists for creating a ADD-ON"
                     skipped_items.append(data)
                     continue
+
+                if last_order['order']['customer_id']!=cust_exists['customer']['id'] or last_order['order']['product_id']!=prod_exists['product']['id']:
+                        data['reason']="This Customer+Product doesn't have on existing order for creating a ADD-ON"
+                        skipped_items.append(data)
+                        continue
                 
                 if last_order['order']['logistic_info']['purchase_type']==PurchaseTypes.EXISTING_ADD_ON.value:
                     data['reason']="The last order should not be EXISTING ADD ON"

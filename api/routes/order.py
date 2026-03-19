@@ -171,7 +171,7 @@ async def get_all_order(filters:OrderFilterSchema,q:str=Query(''),cursor:Optiona
 
 
 @router.get('/search')
-async def get_all_order(q:str=Query(...),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+async def get_search_order(q:str=Query(...),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleOrdersRequest(
         session=session,
         user_role=user['role'],
