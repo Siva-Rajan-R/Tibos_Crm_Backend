@@ -27,6 +27,7 @@ async def verify_user(request:Request,credentials:HTTPAuthorizationCredentials=D
     )
 
     if not await check_permission(request=request,role=decoded_token.get('role')):
+        ic("ooooo")
         raise HTTPException(
             status_code=403,
             detail=ErrorResponseTypDict(

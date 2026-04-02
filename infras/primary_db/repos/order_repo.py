@@ -530,6 +530,51 @@ class OrdersRepo(BaseRepoModel):
             )
 
 
+            purchase_type = Orders.logistic_info['purchase_type'].astext
+
+            pivot_query = select(
+                Orders.distributor_id,
+
+                func.sum(
+                    case((purchase_type == "EXISTING-RENEWAL", customer_final_price), else_=0)
+                ).label("existing_renewal"),
+
+                func.sum(
+                    case((purchase_type == "NEW-LOGO-RENEWAL", customer_final_price), else_=0)
+                ).label("new_logo_renewal"),
+
+                func.sum(
+                    case((purchase_type == "NET-NEW-CUSTOMER", customer_final_price), else_=0)
+                ).label("net_new_customer"),
+
+                func.sum(
+                    case((purchase_type == "EXISTING-ADD-ON", customer_final_price), else_=0)
+                ).label("existing_add_on"),
+            ).select_from(Orders)
+
+
+            pivot_query = pivot_query.where(
+                *conditions,
+                *filters,
+                Orders.is_deleted == False
+            )
+
+            if date_filter_condition is not None:
+                pivot_query = pivot_query.where(date_filter_condition)
+
+            if revenue_filter_condition is not None:
+                pivot_query = pivot_query.where(revenue_filter_condition)
+
+
+            pivot_query = pivot_query \
+            .join(Products, Products.id == Orders.product_id, isouter=True) \
+            .join(Customers, Customers.id == Orders.customer_id, isouter=True) \
+            .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
+
+            pivot_query = pivot_query.group_by(Orders.distributor_id)
+
+            purchase_stats = (await self.session.execute(pivot_query)).mappings().all()
+
 
             orders_infos=(await self.session.execute(
                 select(
@@ -576,6 +621,7 @@ class OrdersRepo(BaseRepoModel):
 
         return {
             **orders_infos,
+            "purchase_stats": purchase_stats,
             'total_pages':ceil(orders_infos.get('total_orders',0)/limit),
             'next_cursor':queried_orders[-1]['sequence_id'] if (len(queried_orders)>0 and queried_orders[-1]['sequence_id']!=1) else None,
             'orders':queried_orders,
@@ -841,6 +887,35 @@ class OrdersRepo(BaseRepoModel):
         #         .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
         #         .join(Users, Users.id == Orders.deleted_by, isouter=True)
         #     )).mappings().one_or_none()
+        return result
+    
+
+    async def dummy_tes(self):
+        ic("hello")
+        purchase_type = Orders.logistic_info['purchase_type'].astext
+
+        res = select(
+            Orders.distributor_id,
+
+
+            func.sum(
+                case((purchase_type == "EXISTING-RENEWAL", customer_final_price), else_=0)
+            ).label("existing_renewal"),
+
+            func.sum(
+                case((purchase_type == "NEW-LOGO-RENEWAL", customer_final_price), else_=0)
+            ).label("new_logo_renewal"),
+
+            func.sum(
+                case((purchase_type == "NET-NEW-CUSTOMER", customer_final_price), else_=0)
+            ).label("net_new_customer"),
+
+            func.sum(
+                case((purchase_type == "EXISTING-ADD-ON", customer_final_price), else_=0)
+            ).label("existing_add_on"),
+        ).group_by(Orders.distributor_id)
+        result=(await self.session.execute(res)).mappings().all()
+        ic(result)
         return result
     
 

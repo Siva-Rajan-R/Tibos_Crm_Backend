@@ -15,6 +15,7 @@ from schemas.request_schemas.export import ExportFields
 from tasks.arq_tasks.enqueues.report import enqueue_excel_report_job
 from pydantic import EmailStr
 from icecream import ic
+from infras.primary_db.repos.order_repo import OrdersRepo
 
 
 
@@ -85,13 +86,13 @@ async def delete_order(data:OrderBulkDeleteSchema,user:dict=Depends(verify_user)
 
 
 
-@router.get('/testing')
-async def testing(q:str=Query(''),cursor:Optional[int]=Query(1),limit:Optional[int]=Query(10),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
-    return await HandleOrdersRequest(
-        session=session,
-        user_role=user['role'],
-        cur_user_id=user['id']
-    ).test(cursor=cursor,limit=limit,query=q)
+# @router.get('/testing')
+# async def testing(q:str=Query(''),cursor:Optional[int]=Query(1),limit:Optional[int]=Query(10),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+#     return await HandleOrdersRequest(
+#         session=session,
+#         user_role=user['role'],
+#         cur_user_id=user['id']
+#     ).test(cursor=cursor,limit=limit,query=q)
 
 
 @router.put('/recover')
@@ -204,3 +205,10 @@ async def get_last_order_date(customer_id:str,product_id:str,user:dict=Depends(v
         user_role=user['role'],
         cur_user_id=user['id']
     ).get_last_order(customer_id=customer_id,product_id=product_id)
+
+
+
+@router.get('/kumar/dhanush')
+async def dhanush(session:AsyncSession=Depends(get_pg_db_session),user:dict=Depends(verify_user)):
+    return await OrdersRepo(session=session,user_role=UserRoles.SUPER_ADMIN,cur_user_id="").dummy_tes()
+    
