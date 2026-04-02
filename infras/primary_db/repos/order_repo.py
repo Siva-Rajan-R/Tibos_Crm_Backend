@@ -85,6 +85,7 @@ class OrdersRepo(BaseRepoModel):
             Customers.name.label('customer_name'),
             Customers.ui_id.label("customer_ui_id"),
             Customers.mobile_number,
+            Customers.owner.label("owner_name"),
             Distributors.name.label('distributor_name'),
             distri_discount.label('distributor_discount'),
             Orders.unit_price,
@@ -257,7 +258,8 @@ class OrdersRepo(BaseRepoModel):
             'distributor_type':Orders.logistic_info['distributor_type'].astext,
             'customer_id':Orders.customer_id,
             'distributor_id':Orders.distributor_id,
-            'product_id':Orders.product_id
+            'product_id':Orders.product_id,
+            'owner_name':Customers.owner
         }
         cursor=0 if cursor==1 else cursor
         search_term = f"%{query.lower()}%"
@@ -532,12 +534,24 @@ class OrdersRepo(BaseRepoModel):
             orders_infos=(await self.session.execute(
                 select(
                     func.sum(profit_loss_price).label("total_revenue"),
+                    func.sum(distri_final_price).label("distributor_value"),
+                    func.sum(Orders.quantity).label("total_license"),
                     func.count(Orders.id).label("total_orders"),
                     func.sum(customer_final_price).label("order_value"),
                     func.count().filter(Orders.activated.is_(False)).label("not_activated"),
                     func.sum(invoice_stats_subq.c.pending_invoice).label("pending_invoice"),
                     func.sum(invoice_stats_subq.c.tds_pendings).label("tds_pendings"),
-                    func.sum(invoice_stats_subq.c.not_paid_pendings).label("tot_pending_dues"),
+                    func.count().filter(
+                        (
+                            func.coalesce(invoice_stats_subq.c.not_paid_pendings, 0) +
+                            func.coalesce(invoice_stats_subq.c.tds_pendings, 0) +
+                            func.coalesce(invoice_stats_subq.c.gst_pendings, 0) +
+                            func.coalesce(invoice_stats_subq.c.half_pendings, 0) +
+                            func.coalesce(invoice_stats_subq.c.short_pendings, 0)
+                        ) > 0
+                    ).label("tot_pending_dues"),
+                    func.sum(vendor_disc_price).label("vendor_value"),
+                    func.sum(invoice_stats_subq.c.not_paid_pendings).label("not_paid_pendings"),
                     func.sum(invoice_stats_subq.c.gst_pendings).label("gst_pendings"),
                     func.sum(invoice_stats_subq.c.half_pendings).label("half_pendings"),
                     func.sum(invoice_stats_subq.c.short_pendings).label("short_pendings"),

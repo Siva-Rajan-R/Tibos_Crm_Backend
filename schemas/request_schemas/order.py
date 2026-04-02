@@ -87,6 +87,7 @@ class OrderFilterSchema(BaseModel):
     customer_id:Optional[str]=None
     distributor_id:Optional[str]=None
     product_id:Optional[str]=None
+    owner_name:Optional[str]=None
     revenue_type:Optional[Union[str,OrderFilterRevenueEnum,None]]=None
     date_filter:Optional[OrderDateFilterTypDict]=OrderDateFilterTypDict()
 
