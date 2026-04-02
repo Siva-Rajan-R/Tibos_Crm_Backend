@@ -416,6 +416,7 @@ class OrdersRepo(BaseRepoModel):
             
         queried_orders=(await self.session.execute(orders_toquery)).mappings().all()
         orders_infos={}
+        purchase_stats=[]
         pending_amounts=0
         ic(cursor)
 
