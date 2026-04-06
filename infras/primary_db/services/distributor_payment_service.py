@@ -10,7 +10,7 @@ from pydantic import EmailStr
 from typing import Optional,List
 from core.data_formats.enums.user_enums import UserRoles
 from schemas.request_schemas.distributor_payment import AddDistributorPaymentSchema,UpdateDistributorPaymentSchema
-from schemas.db_schemas.distributor_payment import AddDbDistributorPaymentSchema,UpdateDbDistributorPaymentSchema
+from schemas.db_schemas.distributor_payment import AddDistributorPaymentDbSchema,UpdateDistributorPaymentDbSchema
 from core.decorators.db_session_handler_dec import start_db_transaction
 from math import ceil
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
@@ -27,18 +27,31 @@ class DistributorsPaymentsService(BaseServiceModel):
 
         
     async def add(self,data:AddDistributorPaymentSchema):
-        is_order_exists=await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(order_id=data.order_id)
-        if not is_order_exists or len(is_order_exists['order'])<1:
-            return ErrorResponseTypDict(msg="Error : Adding Distributor Payments",status_code=400,success=False,description="Order id doesn't exists")
+        orders=[]
+        for order in data.orders:
+            is_order_exists=await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(order_id=order['order_id'])
+            if not is_order_exists or len(is_order_exists['order'])<1:
+                return ErrorResponseTypDict(msg="Error : Adding Distributor Payments",status_code=400,success=False,description="Order id doesn't exists")
+            orders.append(order['order_id'])
         
-        return await DistributorsPaymentsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(data=AddDbDistributorPaymentSchema(**data.model_dump(mode='json')))
+        data_toadd=data.model_dump(mode='json')
+
+        data_toadd['orders']=orders
+        
+        return await DistributorsPaymentsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(data=AddDistributorPaymentDbSchema(**data_toadd))
          
     async def update(self,data:UpdateDistributorPaymentSchema):
-        is_order_exists=await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(order_id=data.order_id)
-        if not is_order_exists or len(is_order_exists['order'])<1:
-            return ErrorResponseTypDict(msg="Error : Adding Distributor Payments",status_code=400,success=False,description="Order id doesn't exists")
-        
-        return await DistributorsPaymentsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateDbDistributorPaymentSchema(**data.model_dump(mode='json',exclude=['order_id'])))
+        # orders=[]
+        # for order in data.orders:
+        #     is_order_exists=await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(order_id=order['order_id'])
+        #     if not is_order_exists or len(is_order_exists['order'])<1:
+        #         return ErrorResponseTypDict(msg="Error : Adding Distributor Payments",status_code=400,success=False,description="Order id doesn't exists")
+            
+        #     orders.append(order['order_id'])
+
+        data_toadd=data.model_dump(mode='json',exclude=['customer_id','distributor_id'])
+        # data_toadd['orders']=orders
+        return await DistributorsPaymentsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateDistributorPaymentDbSchema(**data_toadd))
     
 
     async def delete(self,distri_payment_id:str,soft_delete:bool=True):

@@ -8,7 +8,10 @@ class DistributorDiscountsTypDict(TypedDict):
     rebate_type:str
 
 class DistributorPaymentInfosTypDict(TypedDict):
-    invoice_number:Optional[Union[None,str]]=None
-    invoice_value:Optional[Union[float,None]]=None
-    paid_amount:Optional[Union[None,float]]=None
-    paid_date:Optional[Union[None,date]]=None
+    partner_invoice_no:Union[str,None]
+    partner_invoice_date: Union[date,None]
+    per_qty_bill: Union[float,None]
+    total_billed: Union[float,None]
+    paid_date: Union[date,None]
+    paid_amount: Union[float,None]
+    month: Optional[str]=""

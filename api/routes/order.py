@@ -207,8 +207,15 @@ async def get_last_order_date(customer_id:str,product_id:str,user:dict=Depends(v
     ).get_last_order(customer_id=customer_id,product_id=product_id)
 
 
+@router.get('/distributor-pay/by/{customer_id}')
+async def get_cust_distri(customer_id: str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+        return await HandleOrdersRequest(session=session,user_role=user['role'],cur_user_id=user['id']).get_cust_distri(customer_id=customer_id)
 
-@router.get('/kumar/dhanush')
-async def dhanush(session:AsyncSession=Depends(get_pg_db_session),user:dict=Depends(verify_user)):
-    return await OrdersRepo(session=session,user_role=UserRoles.SUPER_ADMIN,cur_user_id="").dummy_tes()
+@router.get('/distributor-pay/by/{customer_id}/{distributor_id}') 
+async def get_cust_prod(customer_id:str,distributor_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+    return await HandleOrdersRequest(session=session,user_role=user['role'],cur_user_id=user['id']).get_cust_prod(customer_id=customer_id,distributor_id=distributor_id)
+
+@router.get('/distributor-pay/by/{customer_id}/{distributor_id}/{product_id}')
+async def get_cust_order(customer_id:str,distributor_id:str,product_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+    return await HandleOrdersRequest(session=session,user_role=user['role'],cur_user_id=user['id']).get_cust_order(customer_id=customer_id,distributor_id=distributor_id,product_id=product_id)
     
