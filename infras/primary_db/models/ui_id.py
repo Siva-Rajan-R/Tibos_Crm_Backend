@@ -5,6 +5,7 @@ from ..main import PG_BASE
 class TablesUiLId(PG_BASE):
     __tablename__="table_ui_lid"
     id=Column(String,primary_key=True,server_default="1")
+    cart_order_luiid=Column(String)
     order_luiid=Column(String)
     product_luiid=Column(String)
     distri_luiid=Column(String)

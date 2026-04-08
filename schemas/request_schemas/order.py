@@ -94,3 +94,44 @@ class OrderFilterSchema(BaseModel):
 
 class OrderBulkDeleteSchema(BaseModel):
     order_ids:List[str]
+
+
+class AddCartOrderProductSchema(BaseModel):
+    product_id:str
+    discount_id:str
+    additional_price:float
+    additional_discount:str
+    quantity:int
+    unit_price:float
+
+class AddCartOrderSchema(BaseModel):
+    customer_id:str
+    distributor_id:str
+    activated:bool
+    delivery_info:DeliveryInfo
+    status_info:List[StatusInfo]
+    logistic_info:LogisticsInfo
+    products:List[AddCartOrderProductSchema]
+    vendor_commision:Optional[str]=None
+
+
+
+class UpdateCartOrderProductSchema(BaseModel):
+    order_id:str
+    product_id:str
+    discount_id:str
+    additional_price:float
+    additional_discount:str
+    quantity:int
+    unit_price:float
+
+class UpdateCartOrderSchema(BaseModel):
+    order_id:str
+    customer_id:str
+    distributor_id:str
+    activated:bool
+    delivery_info:DeliveryInfo
+    status_info:List[StatusInfo]
+    logistic_info:LogisticsInfo
+    products:List[UpdateCartOrderProductSchema]
+    vendor_commision:Optional[str]=None

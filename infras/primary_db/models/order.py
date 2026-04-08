@@ -45,3 +45,59 @@ class OrdersPaymentInvoiceInfo(PG_BASE):
     paid_amount=Column(Float,nullable=True)
 
     order=relationship("Orders",back_populates='order_payment_invoice_info')
+    # order_payment_invoice_info=relationship("CartOrders",back_populates='order_payment_invoice_info')
+
+
+
+
+
+# Caart Based order Format
+
+class CartOrdersPaymentInvoiceInfo(PG_BASE):
+    __tablename__="cart_orders_payment_invoice_info"
+    id=Column(BigInteger,primary_key=True,autoincrement=True)
+    order_id=Column(String,ForeignKey("cart_orders.id",ondelete="CASCADE"),nullable=False)
+    payment_status=Column(String,nullable=True)
+    invoice_status=Column(String,nullable=False)
+    invoice_number=Column(String,nullable=True)
+    invoice_date=Column(String,nullable=True)
+    paid_amount=Column(Float,nullable=True)
+
+    cart_order=relationship("CartOrders",back_populates='cart_order_payment_invoice_info')
+
+
+class CartOrdersProduct(PG_BASE):
+    __tablename__='cart_orders_product'
+    id=Column(String,nullable=False,primary_key=True)
+    order_id=Column(String,ForeignKey("cart_orders.id",ondelete="CASCADE"))
+    product_id=Column(String,ForeignKey("products.id",ondelete="CASCADE"))
+    discount_id=Column(String,nullable=False)
+    additional_price=Column(BigInteger,nullable=True)
+    additional_discount=Column(String,nullable=False)
+    quantity=Column(Integer,nullable=False)
+    unit_price=Column(Float,nullable=True)
+
+    product=relationship("Products",back_populates="order_cart")
+
+
+class CartOrders(PG_BASE):
+    __tablename__="cart_orders"
+    id=Column(String,primary_key=True)
+    ui_id=Column(String,nullable=True)
+    sequence_id=Column(Integer,Identity(always=True),nullable=False)
+    customer_id=Column(String,ForeignKey("customers.id"))
+    activated=Column(Boolean,nullable=True)
+    delivery_info=Column(JSONB,nullable=False)
+    logistic_info=Column(JSONB,nullable=False)
+    vendor_commision=Column(String,nullable=True)
+    distributor_id=Column(String,ForeignKey("distributors.id"),nullable=True)
+
+    is_deleted=Column(Boolean,server_default=text("false"),nullable=False)
+    deleted_by=Column(String,ForeignKey('users.id'))
+
+    created_at=Column(TIMESTAMP(timezone=True),server_default=func.now())
+    deleted_at=Column(DateTime(timezone=True),nullable=True)
+
+    customer=relationship("Customers",back_populates="order_cart")
+    order_cart=relationship("CartOrdersProduct",back_populates="order",cascade="all, delete-orphan")
+    cart_orders_payment_invoice_info=relationship("CartOrdersPaymentInvoiceInfo",back_populates="cart_order",cascade="all, delete-orphan")

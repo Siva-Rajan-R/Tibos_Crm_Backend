@@ -21,4 +21,5 @@ class Products(PG_BASE):
     deleted_at=Column(DateTime(timezone=True),nullable=True)
     deleted_by=Column(String,ForeignKey('users.id'))
 
+    order_cart=relationship("CartOrdersProduct",back_populates="product")
     order=relationship("Orders",back_populates="product",cascade="all, delete-orphan")

@@ -39,3 +39,46 @@ class UpdateOrderDbSchema(BaseModel):
 
 class OrderBulkDeleteDbSchema(BaseModel):
     order_ids:List[str]
+
+
+class AddCartOrderProductDbSchema(BaseModel):
+    order_id:str
+    product_id:str
+    discount_id:str
+    additional_price:float
+    additional_discount:str
+    quantity:int
+    unit_price:float
+
+class AddCartOrderDbSchema(BaseModel):
+    id:str
+    ui_id:str
+    customer_id:str
+    distributor_id:str
+    activated:bool
+    delivery_info:DeliveryInfo
+    status_info:List[StatusInfo]
+    logistic_info:LogisticsInfo
+    vendor_commision:Optional[str]=None
+
+
+
+class UpdateCartOrderProductDbSchema(BaseModel):
+    order_id:str
+    product_id:str
+    discount_id:str
+    additional_price:float
+    additional_discount:str
+    quantity:int
+    unit_price:float
+
+class UpdateCartOrderDbSchema(BaseModel):
+    order_id:str
+    customer_id:str
+    distributor_id:str
+    activated:bool
+    delivery_info:DeliveryInfo
+    status_info:List[StatusInfo]
+    logistic_info:LogisticsInfo
+    products:List[UpdateCartOrderProductDbSchema]
+    vendor_commision:Optional[str]=None

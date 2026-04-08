@@ -31,3 +31,4 @@ class Customers(PG_BASE):
 
     contact=relationship("Contacts",back_populates="customer",cascade="all, delete-orphan")
     order=relationship("Orders",back_populates="customer")
+    order_cart=relationship("CartOrders",back_populates="customer")
