@@ -103,6 +103,7 @@ class AddCartOrderProductSchema(BaseModel):
     additional_discount:str
     quantity:int
     unit_price:float
+    vendor_commision:Optional[str]=None
 
 class AddCartOrderSchema(BaseModel):
     customer_id:str
@@ -112,18 +113,18 @@ class AddCartOrderSchema(BaseModel):
     status_info:List[StatusInfo]
     logistic_info:LogisticsInfo
     products:List[AddCartOrderProductSchema]
-    vendor_commision:Optional[str]=None
 
 
 
 class UpdateCartOrderProductSchema(BaseModel):
+    id:str
     order_id:str
     product_id:str
     discount_id:str
     additional_price:float
     additional_discount:str
-    quantity:int
     unit_price:float
+    vendor_commision:Optional[str]=None
 
 class UpdateCartOrderSchema(BaseModel):
     order_id:str
@@ -134,4 +135,3 @@ class UpdateCartOrderSchema(BaseModel):
     status_info:List[StatusInfo]
     logistic_info:LogisticsInfo
     products:List[UpdateCartOrderProductSchema]
-    vendor_commision:Optional[str]=None

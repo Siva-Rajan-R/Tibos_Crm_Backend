@@ -38,18 +38,22 @@ class OrdersCartRepo(BaseRepoModel):
                 CartOrdersProduct.order_id,
                 func.json_agg(
                     func.json_build_object(
+                        "id",CartOrdersProduct.id,
                         "product_id", CartOrdersProduct.product_id,
                         "additional_discount", CartOrdersProduct.additional_discount,
                         "additional_price", CartOrdersProduct.additional_price,
                         "unit_price", CartOrdersProduct.unit_price,
                         "discount_id", CartOrdersProduct.discount_id,
-                        "distributor_id", CartOrdersProduct.distributor_id,
+                        "discount" , Distributors.discounts[CartOrdersProduct.discount_id],
+                        "vendor_commision", CartOrdersProduct.vendor_commision,
                         "quantity", CartOrdersProduct.quantity,
                         "name", Products.name,
                         "price", Products.price,
                     )
                 ).label("products")
             )
+            .join(CartOrders, CartOrders.id == CartOrdersProduct.order_id)
+            .join(Distributors,Distributors.id==CartOrders.distributor_id)
             .join(Products, Products.id == CartOrdersProduct.product_id)
             .group_by(CartOrdersProduct.order_id)  # Only group in the subquery
         ).subquery()
@@ -61,6 +65,8 @@ class OrdersCartRepo(BaseRepoModel):
             CartOrders.delivery_info,
             Customers.name,
             Customers.email,
+            CartOrders.distributor_id,
+            Distributors.name.label("distributor_name"),
             self.product_subquery.c.products
 
         )
@@ -82,28 +88,33 @@ class OrdersCartRepo(BaseRepoModel):
         return True
 
     
-    # @start_db_transaction
-    # async def update(self,order_data:UpdateCartOrderDbSchema,products_data:List[UpdateCartOrderProductDbSchema]):
-    #     data_toupdate=order_data.model_dump(mode='json',exclude=['product_id','customer_id','order_id','status_info','products'],exclude_none=True,exclude_unset=True)
-    #     if not data_toupdate or len(data_toupdate)<1:
-    #         return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Order",description="No valid fields to update provided")
+    @start_db_transaction
+    async def update(self,order_data:UpdateCartOrderDbSchema,products_data:List[dict]):
+        data_toupdate=order_data.model_dump(mode='json',exclude=['product_id','customer_id','order_id','status_info','products'],exclude_none=True,exclude_unset=True)
+        if not data_toupdate or len(data_toupdate)<1:
+            return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Order",description="No valid fields to update provided")
         
-    #     invoicetoadd=order_data.model_dump(mode='json')
-    #     invoicetoadd_bulk=[]
-    #     await self.session.execute(delete(CartOrdersPaymentInvoiceInfo).where(CartOrdersPaymentInvoiceInfo.order_id==order_data.order_id))
-    #     for status in invoicetoadd['status_info']:
-    #         invoicetoadd_bulk.append(OrdersPaymentInvoiceInfo(**status,order_id=order_data.order_id))
-        
-    #     self.session.add_all(invoicetoadd_bulk)
+        invoicetoadd=order_data.model_dump(mode='json')
+        invoicetoadd_bulk=[]
+        await self.session.execute(delete(CartOrdersPaymentInvoiceInfo).where(CartOrdersPaymentInvoiceInfo.order_id==order_data.order_id))
+        for status in invoicetoadd['status_info']:
+            invoicetoadd_bulk.append(CartOrdersPaymentInvoiceInfo(**status,order_id=order_data.order_id))
+        self.session.add_all(invoicetoadd_bulk)
 
-    #     order_toupdate=update(Orders).where(Orders.id==data.order_id,Orders.customer_id==data.customer_id).values(
-    #         **data_toupdate
-    #     ).returning(Orders.id)
 
-    #     is_updated=(await self.session.execute(order_toupdate)).scalar_one_or_none()
+        await self.session.run_sync(
+            lambda s: s.bulk_update_mappings(CartOrdersProduct,products_data)
+        )
+
+
+        cart_order_toupdate=update(CartOrders).where(CartOrders.id==order_data.order_id).values(
+            **data_toupdate
+        ).returning(CartOrders.id)
+
+        is_updated=(await self.session.execute(cart_order_toupdate)).scalar_one_or_none()
         
-    #     # need to implement invoice generation process + email sending
-    #     return is_updated if is_updated else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Order",description="Unable to update the order, may be invalid order id or no changes in data")
+        # need to implement invoice generation process + email sending
+        return is_updated if is_updated else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Order",description="Unable to update the order, may be invalid order id or no changes in data")
 
     @start_db_transaction    
     async def delete(self,order_id:str,soft_delete:bool=True):
@@ -134,13 +145,15 @@ class OrdersCartRepo(BaseRepoModel):
                 *self.orders_cols
             )
             .where(
-                CartOrders.id==order_id
+                CartOrders.id==order_id,
+                CartOrders.is_deleted==False
             )
+            .join(Distributors,Distributors.id==CartOrders.distributor_id,isouter=True)
             .join(Customers, Customers.id == CartOrders.customer_id, isouter=True)
             .join(self.product_subquery, self.product_subquery.c.order_id == CartOrders.id, isouter=True)
         )
 
-        results=(await self.session.execute(stmt)).scalar_one_or_none()
+        results=(await self.session.execute(stmt)).mappings().one_or_none()
         ic(results)
         return results
 
@@ -162,6 +175,10 @@ class OrdersCartRepo(BaseRepoModel):
             select(
                 *self.orders_cols
             )
+            .where(
+                
+            )
+            .join(Distributors,Distributors.id==CartOrders.distributor_id,isouter=True)
             .join(Customers, Customers.id == CartOrders.customer_id, isouter=True)
             .join(self.product_subquery, self.product_subquery.c.order_id == CartOrders.id, isouter=True)
             .limit(limit)

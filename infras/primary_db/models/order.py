@@ -76,9 +76,10 @@ class CartOrdersProduct(PG_BASE):
     additional_discount=Column(String,nullable=False)
     quantity=Column(Integer,nullable=False)
     unit_price=Column(Float,nullable=True)
+    vendor_commision=Column(String,nullable=False)
 
     product=relationship("Products",back_populates="order_cart")
-
+    order = relationship("CartOrders", back_populates="order_cart")
 
 class CartOrders(PG_BASE):
     __tablename__="cart_orders"
@@ -100,4 +101,4 @@ class CartOrders(PG_BASE):
 
     customer=relationship("Customers",back_populates="order_cart")
     order_cart=relationship("CartOrdersProduct",back_populates="order",cascade="all, delete-orphan")
-    cart_orders_payment_invoice_info=relationship("CartOrdersPaymentInvoiceInfo",back_populates="cart_order",cascade="all, delete-orphan")
+    cart_order_payment_invoice_info=relationship("CartOrdersPaymentInvoiceInfo",back_populates="cart_order",cascade="all, delete-orphan")

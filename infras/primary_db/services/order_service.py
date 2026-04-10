@@ -101,8 +101,9 @@ class OrdersService(BaseServiceModel):
         order_id:str=generate_uuid()
 
         lui_id:str=(await self.session.execute(select(TablesUiLId.order_luiid))).scalar_one_or_none()
+        ic(lui_id)
         cur_uiid=generate_ui_id(prefix=LUI_ID_ORDER_PREFIX,last_id=lui_id)
-
+        ic(cur_uiid)
         if data.logistic_info.get("purchase_type")==PurchaseTypes.EXISTING_ADD_ON.value:
             last_order=(await order_obj.get_by_id(order_id=data.last_order_id))
             # last_order=(await orders_obj.get_last_order(customer_id=data['customer_id'],product_id=data['product_id']))

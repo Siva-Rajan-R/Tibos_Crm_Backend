@@ -19,6 +19,7 @@ from core.constants import DEFAULT_ADDON_YEAR
 from typing import Optional,Literal
 from core.data_formats.enums.order_enums import OrderFilterDateByEnum
 from infras.primary_db.services.order_cart_service import OrdersCartService
+from fastapi import HTTPException
 
 
 
@@ -31,8 +32,78 @@ class HandleOrderCartRequest:
 
     async def add(self,data:AddCartOrderSchema):
         res=await OrdersCartService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(data=data)
-        return res
+        if res:
+            return SuccessResponseTypDict(
+                detail=BaseResponseTypDict(
+                    status_code=201,
+                    msg="Orders Created successfully",
+                    success=True
+                )
+            )
+            
+        detail:ErrorResponseTypDict=ErrorResponseTypDict(
+                status_code=400,
+                msg="Error : Creating Order",
+                description="A Unknown Error, Please Try Again Later!",
+                success=False
+            ) if not isinstance(res,ErrorResponseTypDict) else res
+        
+        raise HTTPException(
+            status_code=detail.status_code,
+            detail=detail.model_dump(mode='json')
+        )
+        
 
+
+    async def update(self,data:UpdateCartOrderSchema):
+        res=await OrdersCartService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=data)
+        if res:
+            return SuccessResponseTypDict(
+                detail=BaseResponseTypDict(
+                    status_code=200,
+                    msg="Orders updated successfully",
+                    success=True
+                )
+            )
+            
+        detail:ErrorResponseTypDict=ErrorResponseTypDict(
+                status_code=400,
+                msg="Error : Updating Order",
+                description="A Unknown Error, Please Try Again Later!",
+                success=False
+            ) if not isinstance(res,ErrorResponseTypDict) else res
+        
+        raise HTTPException(
+            status_code=detail.status_code,
+            detail=detail.model_dump(mode='json')
+        )
+    
+    async def delete(self,order_id:str,soft_delete:bool=True):
+        res=await OrdersCartService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete(order_id=order_id,soft_delete=soft_delete)
+        if res:
+            return SuccessResponseTypDict(
+                detail=BaseResponseTypDict(
+                    status_code=200,
+                    msg="Orders deleted successfully",
+                    success=True
+                )
+            )
+            
+        detail:ErrorResponseTypDict=ErrorResponseTypDict(
+                status_code=400,
+                msg="Error : Deleting Order",
+                description="A Unknown Error, Please Try Again Later!",
+                success=False
+            ) if not isinstance(res,ErrorResponseTypDict) else res
+        
+        raise HTTPException(
+            status_code=detail.status_code,
+            detail=detail.model_dump(mode='json')
+        )
+    
+    async def getby_id(self,order_id:str):
+        res=await OrdersCartService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(order_id=order_id)
+        return res
 
     async def get(
         self,

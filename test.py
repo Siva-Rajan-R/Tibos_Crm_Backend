@@ -1,181 +1,109 @@
-from infras.search_engine.models import customer
-from sqlalchemy import select
-from infras.primary_db.models.customer import Customers
-from infras.primary_db.models import contact,product,order,leads,opportunity,distributor,user
-from infras.primary_db.models.product import Products
-from infras.primary_db.models.distributor import Distributors
-from infras.primary_db.models.contact import Contacts
-from infras.primary_db.main import AsyncLocalSession
-from infras.search_engine.models.customer import CustomerSearch,ES
-from infras.search_engine.models.distributor import DistributorSearch
-from infras.search_engine.models.product import ProductSearch
-from infras.search_engine.models.contact import ContactSearch
-from infras.primary_db.models.order import Orders
-import asyncio,json
+import asyncio,requests
+from typing import List,Optional
+from pydantic import EmailStr
 
-from customersSearchFields import customer_data
-from distributorsSearchFields import distri_data
-from productsSearchFields import product_data
-from contactsSearchFields import contact_data
+tenant_id = '5306f651-8fb6-47ee-8b65-2685aadbc3c0'
+client_id = '6637f71f-ee8c-4e55-a168-811ebc807a63'
+client_secret = 'KYh8Q~vhca6400Bsu00j9n1Sq8N~SVtrU-vhBb2U'
+sender_email = 'siva@tibos.in'
 
+def get_graph_token(tenant_id:str,client_id:str,client_secret:str):
+    url = f"https://login.microsoftonline.com/{tenant_id}/oauth2/v2.0/token"
 
-# async def get_customer():
-#     async with AsyncLocalSession() as session:
-#         res = (await session.execute(
-#             select(
-#                 Customers.id,
-#                 Customers.ui_id,
-#                 Customers.name,
-#                 Customers.email,
-#                 Customers.mobile_number,
-#                 Customers.tenant_id,
-#                 Customers.secondary_domain,
-#                 Customers.sector,
-#                 Customers.industry
-#             )
-#         )).mappings().all()
+    data = {
+        "client_id": client_id,
+        "client_secret": client_secret,
+        "scope": "https://graph.microsoft.com/.default",
+        "grant_type": "client_credentials",
+    }
 
-#         res = [dict(row) for row in res]   # convert RowMapping -> dict
-
-#         with open('customersSearchFields.py', 'w', encoding="utf-8") as file:
-#             json.dump(res, file, indent=2)
-
-# asyncio.run(get_customer())
-
-# async def get_product():
-#     async with AsyncLocalSession() as session:
-#         res = (await session.execute(
-#             select(
-#                 Products.id,
-#                 Products.ui_id,
-#                 Products.name,
-#                 Products.description,
-#                 Products.price,
-#                 Products.product_type,
-#                 Products.part_number
-#             )
-#         )).mappings().all()
-
-#         res = [dict(row) for row in res]   # convert RowMapping -> dict
-
-#         with open('productsSearchFields.py', 'w', encoding="utf-8") as file:
-#             json.dump(res, file, indent=2)
-
-# asyncio.run(get_product())
+    res = requests.post(url, data=data)
+    res.raise_for_status()
+    return res.json()["access_token"]
 
 
-# async def get_distributor():
-#     async with AsyncLocalSession() as session:
-#         res = (await session.execute(
-#             select(
-#                 Distributors.id,
-#                 Distributors.ui_id,
-#                 Distributors.name
-#             )
-#         )).mappings().all()
+async def send_email(
+    *,
+    client_ip: str,
+    reciver_emails: List[EmailStr],
+    subject: str,
+    body: str,
+    is_html: bool = False,
+    sender_email_id: Optional[str] = None,
+    attachments: Optional[List[str]] = None,
+    tenant_id = None,
+    client_id = None,
+    client_secret = None,
+    sender_email = None
+):
+    try:
+        
 
-#         res = [dict(row) for row in res]   # convert RowMapping -> dict
+        token = get_graph_token(
+            tenant_id=tenant_id,
+            client_id=client_id,
+            client_secret=client_secret,
+        )
 
-#         with open('distributorsSearchFields.py', 'w', encoding="utf-8") as file:
-#             json.dump(res, file, indent=2)
+        payload = {
+            "message": {
+                "subject": subject,
+                "body": {
+                    "contentType": "HTML" if is_html else "Text",
+                    "content": body,
+                },
+                "toRecipients": [
+                    {"emailAddress": {"address": email}}
+                    for email in reciver_emails
+                ],
+            },
+            "saveToSentItems": True,
+        }
 
-# asyncio.run(get_distributor())
+        # 🔥 ATTACHMENT LOGIC
+        if attachments:
+            payload["message"]["attachments"] = build_graph_attachments(attachments)
 
-# async def get_contact():
-#     async with AsyncLocalSession() as session:
-#         res = (await session.execute(
-#             select(
-#                 Contacts.id,
-#                 Contacts.ui_id,
-#                 Contacts.name,
-#                 Contacts.customer_id,
-#                 Contacts.email,
-#                 Contacts.mobile_number,
-#                 Customers.name.label("customer_name"),
-#                 Customers.email.label("customer_email")
-#             ).join(Customers,Customers.id==Contacts.customer_id)
-#         )).mappings().all()
+        url = f"https://graph.microsoft.com/v1.0/users/{sender_email}/sendMail"
 
-#         res = [dict(row) for row in res]   # convert RowMapping -> dict
+        headers = {
+            "Authorization": f"Bearer {token}",
+            "Content-Type": "application/json",
+        }
 
-#         with open('contactsSearchFields.py', 'w', encoding="utf-8") as file:
-#             json.dump(res, file, indent=2)
+        res = requests.post(url, headers=headers, json=payload)
 
-# asyncio.run(get_contact())
+        if res.status_code != 202:
+            raise Exception(f"Mail failed: {res.status_code} {res.text}")
 
-# async def get_order():
-#     async with AsyncLocalSession() as session:
-#         res = (await session.execute(
-#             select(
-#                 Orders.id,
-#                 Orders.ui_id,
-#                 Orders.customer_id,
-#                 Orders.product_id,
-#                 Orders.distributor_id,
-#                 Orders.discount_id,
-#                 Customers.ui_id.label("customer_ui_id"),
-#                 Customers.name.label("customer_name"),
-#                 Customers.email.label("customer_email"),
-#                 Products.ui_id.label("product_ui_id"),
-#                 Products.name.label("product_name"),
-#                 Products.product_type.label("product_type"),
-#                 Distributors.ui_id.label("distributor_ui_id"),
-#                 Distributors.name.label("distributor_name")
-                
-#             )
-#             .select_from(Orders)
-#             .join(Customers,Customers.id==Orders.customer_id,isouter=True)
-#             .join(Products,Products.id==Orders.product_id,isouter=True)
-#             .join(Distributors,Distributors.id==Orders.distributor_id,isouter=True)
+        return True
 
-#         )).mappings().all()
-
-#         res = [dict(row) for row in res]   # convert RowMapping -> dict
-
-#         with open('ordersSearchFields.py', 'w', encoding="utf-8") as file:
-#             json.dump(res, file, indent=2)
-
-# asyncio.run(get_order())
+    except Exception as e:
+        return False
 
 
-# async def insert_bulk():
-#     obj=ContactSearch()
-#     await obj.create_index()
-
-#     res=await obj.create_bulk_doc(
-#         datas=contact_data
-#     )
-
-#     print(res)
-# asyncio.run(insert_bulk())
 
 
-# async def delete_all():
-#     indices = await ES.cat.indices(format="json")
 
-#     for idx in indices:
-#         await ES.indices.delete(index=idx["index"])
+# ------------------- TEST -------------------
+if __name__ == "__main__":
+    email_conten="""
+    <h1>Hello THis is</h1>
+    """
+    asyncio.run(
+        send_email(
+            sender_email_id="siva@tibos.in",
+            client_ip="127.0.0.1",
+            reciver_emails=[
+                "siva@tibos.in"
+            ],
+            subject="This is From Tibos CRM",
+            body=email_conten,
+            is_html=True,
+            tenant_id=tenant_id,
+            client_id=client_id,
+            client_secret=client_secret,
+            sender_email=sender_email
+        )
+    )
 
-#     await ES.close()
-
-# asyncio.run(delete_all())
-
-# async def search():
-#     cs_obj=ProductSearch()
-#     res=await cs_obj.search_document(query="basic",limit=30,page=1)
-#     print(res)
-
-# asyncio.run(search())
-
-# async def get_all():
-#     cs_obj=Customers()
-#     res=await ES.search(index="customers",query={"multi_match":{"query":"380","fields":['ui_id']}})
-#     print(res)
-#     return res
-
-# asyncio.run(get_all())
-
-a=10
-b=10.4
-
-print(a*b)

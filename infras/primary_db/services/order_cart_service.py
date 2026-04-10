@@ -12,7 +12,7 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy import literal,true
 from core.data_formats.enums.user_enums import UserRoles
 from core.data_formats.enums.order_enums import PaymentStatus,InvoiceStatus,PurchaseTypes,OrderFilterRevenueEnum,ActivationStatusEnum
-from schemas.db_schemas.order import AddCartOrderDbSchema,UpdateCartOrderProductDbSchema,UpdateOrderDbSchema,AddCartOrderProductDbSchema
+from schemas.db_schemas.order import AddCartOrderDbSchema,UpdateCartOrderProductDbSchema,UpdateCartOrderDbSchema,AddCartOrderProductDbSchema
 from schemas.request_schemas.order import AddCartOrderSchema,UpdateCartOrderSchema,AddCartOrderProductSchema,UpdateCartOrderProductSchema
 from core.decorators.db_session_handler_dec import start_db_transaction
 from math import ceil
@@ -38,14 +38,26 @@ class OrdersCartService(BaseServiceModel):
         self.user_role=user_role
         self.cur_user_id=cur_user_id
 
-    async def update(self, *args, **kwargs):
-        return await super().update(*args, **kwargs)
+    async def update(self, data:UpdateCartOrderSchema):
+        order_data=UpdateCartOrderDbSchema(**data.model_dump(mode="json"))
+
+        product_datas=[]
+
+        for product in data.products:
+            product_datas.append(
+                product.model_dump(mode="json")
+            )
+        
+        ic(product_datas)
+
+        return await OrdersCartRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(order_data=order_data,products_data=product_datas)
+
     
-    async def delete(self, *args, **kwargs):
-        return await super().delete(*args, **kwargs)
+    async def delete(self,order_id:str,soft_delete:bool=True):
+        return await OrdersCartRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete(order_id=order_id,soft_delete=soft_delete)
     
-    async def get_by_id(self, *args, **kwargs):
-        return await super().get_by_id(*args, **kwargs)
+    async def get_by_id(self, order_id:str):
+        return await OrdersCartRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(order_id=order_id)
     
     async def search(self, *args, **kwargs):
         return await super().search(*args, **kwargs)

@@ -1,5 +1,5 @@
 from fastapi import Depends,APIRouter,Query,Form,UploadFile,Query,File,Request,BackgroundTasks,HTTPException
-from schemas.request_schemas.order import AddCartOrderProductSchema,AddOrderSchema,AddCartOrderSchema
+from schemas.request_schemas.order import AddCartOrderProductSchema,AddOrderSchema,AddCartOrderSchema,UpdateCartOrderSchema
 from infras.primary_db.main import get_pg_db_session,AsyncSession
 from api.dependencies.token_verification import verify_user
 from ..handlers.order_handler import HandleOrdersRequest
@@ -31,6 +31,17 @@ router=APIRouter(
 async def create(data:AddCartOrderSchema,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleOrderCartRequest(session=session,user_role=UserRoles.SUPER_ADMIN,cur_user_id=user['id']).add(data=data)
 
+@router.put('')
+async def update(data:UpdateCartOrderSchema,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+    return await HandleOrderCartRequest(session=session,user_role=user['role'],cur_user_id=user['id']).update(data=data)
+
+@router.delete('/{order_id}')
+async def delete(order_id:str,soft_delete:bool=Query(...),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+    return await HandleOrderCartRequest(session=session,user_role=user['role'],cur_user_id=user['id']).delete(order_id=order_id,soft_delete=soft_delete)
+
+@router.get('/{order_id}')
+async def getby_id(order_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+    return await HandleOrderCartRequest(session=session,user_role=user['role'],cur_user_id=user['id']).getby_id(order_id=order_id)
 
 @router.get('')
 async def get(cursor:int=1,limit=10,session:AsyncSession=Depends(get_pg_db_session),user:dict=Depends(verify_user)):
