@@ -2,12 +2,14 @@ from typing import Optional,List
 from pydantic import BaseModel
 from core.data_formats.typed_dicts.distributor_typdict import DistributorPaymentInfosTypDict
 
-class AddDbDistributorPaymentSchema(BaseModel):
-    order_id:str
+class AddDistributorPaymentDbSchema(BaseModel):
+    orders:List
+    customer_id:str
+    distributor_id:str
+    renewal_type:str
     payment_infos:List[DistributorPaymentInfosTypDict]
-    payment_type:str
 
-class UpdateDbDistributorPaymentSchema(BaseModel):
+class UpdateDistributorPaymentDbSchema(BaseModel):
     id:int
     payment_infos:List[DistributorPaymentInfosTypDict]
-    payment_type:str
+    renewal_type:str

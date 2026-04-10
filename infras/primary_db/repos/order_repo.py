@@ -920,6 +920,78 @@ class OrdersRepo(BaseRepoModel):
         return result
     
 
+    async def get_cust_distri(self,customer_id: str):
+        stmt=(
+            select(
+                Distributors.name,
+                Distributors.id
+            )
+            .where(
+                Orders.customer_id==customer_id,
+                Distributors.is_deleted==False,
+                Orders.is_deleted==False
+            )
+            .select_from(Orders)
+            .join(Distributors,Distributors.id==Orders.distributor_id,isouter=True)
+            .group_by(
+                Distributors.id
+            )
+        )
+    
+
+        results=(await self.session.execute(stmt)).mappings().all()
+
+        ic(results)
+
+        return results
+    
+
+    async def get_cust_prod(self,customer_id:str,distributor_id:str):
+        stmt=(
+            select(
+                Products.id,
+                Products.name
+            )
+            .where(
+                Orders.customer_id==customer_id,
+                Orders.distributor_id==distributor_id,
+                Products.is_deleted==False,
+                Orders.is_deleted==False
+            )
+            .select_from(Orders)
+            .join(
+                Products,Products.id==Orders.product_id,isouter=True)
+        )
+
+        results=(await self.session.execute(stmt)).mappings().all()
+
+        ic(results)
+
+        return results
+    
+    async def get_cust_order(self,customer_id:str,distributor_id:str,product_id:str):
+        stmt=(
+            select(
+                *self.orders_cols
+            )
+            .where(
+                Orders.product_id==product_id,
+                Orders.customer_id==customer_id,
+                Orders.distributor_id==distributor_id,
+                Orders.is_deleted==False
+            )
+            .select_from(Orders)
+            .join(self.subquery, self.subquery.c.order_id == Orders.id, isouter=True)
+            .join(Products,Products.id==Orders.product_id,isouter=True)
+            .join(Customers,Customers.id==Orders.customer_id,isouter=True)
+            .join(Distributors,Distributors.id==Orders.distributor_id,isouter=True)
+        )
+
+        results=(await self.session.execute(stmt)).mappings().all()
+        ic(results)
+        
+        return results
+        
 
 
 

@@ -5,18 +5,19 @@ from ..models.order import Orders
 from ..models.customer import Customers
 from ..models.distributor import Distributors
 from core.utils.uuid_generator import generate_uuid
-from sqlalchemy import select,delete,update,or_,func,String
+from sqlalchemy import select,delete,update,or_,func,String,ARRAY,cast
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
 from pydantic import EmailStr
 from typing import Optional,List
 from core.data_formats.enums.user_enums import UserRoles
-from schemas.db_schemas.distributor_payment import AddDbDistributorPaymentSchema,UpdateDbDistributorPaymentSchema
+from schemas.db_schemas.distributor_payment import AddDistributorPaymentDbSchema,UpdateDistributorPaymentDbSchema
 from core.decorators.db_session_handler_dec import start_db_transaction
 from math import ceil
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
 from ..models.user import Users
 from ..models.ui_id import TablesUiLId
+from ..calculations import distri_additi_price,distri_disc_price,distributor_tot_price,distri_discount,distri_final_price
 
 
 class DistributorsPaymentsRepo(BaseRepoModel):
@@ -28,9 +29,10 @@ class DistributorsPaymentsRepo(BaseRepoModel):
             DistributorsPayments.id,
             DistributorsPayments.sequence_id,
             DistributorsPayments.payment_infos,
-            DistributorsPayments.order_id,
-            DistributorsPayments.payment_type,
-            Products.name.label("product_name"),
+            DistributorsPayments.distributor_id,
+            DistributorsPayments.customer_id,
+            DistributorsPayments.orders,
+            DistributorsPayments.renewal_type,
             Customers.name.label("customer_name"),
             Distributors.name.label("distributor_name")
 
@@ -38,7 +40,7 @@ class DistributorsPaymentsRepo(BaseRepoModel):
 
         
     @start_db_transaction
-    async def add(self,data:AddDbDistributorPaymentSchema):
+    async def add(self,data:AddDistributorPaymentDbSchema):
         self.session.add(DistributorsPayments(**data.model_dump(mode='json')))
         return True
     
@@ -49,7 +51,7 @@ class DistributorsPaymentsRepo(BaseRepoModel):
     #     return True
         
     @start_db_transaction 
-    async def update(self,data:UpdateDbDistributorPaymentSchema):
+    async def update(self,data:UpdateDistributorPaymentDbSchema):
         data_toupdate=data.model_dump(mode='json',exclude=['id'],exclude_none=True,exclude_unset=True)
 
         if not data_toupdate or len(data_toupdate)<1:
@@ -102,25 +104,52 @@ class DistributorsPaymentsRepo(BaseRepoModel):
         if include_deleted:
             cols.extend([Users.name.label('deleted_by'),deleted_at.label('deleted_at')])
 
-        queried_distri=(await self.session.execute(
+        orders_ids = (
+            select(func.jsonb_array_elements_text(DistributorsPayments.orders))
+            .correlate(DistributorsPayments)
+        )
+        orders_subquery = (
+            select(
+                func.json_agg(
+                    func.json_build_object(
+                        "id", Orders.id,
+                        "order_ui_id", Orders.ui_id,
+                        "product_name", Products.name,
+                        "product_price", Products.price,
+                        "product_id", Orders.product_id,
+                        "quantity", Orders.quantity,
+                        "distri_discount_price", distri_disc_price,
+                        "distri_additi_price", distri_additi_price,
+                        "distributor_total_price", distributor_tot_price,
+                        "distributor_price",distri_final_price
+                    )
+                )
+            )
+            .select_from(Orders)
+            .join(Products, Products.id == Orders.product_id)   # ✅ MUST
+            .where(
+                Orders.id.in_(orders_ids)
+                
+            )
+            .correlate(DistributorsPayments)
+            .scalar_subquery()
+        )
+        queried_distri = (await self.session.execute(
             select(
                 *cols,
-                date_expr.label("created_at")
+                date_expr.label("created_at"),
+                orders_subquery.label("selected_products")
             )
-            .distinct(DistributorsPayments.id)
-            .join(Orders, Orders.id == DistributorsPayments.order_id, isouter=True)
-            .join(Products, Orders.product_id == Products.id, isouter=True)
-            .join(Customers, Orders.customer_id == Customers.id, isouter=True)
-            .join(Distributors, Orders.distributor_id == Distributors.id, isouter=True)
-            .limit(limit)
+            .select_from(DistributorsPayments)  # ✅ FIXED
+            .join(Customers, DistributorsPayments.customer_id == Customers.id, isouter=True)
+            .join(Distributors, DistributorsPayments.distributor_id == Distributors.id, isouter=True)
             .where(
                 or_(
-                    func.cast(DistributorsPayments.id,String).ilike(search_term),
-                    func.cast(DistributorsPayments.created_at,String).ilike(search_term),
-
+                    func.cast(DistributorsPayments.id, String).ilike(search_term),
+                    func.cast(DistributorsPayments.created_at, String).ilike(search_term),
                 ),
-                DistributorsPayments.sequence_id>cursor,
-                DistributorsPayments.is_deleted==include_deleted
+                DistributorsPayments.sequence_id > cursor,
+                DistributorsPayments.is_deleted == include_deleted
             )
             .order_by(
                 DistributorsPayments.id,
@@ -164,19 +193,57 @@ class DistributorsPaymentsRepo(BaseRepoModel):
        
     async def get_by_id(self,distributor_payment_id:str):
         date_expr=func.date(func.timezone("Asia/Kolkata",DistributorsPayments.created_at))
-        queried_distributors=(await self.session.execute(
+        orders_ids = (
+            select(func.jsonb_array_elements_text(DistributorsPayments.orders))
+            .correlate(DistributorsPayments)
+        )
+        orders_subquery = (
+            select(
+                func.json_agg(
+                    func.json_build_object(
+                        "id", Orders.id,
+                        "order_ui_id", Orders.ui_id,
+                        "product_name", Products.name,
+                        "product_price", Products.price,
+                        "product_id", Orders.product_id,
+                        "quantity", Orders.quantity,
+                        "distri_discount_price", distri_disc_price,
+                        "distri_additi_price", distri_additi_price,
+                        "distributor_total_price", distributor_tot_price,
+                        "distributor_price",distri_final_price,
+                        "distributor_discount", Distributors.discounts[Orders.discount_id],
+                        
+                    )
+                ),
+            )
+            .select_from(Orders)
+            .join(Distributors,Distributors.id==DistributorsPayments.distributor_id)
+            .join(Products, Products.id == Orders.product_id)   # ✅ MUST
+            .where(
+                Orders.id.in_(orders_ids),
+            )
+            .correlate(DistributorsPayments)
+            .scalar_subquery()
+        )
+        queried_distri = (await self.session.execute(
             select(
                 *self.distri_payment_info_cols,
-                date_expr.label("created_at")
+                date_expr.label("created_at"),
+                orders_subquery.label("selected_products")
             )
-            .where(or_(DistributorsPayments.id==distributor_payment_id),DistributorsPayments.is_deleted==False)
-            .distinct(DistributorsPayments.id)
-            .join(Orders, Orders.id == DistributorsPayments.order_id, isouter=True)
-            .join(Products, Orders.product_id == Products.id, isouter=True)
-            .join(Customers, Orders.customer_id == Customers.id, isouter=True)
-            .join(Distributors, Orders.distributor_id == Distributors.id, isouter=True)
+            .select_from(DistributorsPayments)  # ✅ FIXED
+            .join(Customers, DistributorsPayments.customer_id == Customers.id, isouter=True)
+            .join(Distributors, DistributorsPayments.distributor_id == Distributors.id, isouter=True)
+            .where(
+                DistributorsPayments.id==distributor_payment_id,
+                DistributorsPayments.is_deleted == False
+            )
+            .order_by(
+                DistributorsPayments.id,
+                DistributorsPayments.sequence_id.asc()
+            )
         )).mappings().one_or_none()
         
-        return {'distributors_payments':queried_distributors}
+        return {'distributors_payments':queried_distri}
 
 

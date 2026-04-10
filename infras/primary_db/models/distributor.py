@@ -22,10 +22,12 @@ class Distributors(PG_BASE):
 class DistributorsPayments(PG_BASE):
     __tablename__="distributors_payments"
     id=Column(BigInteger,primary_key=True,autoincrement=True)
-    order_id=Column(String,ForeignKey("orders.id"),nullable=False)
-    payment_infos=Column(JSONB,nullable=False)
-    payment_type=Column(String,nullable=False)
     sequence_id=Column(BigInteger,Identity(always=True),nullable=False)
+    customer_id=Column(String,ForeignKey("customers.id"),nullable=False)
+    distributor_id=Column(String,ForeignKey("distributors.id"),nullable=False)
+    renewal_type=Column(String,nullable=False)
+    orders=Column(JSONB,nullable=False)
+    payment_infos=Column(JSONB,nullable=False)
 
     created_at=Column(TIMESTAMP(timezone=True),server_default=func.now())
     is_deleted=Column(Boolean,server_default=text("false"),nullable=False)

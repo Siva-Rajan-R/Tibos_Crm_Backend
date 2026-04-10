@@ -530,4 +530,12 @@ class OrdersService(BaseServiceModel):
         return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_last_order(customer_id=customer_id,product_id=product_id)
 
 
+    async def get_cust_distri(self,customer_id: str):
+        return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_cust_distri(customer_id=customer_id)
+    
+    async def get_cust_prod(self,customer_id:str,distributor_id:str):
+        return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_cust_prod(customer_id=customer_id,distributor_id=distributor_id)
+    
+    async def get_cust_order(self,customer_id:str,distributor_id:str,product_id:str):
+        return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_cust_order(customer_id=customer_id,distributor_id=distributor_id,product_id=product_id)
 
