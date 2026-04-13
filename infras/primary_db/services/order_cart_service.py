@@ -12,8 +12,8 @@ from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy import literal,true
 from core.data_formats.enums.user_enums import UserRoles
 from core.data_formats.enums.order_enums import PaymentStatus,InvoiceStatus,PurchaseTypes,OrderFilterRevenueEnum,ActivationStatusEnum
-from schemas.db_schemas.order import AddCartOrderDbSchema,UpdateCartOrderProductDbSchema,UpdateCartOrderDbSchema,AddCartOrderProductDbSchema
-from schemas.request_schemas.order import AddCartOrderSchema,UpdateCartOrderSchema,AddCartOrderProductSchema,UpdateCartOrderProductSchema
+from schemas.db_schemas.order import AddCartOrderDbSchema,UpdateCartOrderProductDbSchema,UpdateCartOrderDbSchema,AddCartOrderProductDbSchema,UpdateCartOrderQuantityDbSchema
+from schemas.request_schemas.order import AddCartOrderSchema,UpdateCartOrderSchema,AddCartOrderProductSchema,UpdateCartOrderProductSchema,UpdateCartOrderQuantitySchema
 from core.decorators.db_session_handler_dec import start_db_transaction
 from math import ceil
 from ..models.user import Users
@@ -84,6 +84,11 @@ class OrdersCartService(BaseServiceModel):
         
         res=await OrdersCartRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(order_data=order_data,product_datas=product_datas)
         return res
+    
+    async def update_qty(self,data:UpdateCartOrderQuantitySchema):
+        data_toadd=await OrdersCartRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update_qty(data=UpdateCartOrderQuantitySchema(**data.model_dump(mode="json")))
+        return data_toadd
+
 
 
     async def get(
@@ -95,6 +100,7 @@ class OrdersCartService(BaseServiceModel):
         include_deleted: bool = False,
         in_search:List=[]
     ):
+        
 
         res=await OrdersCartRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(filter=filter,cursor=cursor,limit=limit,query=query,include_deleted=include_deleted,in_search=in_search)
 

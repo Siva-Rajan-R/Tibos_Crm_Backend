@@ -51,7 +51,18 @@ class OrdersPaymentInvoiceInfo(PG_BASE):
 
 
 
-# Caart Based order Format
+# Cart Based order Format
+
+class CartOrdersAdditionalQuantity(PG_BASE):
+    __tablename__="cart_order_quantity"
+    id=Column(BigInteger,primary_key=True,autoincrement=True)
+    type=Column(String,nullable=False)
+    cart_order_id=Column(String,ForeignKey("cart_orders.id",ondelete="CASCADE"))
+    cart_product_id=Column(String,ForeignKey("cart_orders_product.id",ondelete="CASCADE"))
+    quantity=Column(BigInteger,nullable=False)
+
+    created_at=Column(TIMESTAMP(timezone=True),server_default=func.now())
+
 
 class CartOrdersPaymentInvoiceInfo(PG_BASE):
     __tablename__="cart_orders_payment_invoice_info"

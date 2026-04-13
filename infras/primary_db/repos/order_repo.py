@@ -236,6 +236,7 @@ class OrdersRepo(BaseRepoModel):
 
     async def get(
         self,
+        active:bool=False,
         filter: Optional[OrderFilterSchema]=OrderFilterSchema(),
         cursor: int = 1,
         limit: int = 10,
@@ -353,6 +354,12 @@ class OrdersRepo(BaseRepoModel):
         ic(filter.date_filter)
         date_by = filter.date_filter.get("by").value if filter.date_filter.get("by") else None
         date_tofilter = None
+
+        if active:
+            orders_toquery=orders_toquery.where(
+                cast(Orders.delivery_info["delivery_date"].astext,Date)<365,
+                Orders.activated==True
+            )
 
         if date_by == OrderFilterDateByEnum.REQUESTED_DATE.value:
             date_tofilter = cast(Orders.delivery_info["requested_date"].astext,Date)

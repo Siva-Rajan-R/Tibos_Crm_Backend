@@ -1,18 +1,19 @@
 from typing import cast,List
 from . import HTTPException,BaseRepoModel
-from ..models.order import CartOrders,OrdersPaymentInvoiceInfo,CartOrdersProduct,CartOrdersPaymentInvoiceInfo
+from ..models.order import CartOrders,OrdersPaymentInvoiceInfo,CartOrdersProduct,CartOrdersPaymentInvoiceInfo,CartOrdersAdditionalQuantity
 from ..models.product import Products
 from ..models.customer import Customers
 from ..models.distributor import Distributors
 from core.utils.uuid_generator import generate_uuid
 from sqlalchemy import Numeric, select,delete,update,or_,func,String,cast,case,and_,Date,desc,text,exists
+from sqlalchemy.orm import aliased
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy import literal,true
 from core.data_formats.enums.user_enums import UserRoles
 from core.data_formats.enums.order_enums import PaymentStatus,InvoiceStatus,PurchaseTypes,OrderFilterRevenueEnum,ActivationStatusEnum
-from schemas.db_schemas.order import AddCartOrderDbSchema,UpdateCartOrderProductDbSchema,UpdateCartOrderDbSchema,AddCartOrderProductDbSchema
+from schemas.db_schemas.order import AddCartOrderDbSchema,UpdateCartOrderProductDbSchema,UpdateCartOrderDbSchema,AddCartOrderProductDbSchema,UpdateCartOrderQuantityDbSchema
 from core.decorators.db_session_handler_dec import start_db_transaction
 from math import ceil
 from ..models.user import Users
@@ -26,7 +27,7 @@ from typing import Optional,Literal
 from core.data_formats.enums.order_enums import OrderFilterDateByEnum
 from ..calculations import distri_final_price,customer_final_price,profit_loss_price,customer_tot_price,distributor_tot_price,vendor_disc_price,distri_additi_price,distri_disc_price,remaining_days,last_order_delivery_date,expiry_date,distri_discount,pending_amount,total_paid_amount,customer_amount_with_gst
 
-
+CartQty = aliased(CartOrdersAdditionalQuantity)
 
 class OrdersCartRepo(BaseRepoModel):
     def __init__(self,session:AsyncSession,user_role:UserRoles,cur_user_id:str):
@@ -36,6 +37,7 @@ class OrdersCartRepo(BaseRepoModel):
         self.product_subquery=(
             select(
                 CartOrdersProduct.order_id,
+                
                 func.json_agg(
                     func.json_build_object(
                         "id",CartOrdersProduct.id,
@@ -48,9 +50,15 @@ class OrdersCartRepo(BaseRepoModel):
                         "vendor_commision", CartOrdersProduct.vendor_commision,
                         "quantity", CartOrdersProduct.quantity,
                         "name", Products.name,
+                        "add_on_quantity",CartOrdersAdditionalQuantity.quantity,
                         "price", Products.price,
                     )
                 ).label("products")
+            )
+            .join(
+                CartOrdersAdditionalQuantity,
+                CartOrdersAdditionalQuantity.cart_product_id == CartOrdersProduct.id,
+                isouter=True
             )
             .join(CartOrders, CartOrders.id == CartOrdersProduct.order_id)
             .join(Distributors,Distributors.id==CartOrders.distributor_id)
@@ -158,6 +166,22 @@ class OrdersCartRepo(BaseRepoModel):
         return results
 
 
+    @start_db_transaction
+    async def update_qty(self,data:UpdateCartOrderQuantityDbSchema):
+        datas_toadd=[]
+        for product in data.products:
+            datas_toadd.append(
+                CartOrdersAdditionalQuantity(
+                    quantity=product['quantity'],
+                    type=data.type,
+                    cart_order_id=data.order_id,
+                    cart_product_id=product['product_id']
+                )
+            )
+        self.session.add_all(datas_toadd)
+
+        return True
+
 
         
     async def get(
@@ -171,12 +195,14 @@ class OrdersCartRepo(BaseRepoModel):
     ):
         
 
+        cursor=0 if cursor==1 else cursor
+
         stmt = (
             select(
                 *self.orders_cols
             )
             .where(
-                
+                CartOrders.is_deleted==False
             )
             .join(Distributors,Distributors.id==CartOrders.distributor_id,isouter=True)
             .join(Customers, Customers.id == CartOrders.customer_id, isouter=True)

@@ -1,7 +1,8 @@
 from pydantic import BaseModel,EmailStr
-from core.data_formats.typed_dicts.order_typdict import LogisticsInfo,StatusInfo,DeliveryInfo
-from typing import Optional,List
+from core.data_formats.typed_dicts.order_typdict import LogisticsInfo,StatusInfo,DeliveryInfo,CartOrderQtyUpdate
+from typing import Optional,List,Literal
 from datetime import date
+
 
 class AddOrderDbSchema(BaseModel):
     lui_id:Optional[str]=None
@@ -62,6 +63,10 @@ class AddCartOrderDbSchema(BaseModel):
     logistic_info:LogisticsInfo
 
 
+class UpdateCartOrderQuantityDbSchema(BaseModel):
+    order_id:str
+    products:List[CartOrderQtyUpdate]
+    type:Literal["EXISTING-ADD-ON"]
 
 class UpdateCartOrderProductDbSchema(BaseModel):
     order_id:str

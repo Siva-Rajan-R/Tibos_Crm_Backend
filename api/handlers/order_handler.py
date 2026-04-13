@@ -295,7 +295,7 @@ class HandleOrdersRequest:
         )
 
     @catch_errors
-    async def get(self,filter:OrderFilterSchema,cursor:int=1,limit:int=10,query:str=''):
+    async def get(self,filter:OrderFilterSchema,cursor:int=1,limit:int=10,query:str='',active:bool=False,):
         if cursor is None:
             raise HTTPException(
                 status_code=400,
@@ -306,7 +306,7 @@ class HandleOrdersRequest:
                     success=False
                 )
             )
-        return await OrdersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(cursor=cursor,limit=limit,query=query,filter=filter)
+        return await OrdersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(cursor=cursor,limit=limit,query=query,filter=filter,activea=active)
     
     @catch_errors
     async def test(self,cursor:int=1,limit:int=10,query:str=''):

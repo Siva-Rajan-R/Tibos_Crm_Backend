@@ -197,7 +197,7 @@ class HandleCustomersRequest:
         )
         
     @catch_errors
-    async def get(self,cursor:Optional[Union[int,None]]=1,page:Optional[Union[int,None]]=1,limit:int=10,query:str=''):
+    async def get(self,active:bool=False,cursor:Optional[Union[int,None]]=1,page:Optional[Union[int,None]]=1,limit:int=10,query:str=''):
         if cursor is None:
             raise HTTPException(
                 status_code=400,
@@ -210,7 +210,7 @@ class HandleCustomersRequest:
             )
         
         # return await CustomerSearch().search_document(query=query,limit=limit,page=page,cursor=cursor)
-        return await CustomersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(cursor=cursor,limit=limit,query=query)
+        return await CustomersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(active=active,cursor=cursor,limit=limit,query=query)
         
     @catch_errors
     async def search(self,query:str):

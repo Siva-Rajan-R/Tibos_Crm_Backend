@@ -163,12 +163,12 @@ async def export(bgt:BackgroundTasks,user:dict=Depends(verify_user)):
     )
 
 @router.post('/get')
-async def get_all_order(filters:OrderFilterSchema,q:str=Query(''),cursor:Optional[int]=Query(1),limit:Optional[int]=Query(10),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+async def get_all_order(filters:OrderFilterSchema,q:str=Query(''),cursor:Optional[int]=Query(1),limit:Optional[int]=Query(10),active:bool=False,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleOrdersRequest(
         session=session,
         user_role=user['role'],
         cur_user_id=user['id']
-    ).get(cursor=cursor,limit=limit,query=q,filter=filters)
+    ).get(cursor=cursor,limit=limit,query=q,filter=filters,active=active)
 
 
 @router.get('/search')

@@ -29,3 +29,8 @@ class OrderDateFilterTypDict(TypedDict):
     from_date:date
     to_date:date
     by:OrderFilterDateByEnum
+
+
+class CartOrderQtyUpdate(TypedDict):
+    product_id:str
+    quantity:int

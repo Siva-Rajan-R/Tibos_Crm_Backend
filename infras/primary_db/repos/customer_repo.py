@@ -2,7 +2,7 @@ from . import HTTPException,BaseRepoModel
 from ..models.customer import Customers
 from core.utils.uuid_generator import generate_uuid
 from ..models.order import Orders
-from sqlalchemy import select,delete,update,or_,func,String
+from sqlalchemy import select,delete,update,or_,func,String,exists
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
 from core.data_formats.enums.user_enums import UserRoles
@@ -123,7 +123,7 @@ class CustomersRepo(BaseRepoModel):
         return is_recovered if is_recovered else ErrorResponseTypDict(status_code=400,success=False,msg="Error : Recovering Customer",description="Unable to recover the customer, may customer is not deleted or already recovered")
         
 
-    async def get(self,cursor:int=1,limit:int=10,query:str='',include_deleted:bool=False,in_search:List=[]):
+    async def get(self,active:bool=False,cursor:int=1,limit:int=10,query:str='',include_deleted:bool=False,in_search:List=[]):
         search_term=f"%{query.lower()}%"
         cursor=0 if cursor==1 else cursor
         date_expr=func.date(func.timezone("Asia/Kolkata",Customers.created_at))
@@ -159,6 +159,12 @@ class CustomersRepo(BaseRepoModel):
                 Customers.is_deleted==include_deleted
             ).limit(limit).order_by(Customers.sequence_id.asc())
         )
+
+        if active:
+            cust_stmt = cust_stmt.where(
+                exists().where(Orders.customer_id == Customers.id)
+            )
+
         ic(in_search)
         if in_search and len(in_search)>0:
             ic("inside insearch")
@@ -170,15 +176,27 @@ class CustomersRepo(BaseRepoModel):
         total_active_customer:int=0
         total_inactive_customer:int=0
         if cursor==0:
-            total_customers=(await self.session.execute(
-                select(func.count(Customers.id)).where(Customers.is_deleted==False)
-            )).scalar_one_or_none()
+            total_cust_stmt=(
+                select(func.count(Customers.id))
+                .where(Customers.is_deleted==False)
+                
+            )
 
-            total_active_customer=(await self.session.execute(
+            if active:
+                total_cust_stmt=total_cust_stmt.where(exists().where(Orders.customer_id == Customers.id))
+
+            total_customers=(await self.session.execute(total_cust_stmt)).scalar_one_or_none()
+
+
+            total_active_cust_stmt=(
                 select(func.count(Customers.id))
                 .where(Customers.is_active==True,Customers.is_deleted==False)
-            )).scalar_one_or_none()
+            )
 
+            if active:
+                total_active_cust_stmt=total_active_cust_stmt.where(exists().where(Orders.customer_id == Customers.id))
+
+            total_active_customer=(await self.session.execute(total_active_cust_stmt)).scalar_one_or_none()
             total_inactive_customer=abs(total_customers-total_active_customer)
 
         return {

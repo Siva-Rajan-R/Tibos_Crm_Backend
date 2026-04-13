@@ -1,5 +1,5 @@
 from fastapi import Depends,APIRouter,Query,Form,UploadFile,Query,File,Request,BackgroundTasks,HTTPException
-from schemas.request_schemas.order import AddCartOrderProductSchema,AddOrderSchema,AddCartOrderSchema,UpdateCartOrderSchema
+from schemas.request_schemas.order import AddCartOrderProductSchema,AddOrderSchema,AddCartOrderSchema,UpdateCartOrderSchema,UpdateCartOrderQuantitySchema
 from infras.primary_db.main import get_pg_db_session,AsyncSession
 from api.dependencies.token_verification import verify_user
 from ..handlers.order_handler import HandleOrdersRequest
@@ -42,6 +42,14 @@ async def delete(order_id:str,soft_delete:bool=Query(...),user:dict=Depends(veri
 @router.get('/{order_id}')
 async def getby_id(order_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleOrderCartRequest(session=session,user_role=user['role'],cur_user_id=user['id']).getby_id(order_id=order_id)
+
+@router.put('/quantity')
+async def update_quantity(data:UpdateCartOrderQuantitySchema,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+    return await HandleOrderCartRequest(session=session,user_role=user['role'],cur_user_id=user['id']).update_qty(data=data)
+
+@router.post('/renewal')
+async def create(data:AddCartOrderSchema,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+    return await HandleOrderCartRequest(session=session,user_role=UserRoles.SUPER_ADMIN,cur_user_id=user['id']).add(data=data,is_renewal=True)
 
 @router.get('')
 async def get(cursor:int=1,limit=10,session:AsyncSession=Depends(get_pg_db_session),user:dict=Depends(verify_user)):

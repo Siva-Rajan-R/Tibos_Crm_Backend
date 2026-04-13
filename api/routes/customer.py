@@ -133,7 +133,7 @@ async def recover_customer(data:RecoverCustomerSchema,user:dict=Depends(verify_u
 
 
 @router.get('')
-async def get_all_customer(user:dict=Depends(verify_user),q:str=Query(''),cursor:Optional[str]=Query('1'),page:Optional[str]=Query('1'),limit:Optional[int]=Query(10),session:AsyncSession=Depends(get_pg_db_session)):
+async def get_all_customer(active:bool=Query(False),user:dict=Depends(verify_user),q:str=Query(''),cursor:Optional[str]=Query('1'),page:Optional[str]=Query('1'),limit:Optional[int]=Query(10),session:AsyncSession=Depends(get_pg_db_session)):
     ic(cursor)
     ic(page)
     try:
@@ -149,7 +149,7 @@ async def get_all_customer(user:dict=Depends(verify_user),q:str=Query(''),cursor
         session=session,
         user_role=user['role'],
         cur_user_id=user['id']
-    ).get(cursor=cursor,limit=limit,query=q,page=page)
+    ).get(cursor=cursor,limit=limit,query=q,page=page,active=active)
 
 
 @router.get('/search',response_model=FinalResponseModel)

@@ -8,7 +8,7 @@ from sqlalchemy import literal,true
 from core.data_formats.enums.user_enums import UserRoles
 from core.data_formats.enums.order_enums import PaymentStatus,InvoiceStatus,PurchaseTypes,OrderFilterRevenueEnum,ActivationStatusEnum
 from schemas.db_schemas.order import AddCartOrderDbSchema,UpdateCartOrderProductDbSchema,UpdateOrderDbSchema,AddCartOrderProductDbSchema
-from schemas.request_schemas.order import AddCartOrderSchema,UpdateCartOrderSchema,AddCartOrderProductSchema,UpdateCartOrderProductSchema
+from schemas.request_schemas.order import AddCartOrderSchema,UpdateCartOrderSchema,AddCartOrderProductSchema,UpdateCartOrderProductSchema,UpdateCartOrderQuantitySchema
 from core.decorators.db_session_handler_dec import start_db_transaction
 from math import ceil
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
@@ -17,7 +17,7 @@ from schemas.request_schemas.order import OrderFilterSchema
 from datetime import datetime,timedelta
 from core.constants import DEFAULT_ADDON_YEAR
 from typing import Optional,Literal
-from core.data_formats.enums.order_enums import OrderFilterDateByEnum
+from core.data_formats.enums.order_enums import OrderFilterDateByEnum,RenewalTypes,PurchaseTypes
 from infras.primary_db.services.order_cart_service import OrdersCartService
 from fastapi import HTTPException
 
@@ -30,7 +30,10 @@ class HandleOrderCartRequest:
         self.cur_user_id=cur_user_id
 
 
-    async def add(self,data:AddCartOrderSchema):
+    async def add(self,data:AddCartOrderSchema,is_renewal:bool=False):
+        if is_renewal:
+            data.logistic_info['purchase_type']=PurchaseTypes.EXISTING_RENEWAL.value
+        ic(data.logistic_info)
         res=await OrdersCartService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(data=data)
         if res:
             return SuccessResponseTypDict(
@@ -100,6 +103,10 @@ class HandleOrderCartRequest:
             status_code=detail.status_code,
             detail=detail.model_dump(mode='json')
         )
+    
+    async def update_qty(self,data:UpdateCartOrderQuantitySchema):
+        res=await OrdersCartService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update_qty(data=data)
+        return res
     
     async def getby_id(self,order_id:str):
         res=await OrdersCartService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(order_id=order_id)

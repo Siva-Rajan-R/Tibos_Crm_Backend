@@ -1,7 +1,7 @@
 from pydantic import BaseModel,EmailStr
-from core.data_formats.typed_dicts.order_typdict import LogisticsInfo,StatusInfo,DeliveryInfo
+from core.data_formats.typed_dicts.order_typdict import LogisticsInfo,StatusInfo,DeliveryInfo,CartOrderQtyUpdate
 from core.data_formats.enums.order_enums import InvoiceStatus,PaymentStatus,RenewalTypes,PurchaseTypes,DistributorType,OrderFilterRevenueEnum
-from typing import Optional,Union,List
+from typing import Optional,Union,List,Literal
 from datetime import date
 from core.data_formats.typed_dicts.order_typdict import OrderDateFilterTypDict
 
@@ -114,6 +114,14 @@ class AddCartOrderSchema(BaseModel):
     logistic_info:LogisticsInfo
     products:List[AddCartOrderProductSchema]
 
+
+
+
+
+class UpdateCartOrderQuantitySchema(BaseModel):
+    order_id:str
+    products:List[CartOrderQtyUpdate]
+    type:Literal["EXISTING-ADD-ON"]
 
 
 class UpdateCartOrderProductSchema(BaseModel):
