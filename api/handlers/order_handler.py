@@ -306,7 +306,7 @@ class HandleOrdersRequest:
                     success=False
                 )
             )
-        return await OrdersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(cursor=cursor,limit=limit,query=query,filter=filter,activea=active)
+        return await OrdersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(cursor=cursor,limit=limit,query=query,filter=filter,active=active)
     
     @catch_errors
     async def test(self,cursor:int=1,limit:int=10,query:str=''):

@@ -355,11 +355,18 @@ class OrdersRepo(BaseRepoModel):
         date_by = filter.date_filter.get("by").value if filter.date_filter.get("by") else None
         date_tofilter = None
 
+        active_condition = None
         if active:
-            orders_toquery=orders_toquery.where(
-                cast(Orders.delivery_info["delivery_date"].astext,Date)<365,
-                Orders.activated==True
+            ic("Inside the active")
+            delivery_date = cast(Orders.delivery_info["delivery_date"].astext, Date)
+            active_condition = and_(
+                delivery_date >= func.current_date() - text("INTERVAL '365 days'"),
+                Orders.activated.is_(True)
             )
+
+
+        if active_condition is not None:
+            orders_toquery = orders_toquery.where(active_condition)
 
         if date_by == OrderFilterDateByEnum.REQUESTED_DATE.value:
             date_tofilter = cast(Orders.delivery_info["requested_date"].astext,Date)
@@ -578,13 +585,15 @@ class OrdersRepo(BaseRepoModel):
             .join(Products, Products.id == Orders.product_id, isouter=True) \
             .join(Customers, Customers.id == Orders.customer_id, isouter=True) \
             .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
-
+            
+            if active_condition is not None:
+                pivot_query = pivot_query.where(active_condition)
             pivot_query = pivot_query.group_by(Orders.distributor_id)
 
             purchase_stats = (await self.session.execute(pivot_query)).mappings().all()
 
 
-            orders_infos=(await self.session.execute(
+            orders_infos_stmt=(
                 select(
                     func.sum(profit_loss_price).label("total_revenue"),
                     func.sum(distri_final_price).label("distributor_value"),
@@ -624,7 +633,12 @@ class OrdersRepo(BaseRepoModel):
                 .where(*conditions,*filters,Orders.is_deleted==False)
                 .where(date_filter_condition if date_filter_condition is not None else true())
                 .where(revenue_filter_condition if revenue_filter_condition is not None else true())
-            )).mappings().one_or_none()
+            )
+
+            if active_condition is not None:
+                orders_infos_stmt = orders_infos_stmt.where(active_condition)
+
+            orders_infos=(await self.session.execute(orders_infos_stmt)).mappings().one_or_none()
 
 
         return {
