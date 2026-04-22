@@ -1,6 +1,6 @@
 from ..repos.setting_repo import SettingsRepo
 from schemas.db_schemas.setting import SettingsDbSchema
-from schemas.request_schemas.setting import EmailSettingSchema
+from schemas.request_schemas.setting import EmailSettingSchema, ReportScheduleSchema, PendingDuesAlertSchema
 from ..models.settings import Settings
 from sqlalchemy import update,select,delete,func
 from icecream import ic
@@ -31,6 +31,17 @@ class SettingsService:
         db_data=await SettingsRepo(session=self.session).create(data=SettingsDbSchema(name=SettingsEnum.EMAIL.value,datas=data_toadd))
         return db_data
     
+
+    async def email_delete(self, email_id: str):
+        return await SettingsRepo(session=self.session).delete_email_by_id(email_id=email_id)
+
+    async def report_schedule_upsert(self, data: ReportScheduleSchema):
+        datas = data.schedule.model_dump(mode='json')
+        return await SettingsRepo(session=self.session).upsert_replace(name=SettingsEnum.REPORT_SCHEDULE.value, datas=datas)
+
+    async def pending_dues_alert_upsert(self, data: PendingDuesAlertSchema):
+        datas = data.model_dump(mode='json')
+        return await SettingsRepo(session=self.session).upsert_replace(name=SettingsEnum.PENDING_DUES_ALERT.value, datas=datas)
 
     async def get(self,id:int):
         settings=await SettingsRepo(session=self.session).get(id=id)

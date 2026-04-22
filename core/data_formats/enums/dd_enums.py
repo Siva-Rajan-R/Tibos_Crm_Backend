@@ -57,3 +57,5 @@ class ImportExportTypeEnum(Enum):
 
 class SettingsEnum(Enum):
     EMAIL="EMAIL"
+    REPORT_SCHEDULE="REPORT_SCHEDULE"
+    PENDING_DUES_ALERT="PENDING_DUES_ALERT"

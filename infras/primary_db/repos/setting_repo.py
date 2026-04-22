@@ -74,4 +74,33 @@ class SettingsRepo():
         is_updated=(await self.session.execute(stmt)).scalar_one_or_none()
 
         return is_updated if is_updated else ErrorResponseTypDict(msg="Error : Deleing setting",status_code=400,success=False,description="Invalid Setting id")
+
+    @start_db_transaction
+    async def delete_email_by_id(self, email_id: str):
+        stmt = select(Settings).where(Settings.name == SettingsEnum.EMAIL.value)
+        row = (await self.session.execute(stmt)).scalar_one_or_none()
+        if not row:
+            return False
+
+        datas = dict(row.datas)
+        key_to_delete = next((k for k, v in datas.items() if isinstance(v, dict) and v.get('id') == email_id), None)
+        if not key_to_delete:
+            return False
+
+        del datas[key_to_delete]
+        await self.session.execute(update(Settings).where(Settings.name == SettingsEnum.EMAIL.value).values(datas=datas))
+        return True
+
+    @start_db_transaction
+    async def upsert_replace(self, name: str, datas: dict):
+        stmt = (
+            insert(Settings)
+            .values(name=name, datas=datas)
+            .on_conflict_do_update(
+                index_elements=[Settings.name],
+                set_={"datas": datas}
+            )
+        )
+        await self.session.execute(stmt)
+        return True
         
