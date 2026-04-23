@@ -42,3 +42,13 @@ class PendingDuesAlertSchema(BaseModel):
     time: str = "09:00"
     recipients: List[EmailStr] = []
     categories: List[str] = []
+
+class EmailUpdateSchema(BaseModel):
+    email: EmailStr
+    tenant_id: str
+    client_id: str
+    client_secret: Optional[str] = None
+
+class PendingDuesAlertTestSchema(BaseModel):
+    recipients: List[EmailStr]
+    categories: List[str]

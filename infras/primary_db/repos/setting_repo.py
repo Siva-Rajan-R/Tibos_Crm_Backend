@@ -92,6 +92,22 @@ class SettingsRepo():
         return True
 
     @start_db_transaction
+    async def update_email_by_id(self, email_id: str, updated_fields: dict):
+        stmt = select(Settings).where(Settings.name == SettingsEnum.EMAIL.value)
+        row = (await self.session.execute(stmt)).scalar_one_or_none()
+        if not row:
+            return False
+
+        datas = dict(row.datas)
+        key_to_update = next((k for k, v in datas.items() if isinstance(v, dict) and v.get('id') == email_id), None)
+        if not key_to_update:
+            return False
+
+        datas[key_to_update] = {**datas[key_to_update], **updated_fields}
+        await self.session.execute(update(Settings).where(Settings.name == SettingsEnum.EMAIL.value).values(datas=datas))
+        return True
+
+    @start_db_transaction
     async def upsert_replace(self, name: str, datas: dict):
         stmt = (
             insert(Settings)
