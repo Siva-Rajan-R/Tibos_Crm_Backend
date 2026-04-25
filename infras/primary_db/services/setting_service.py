@@ -12,8 +12,7 @@ from models.response_models.req_res_models import ErrorResponseTypDict
 from core.utils.uuid_generator import generate_uuid
 from core.data_formats.enums.dd_enums import SettingsEnum
 from services.email_service import send_email
-
-SECRET_KEY="2j4ju7jzfnQVamDtZfgC1kbhdILKEGFAz5nRL3PdZ-M="
+from core.constants import SECRET_KEY
 
 class SettingsService:
     def __init__(self,session:AsyncSession):

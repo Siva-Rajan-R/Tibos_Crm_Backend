@@ -5,7 +5,8 @@ from email.mime.multipart import MIMEMultipart
 from pydantic import EmailStr
 import aiosmtplib,requests
 from icecream import ic
-from infras.primary_db.services.setting_service import SettingsService,SECRET_KEY
+from infras.primary_db.repos.setting_repo import SettingsRepo
+from core.constants import SECRET_KEY
 from infras.primary_db.main import AsyncLocalSession
 from infras.caching.models.auth_model import unlink_auth_forgot
 from core.settings import SETTINGS
@@ -93,7 +94,7 @@ async def send_email(
 
         async with AsyncLocalSession() as session:
             emails = (
-                await SettingsService(session=session)
+                await SettingsRepo(session=session)
                 .getby_name(name=SettingsEnum.EMAIL)
             )["settings"][0]
             ic(emails)

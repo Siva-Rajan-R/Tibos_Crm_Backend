@@ -28,10 +28,10 @@ def generate_jwt_token(data:dict,secret:str,alg:str,exp_min:int=0,exp_day:int=0,
 
     except Exception as e:
         ic(f"something went wrong while generating jwt token {e}")
-        raise HTTPException(
-            status_code=500,
-            detail=f"something went wrong while generating jwt token {e}"
-        )
+        # raise HTTPException(
+        #     status_code=500,
+        #     detail=f"something went wrong while generating jwt token {e}"
+        # )
     
 
 def decode_jwt_token(token:str,secret:str,alg:str)->dict:
@@ -64,3 +64,18 @@ def decode_jwt_token(token:str,secret:str,alg:str)->dict:
             detail=f"something went wrong while decoding jwt token {e}"
         )
 
+
+
+
+print(generate_jwt_token(
+    data={
+        "data":{
+            "userId":"123456788990",
+            "email":"hello@gmail.com",
+            "role":"ADMIN"
+        }
+    },
+    secret="1234567890",
+    alg="HS256",
+    
+))

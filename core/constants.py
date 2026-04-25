@@ -14,6 +14,8 @@ LUI_ID_CART_ORDER_PREFIX="CARTORD"
 DEFAULT_GST="18%"
 DEFAULT_ADDON_YEAR=365
 
+SECRET_KEY="2j4ju7jzfnQVamDtZfgC1kbhdILKEGFAz5nRL3PdZ-M="
+
 ROLES_ALLOWED:Dict[str,Dict[str,set|None]]={
     UserRoles.ADMIN.value:{
         'user':None,
