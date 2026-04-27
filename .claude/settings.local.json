@@ -7,7 +7,8 @@
       "Bash(python -c \"import ast; ast.parse\\(open\\('schemas/request_schemas/setting.py'\\).read\\(\\)\\); print\\('setting.py OK'\\)\")",
       "Bash(python -c \"import ast; ast.parse\\(open\\('api/routes/setting.py'\\).read\\(\\)\\); print\\('routes OK'\\)\")",
       "Bash(python -c \"import ast; ast.parse\\(open\\('infras/primary_db/services/setting_service.py'\\).read\\(\\)\\); print\\('service OK'\\)\")",
-      "Bash(python -c \"import ast; ast.parse\\(open\\('infras/primary_db/repos/setting_repo.py'\\).read\\(\\)\\); print\\('repo OK'\\)\")"
+      "Bash(python -c \"import ast; ast.parse\\(open\\('infras/primary_db/repos/setting_repo.py'\\).read\\(\\)\\); print\\('repo OK'\\)\")",
+      "Bash(xargs grep *)"
     ]
   }
 }
