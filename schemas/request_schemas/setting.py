@@ -1,5 +1,5 @@
 from pydantic import BaseModel, EmailStr
-from typing import Optional, List
+from typing import Any, Dict, Optional, List
 
 
 class SettingsSchema(BaseModel):
@@ -42,6 +42,8 @@ class PendingDuesAlertSchema(BaseModel):
     time: str = "09:00"
     recipients: List[EmailStr] = []
     categories: List[str] = []
+    counts: Optional[Dict[str, Any]] = None
+    email_template_html: Optional[str] = None
 
 class EmailUpdateSchema(BaseModel):
     email: EmailStr
@@ -52,3 +54,8 @@ class EmailUpdateSchema(BaseModel):
 class PendingDuesAlertTestSchema(BaseModel):
     recipients: List[EmailStr]
     categories: List[str]
+    counts: Optional[Dict[str, Any]] = None
+    html: Optional[str] = None
+
+class EmailTemplateSchema(BaseModel):
+    template_config: Dict[str, Any]

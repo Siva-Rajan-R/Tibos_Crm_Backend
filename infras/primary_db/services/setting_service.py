@@ -1,6 +1,6 @@
 from ..repos.setting_repo import SettingsRepo
 from schemas.db_schemas.setting import SettingsDbSchema
-from schemas.request_schemas.setting import EmailSettingSchema, EmailUpdateSchema, ReportScheduleSchema, PendingDuesAlertSchema, PendingDuesAlertTestSchema
+from schemas.request_schemas.setting import EmailSettingSchema, EmailUpdateSchema, ReportScheduleSchema, PendingDuesAlertSchema, PendingDuesAlertTestSchema, EmailTemplateSchema
 from ..models.settings import Settings
 from sqlalchemy import update,select,delete,func
 from icecream import ic
@@ -42,24 +42,27 @@ class SettingsService:
         return await SettingsRepo(session=self.session).update_email_by_id(email_id=email_id, updated_fields=fields)
 
     async def pending_dues_alert_test(self, data: PendingDuesAlertTestSchema, client_ip: str):
-        category_labels = {
-            "tds_pending": "TDS Pending", "not_paid": "Not Paid", "gst_pending": "GST Pending",
-            "short_pending": "Short Pending", "half_pending": "Half Pending",
-            "pending_invoices": "Pending Invoices", "not_activated": "Not Activated",
-        }
-        cats_html = "".join(
-            f'<span style="background:#fee2e2;color:#b91c1c;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;margin:2px;display:inline-block">{category_labels.get(c, c)}</span>'
-            for c in data.categories
-        )
-        body = f"""
-        <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:24px;border:1px solid #e5e7eb;border-radius:12px">
-          <h2 style="color:#111827;margin-bottom:4px">Pending Dues Alert — Test Email</h2>
-          <p style="color:#6b7280;font-size:13px;margin-bottom:16px">This is a test email to verify your alert configuration.</p>
-          <p style="font-size:13px;font-weight:600;color:#374151;margin-bottom:8px">Selected Categories ({len(data.categories)}):</p>
-          <div style="margin-bottom:16px">{cats_html}</div>
-          <p style="color:#9ca3af;font-size:11px">Sent to {len(data.recipients)} recipient(s).</p>
-        </div>
-        """
+        if data.html:
+            body = data.html
+        else:
+            category_labels = {
+                "tds_pending": "TDS Pending", "not_paid": "Not Paid", "gst_pending": "GST Pending",
+                "short_pending": "Short Pending", "half_pending": "Half Pending",
+                "pending_invoices": "Pending Invoices", "not_activated": "Not Activated",
+            }
+            cats_html = "".join(
+                f'<span style="background:#fee2e2;color:#b91c1c;padding:3px 10px;border-radius:999px;font-size:12px;font-weight:600;margin:2px;display:inline-block">{category_labels.get(c, c)}</span>'
+                for c in data.categories
+            )
+            body = f"""
+            <div style="font-family:sans-serif;max-width:480px;margin:auto;padding:24px;border:1px solid #e5e7eb;border-radius:12px">
+              <h2 style="color:#111827;margin-bottom:4px">Pending Dues Alert — Test Email</h2>
+              <p style="color:#6b7280;font-size:13px;margin-bottom:16px">This is a test email to verify your alert configuration.</p>
+              <p style="font-size:13px;font-weight:600;color:#374151;margin-bottom:8px">Selected Categories ({len(data.categories)}):</p>
+              <div style="margin-bottom:16px">{cats_html}</div>
+              <p style="color:#9ca3af;font-size:11px">Sent to {len(data.recipients)} recipient(s).</p>
+            </div>
+            """
         await send_email(
             client_ip=client_ip,
             reciver_emails=data.recipients,
@@ -68,6 +71,10 @@ class SettingsService:
             is_html=True,
         )
         return True
+
+    async def email_template_upsert(self, data: EmailTemplateSchema):
+        datas = data.model_dump(mode='json')
+        return await SettingsRepo(session=self.session).upsert_replace(name=SettingsEnum.EMAIL_TEMPLATE.value, datas=datas)
 
     async def report_schedule_upsert(self, data: ReportScheduleSchema):
         datas = data.schedule.model_dump(mode='json')

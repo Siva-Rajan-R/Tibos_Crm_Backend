@@ -5,7 +5,7 @@ from api.dependencies.token_verification import verify_user
 from ..handlers.contact_handler import HandleContactsRequest
 from typing import Optional,Literal
 from core.data_formats.enums.dd_enums import ImportExportTypeEnum
-from schemas.request_schemas.setting import EmailSettingSchema, EmailUpdateSchema, ReportScheduleSchema, PendingDuesAlertSchema, PendingDuesAlertTestSchema
+from schemas.request_schemas.setting import EmailSettingSchema, EmailUpdateSchema, ReportScheduleSchema, PendingDuesAlertSchema, PendingDuesAlertTestSchema, EmailTemplateSchema
 from infras.primary_db.main import AsyncSession,get_pg_db_session
 from infras.primary_db.services.setting_service import SettingsService
 from core.data_formats.enums.dd_enums import SettingsEnum
@@ -37,6 +37,10 @@ async def upsert_pending_dues_alert(data:PendingDuesAlertSchema,session:AsyncSes
 async def test_pending_dues_alert(request:Request,data:PendingDuesAlertTestSchema,session:AsyncSession=Depends(get_pg_db_session)):
     client_ip = request.client.host if request.client else "unknown"
     return await SettingsService(session=session).pending_dues_alert_test(data=data,client_ip=client_ip)
+
+@router.post('/email-template')
+async def upsert_email_template(data:EmailTemplateSchema,session:AsyncSession=Depends(get_pg_db_session)):
+    return await SettingsService(session=session).email_template_upsert(data=data)
 
 @router.get('/id/{id}')
 async def get_settings(id:int,session:AsyncSession=Depends(get_pg_db_session)):
