@@ -24,7 +24,7 @@ from datetime import datetime,timedelta
 from core.constants import DEFAULT_ADDON_YEAR
 from typing import Optional,Literal
 from core.data_formats.enums.order_enums import OrderFilterDateByEnum
-from ..calculations import distri_final_price,customer_final_price,profit_loss_price,customer_tot_price,distributor_tot_price,vendor_disc_price,distri_additi_price,distri_disc_price,remaining_days,last_order_delivery_date,expiry_date,distri_discount,pending_amount,total_paid_amount,customer_amount_with_gst
+from ..calculations import distri_final_price,customer_final_price,customer_final_price_inc_gst,profit_loss_price,customer_tot_price,distributor_tot_price,vendor_disc_price,distri_additi_price,distri_disc_price,remaining_days,last_order_delivery_date,expiry_date,distri_discount,pending_amount,total_paid_amount,customer_amount_with_gst
 
 
 
@@ -311,7 +311,8 @@ class OrdersRepo(BaseRepoModel):
                     exists().where(
                         and_(
                             OrdersPaymentInvoiceInfo.order_id == Orders.id,
-                            OrdersPaymentInvoiceInfo.payment_status == value
+                            OrdersPaymentInvoiceInfo.payment_status == value,
+                            OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value
                         )
                     )
                 )
@@ -460,30 +461,83 @@ class OrdersRepo(BaseRepoModel):
             invoice_stats_subq = (
                 select(
                     OrdersPaymentInvoiceInfo.order_id,
+                    func.count().label("total_invoices"),
 
                     func.count().filter(
                         OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.INCOMPLETED.value
                     ).label("pending_invoice"),
 
                     func.count().filter(
-                        OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.TDS_PENDING.value
+                        OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value
+                    ).label("completed_invoices_count"),
+                    func.sum(func.coalesce(OrdersPaymentInvoiceInfo.paid_amount, 0)).filter(
+                        OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value
+                    ).label("completed_paid_total"),
+
+                    func.count().filter(
+                        and_(
+                            OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.TDS_PENDING.value,
+                            OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value
+                        )
                     ).label("tds_pendings"),
+                    func.sum(func.coalesce(OrdersPaymentInvoiceInfo.paid_amount, 0)).filter(
+                        and_(
+                            OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.TDS_PENDING.value,
+                            OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value
+                        )
+                    ).label("tds_paid_sum"),
 
                     func.count().filter(
-                        OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.NOT_PAID.value
+                        and_(
+                            OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.NOT_PAID.value,
+                            OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value
+                        )
                     ).label("not_paid_pendings"),
+                    func.sum(func.coalesce(OrdersPaymentInvoiceInfo.paid_amount, 0)).filter(
+                        and_(
+                            OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.NOT_PAID.value,
+                            OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value
+                        )
+                    ).label("not_paid_paid_sum"),
 
                     func.count().filter(
-                        OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.GST_PENDING.value
+                        and_(
+                            OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.GST_PENDING.value,
+                            OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value
+                        )
                     ).label("gst_pendings"),
+                    func.sum(func.coalesce(OrdersPaymentInvoiceInfo.paid_amount, 0)).filter(
+                        and_(
+                            OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.GST_PENDING.value,
+                            OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value
+                        )
+                    ).label("gst_paid_sum"),
 
                     func.count().filter(
-                        OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.HALF_PAYMENT_RECEIVED.value
+                        and_(
+                            OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.HALF_PAYMENT_RECEIVED.value,
+                            OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value
+                        )
                     ).label("half_pendings"),
+                    func.sum(func.coalesce(OrdersPaymentInvoiceInfo.paid_amount, 0)).filter(
+                        and_(
+                            OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.HALF_PAYMENT_RECEIVED.value,
+                            OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value
+                        )
+                    ).label("half_paid_sum"),
 
                     func.count().filter(
-                        OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.SHORT_PAYMENT_RECEIVED.value
+                        and_(
+                            OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.SHORT_PAYMENT_RECEIVED.value,
+                            OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value
+                        )
                     ).label("short_pendings"),
+                    func.sum(func.coalesce(OrdersPaymentInvoiceInfo.paid_amount, 0)).filter(
+                        and_(
+                            OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.SHORT_PAYMENT_RECEIVED.value,
+                            OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value
+                        )
+                    ).label("short_paid_sum"),
                 )
                 .group_by(OrdersPaymentInvoiceInfo.order_id)
                 .subquery()
@@ -497,11 +551,11 @@ class OrdersRepo(BaseRepoModel):
             
 
             customer_amount_with_gst = func.round(customer_final_price * 1.18)
+            expected_invoice_amount = customer_amount_with_gst / func.nullif(invoice_stats_subq.c.total_invoices, 0)
 
-            pending_amount_expr = func.greatest(
-                customer_amount_with_gst -
-                func.coalesce(payment_subq.c.paid_total, 0),
-                0
+            pending_amount_expr = func.round(
+                func.coalesce(invoice_stats_subq.c.completed_invoices_count, 0) * expected_invoice_amount - 
+                func.coalesce(invoice_stats_subq.c.completed_paid_total, 0)
             )
 
             pending_amount_filtered = case(
@@ -519,30 +573,42 @@ class OrdersRepo(BaseRepoModel):
             )
 
 
-            not_paid_amount = case(
-                (func.coalesce(invoice_stats_subq.c.not_paid_pendings, 0) > 0, pending_amount_expr),
-                else_=0
+            payment_status_filter = filter.payment_status
+            if hasattr(payment_status_filter, "value"):
+                payment_status_filter = payment_status_filter.value
+
+            not_paid_amount_raw = func.round(
+                func.coalesce(invoice_stats_subq.c.not_paid_pendings, 0) * expected_invoice_amount - 
+                func.coalesce(invoice_stats_subq.c.not_paid_paid_sum, 0)
             )
 
-            tds_pending_amount = case(
-                (func.coalesce(invoice_stats_subq.c.tds_pendings, 0) > 0, pending_amount_expr),
-                else_=0
+            gst_pending_amount_raw = func.round(
+                func.coalesce(invoice_stats_subq.c.gst_pendings, 0) * expected_invoice_amount - 
+                func.coalesce(invoice_stats_subq.c.gst_paid_sum, 0)
             )
 
-            gst_pending_amount = case(
-                (func.coalesce(invoice_stats_subq.c.gst_pendings, 0) > 0, pending_amount_expr),
-                else_=0
+            half_pending_amount_raw = func.round(
+                func.coalesce(invoice_stats_subq.c.half_pendings, 0) * expected_invoice_amount - 
+                func.coalesce(invoice_stats_subq.c.half_paid_sum, 0)
             )
 
-            half_pending_amount = case(
-                (func.coalesce(invoice_stats_subq.c.half_pendings, 0) > 0, pending_amount_expr),
-                else_=0
+            short_pending_amount_raw = func.round(
+                func.coalesce(invoice_stats_subq.c.short_pendings, 0) * expected_invoice_amount - 
+                func.coalesce(invoice_stats_subq.c.short_paid_sum, 0)
             )
 
-            short_pending_amount = case(
-                (func.coalesce(invoice_stats_subq.c.short_pendings, 0) > 0, pending_amount_expr),
-                else_=0
+            tds_pending_amount_raw = func.greatest(
+                pending_amount_expr - (
+                    not_paid_amount_raw + gst_pending_amount_raw + half_pending_amount_raw + short_pending_amount_raw
+                ),
+                0
             )
+
+            not_paid_amount = case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.NOT_PAID.value), not_paid_amount_raw), else_=0)
+            gst_pending_amount = case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.GST_PENDING.value), gst_pending_amount_raw), else_=0)
+            half_pending_amount = case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.HALF_PAYMENT_RECEIVED.value), half_pending_amount_raw), else_=0)
+            short_pending_amount = case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.SHORT_PAYMENT_RECEIVED.value), short_pending_amount_raw), else_=0)
+            tds_pending_amount = case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.TDS_PENDING.value), tds_pending_amount_raw), else_=0)
 
 
             purchase_type = Orders.logistic_info['purchase_type'].astext
@@ -602,27 +668,25 @@ class OrdersRepo(BaseRepoModel):
                     func.sum(customer_final_price).label("order_value"),
                     func.count().filter(Orders.activated.is_(False)).label("not_activated"),
                     func.sum(invoice_stats_subq.c.pending_invoice).label("pending_invoice"),
-                    func.sum(invoice_stats_subq.c.tds_pendings).label("tds_pendings"),
-                    func.count().filter(
-                        (
-                            func.coalesce(invoice_stats_subq.c.not_paid_pendings, 0) +
-                            func.coalesce(invoice_stats_subq.c.tds_pendings, 0) +
-                            func.coalesce(invoice_stats_subq.c.gst_pendings, 0) +
-                            func.coalesce(invoice_stats_subq.c.half_pendings, 0) +
-                            func.coalesce(invoice_stats_subq.c.short_pendings, 0)
-                        ) > 0
+                    func.sum(case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.TDS_PENDING.value), invoice_stats_subq.c.tds_pendings), else_=0)).label("tds_pendings"),
+                    func.sum(
+                        case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.TDS_PENDING.value), invoice_stats_subq.c.tds_pendings), else_=0) +
+                        case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.NOT_PAID.value), invoice_stats_subq.c.not_paid_pendings), else_=0) +
+                        case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.GST_PENDING.value), invoice_stats_subq.c.gst_pendings), else_=0) +
+                        case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.HALF_PAYMENT_RECEIVED.value), invoice_stats_subq.c.half_pendings), else_=0) +
+                        case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.SHORT_PAYMENT_RECEIVED.value), invoice_stats_subq.c.short_pendings), else_=0)
                     ).label("tot_pending_dues"),
                     func.sum(vendor_disc_price).label("vendor_value"),
-                    func.sum(invoice_stats_subq.c.not_paid_pendings).label("not_paid_pendings"),
-                    func.sum(invoice_stats_subq.c.gst_pendings).label("gst_pendings"),
-                    func.sum(invoice_stats_subq.c.half_pendings).label("half_pendings"),
-                    func.sum(invoice_stats_subq.c.short_pendings).label("short_pendings"),
+                    func.sum(case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.NOT_PAID.value), invoice_stats_subq.c.not_paid_pendings), else_=0)).label("not_paid_pendings"),
+                    func.sum(case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.GST_PENDING.value), invoice_stats_subq.c.gst_pendings), else_=0)).label("gst_pendings"),
+                    func.sum(case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.HALF_PAYMENT_RECEIVED.value), invoice_stats_subq.c.half_pendings), else_=0)).label("half_pendings"),
+                    func.sum(case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.SHORT_PAYMENT_RECEIVED.value), invoice_stats_subq.c.short_pendings), else_=0)).label("short_pendings"),
                     func.sum(not_paid_amount).label("not_paid_amounts"),
                     func.sum(tds_pending_amount).label("tds_amounts"),
                     func.sum(gst_pending_amount).label("gst_amounts"),
                     func.sum(half_pending_amount).label("half_amounts"),
                     func.sum(short_pending_amount).label("short_amounts"),
-                    func.sum(pending_amount_expr).label("tot_pending_amounts")
+                    func.sum(not_paid_amount + tds_pending_amount + gst_pending_amount + half_pending_amount + short_pending_amount).label("tot_pending_amounts")
 
                 )
                 .outerjoin(payment_subq, payment_subq.c.order_id == Orders.id)

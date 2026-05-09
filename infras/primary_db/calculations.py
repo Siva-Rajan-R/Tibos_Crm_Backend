@@ -125,6 +125,19 @@ customer_final_price=case(
 
 )
 
+customer_final_price_inc_gst=case(
+    (
+        Orders.logistic_info['purchase_type'].astext==PurchaseTypes.EXISTING_ADD_ON.value,
+        func.round(
+           ((customer_tot_price * 1.18)/DEFAULT_ADDON_YEAR)
+            *
+            remaining_days 
+        )
+    ),
+    else_=(func.round(customer_tot_price * 1.18))
+
+)
+
 
 
 vendor_disc_price=case(
