@@ -1,5 +1,5 @@
 from fastapi import Depends,APIRouter,Query,Form,UploadFile,Query,File,Request,BackgroundTasks,HTTPException
-from schemas.request_schemas.order import AddOrderSchema,UpdateOrderSchema,RecoverOrderSchema,OrderBulkDeleteSchema
+from schemas.request_schemas.order import AddOrderSchema,UpdateOrderSchema,RecoverOrderSchema,OrderBulkDeleteSchema,OrderTrackingReportSchema,PaymentPendingReportSchema
 from infras.primary_db.main import get_pg_db_session,AsyncSession
 from api.dependencies.token_verification import verify_user
 from ..handlers.order_handler import HandleOrdersRequest
@@ -8,14 +8,13 @@ from core.data_formats.enums.dd_enums import ImportExportTypeEnum
 from schemas.request_schemas.order import OrderFilterSchema
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict
 from core.utils.export_func import create_excel_export
-from infras.primary_db.repos.order_repo import OrdersRepo
+from infras.primary_db.repos.order_repo import OrdersRepo, OrderTrackingReportRepo, PaymentPendingReportRepo
 from core.data_formats.enums.user_enums import UserRoles
-from models.import_export_models.exports.excel_headings_mapper import ORDERS_MAPPER
+from models.import_export_models.exports.excel_headings_mapper import ORDERS_MAPPER, ORDER_TRACKING_REPORT_MAPPER, PAYMENT_PENDING_REPORT_MAPPER
 from schemas.request_schemas.export import ExportFields
 from tasks.arq_tasks.enqueues.report import enqueue_excel_report_job
 from pydantic import EmailStr
 from icecream import ic
-from infras.primary_db.repos.order_repo import OrdersRepo
 
 
 
@@ -218,4 +217,144 @@ async def get_cust_prod(customer_id:str,distributor_id:str,user:dict=Depends(ver
 @router.get('/distributor-pay/by/{customer_id}/{distributor_id}/{product_id}')
 async def get_cust_order(customer_id:str,distributor_id:str,product_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleOrdersRequest(session=session,user_role=user['role'],cur_user_id=user['id']).get_cust_order(customer_id=customer_id,distributor_id=distributor_id,product_id=product_id)
+
+@router.post('/report/tracking')
+async def get_order_tracking_report(data:OrderTrackingReportSchema,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+    return await HandleOrdersRequest(
+        session=session,
+        user_role=user['role'],
+        cur_user_id=user['id']
+    ).get_order_tracking_report(data=data)
+
+
+@router.post('/report/tracking/export')
+async def export_tracking_report(data:OrderTrackingReportSchema,user:dict=Depends(verify_user)):
+
+    if user['role']!=UserRoles.SUPER_ADMIN.value:
+        raise HTTPException(
+            status_code=401,
+            detail="Insufficient Permission"
+        )
     
+    user_email:EmailStr=user['email']
+    if user_email.split('@')[-1].lower()!='tibos.in':
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid User for export, Please login with your organization mail"
+        )
+    
+    await enqueue_excel_report_job(
+        user_id=user['id'],
+        kwargs={
+            "from_date": data.from_date,
+            "to_date": data.to_date,
+            "owner_name": data.owner_name,
+            "date_by": data.date_by
+        },
+        emails_tosend=[user_email],
+        mapper=ORDER_TRACKING_REPORT_MAPPER,
+        data_cls=OrderTrackingReportRepo,
+        data_key='owners',
+        converter_name='TRACKING_REPORT',
+        sheet_name="Order Tracking Report",
+        file_name='TibosCrmOrderTrackingReport.xlsx',
+        report_name="Order Tracking Report"
+    )
+
+    return SuccessResponseTypDict(
+        detail=BaseResponseTypDict(
+            msg="Excel sheet generation started, It will be sended to ur email",
+            status_code=200,
+            success=True
+        )
+    )
+
+@router.get('/report/tracking/export/fields')
+async def get_tracking_report_export_fields(user:dict=Depends(verify_user)):
+
+    if user['role']!=UserRoles.SUPER_ADMIN.value:
+        raise HTTPException(
+            status_code=401,
+            detail="Insufficient Permission"
+        )
+    fields=list(ORDER_TRACKING_REPORT_MAPPER.values())
+    return SuccessResponseTypDict(
+        detail=BaseResponseTypDict(
+            msg="Export Fields fetched successfully",
+            status_code=200,
+            success=True
+        ),
+        data=fields
+    )
+
+
+@router.post('/report/payment-pending')
+async def get_payment_pending_report(data:PaymentPendingReportSchema,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+    return await HandleOrdersRequest(
+        session=session,
+        user_role=user['role'],
+        cur_user_id=user['id']
+    ).get_payment_pending_report(data=data)
+
+
+@router.post('/report/payment-pending/export')
+async def export_payment_pending_report(data:PaymentPendingReportSchema,user:dict=Depends(verify_user)):
+
+    if user['role']!=UserRoles.SUPER_ADMIN.value:
+        raise HTTPException(
+            status_code=401,
+            detail="Insufficient Permission"
+        )
+    
+    user_email:EmailStr=user['email']
+    if user_email.split('@')[-1].lower()!='tibos.in':
+        raise HTTPException(
+            status_code=401,
+            detail="Invalid User for export, Please login with your organization mail"
+        )
+    
+    await enqueue_excel_report_job(
+        user_id=user['id'],
+        kwargs={
+            "from_date": data.from_date,
+            "to_date": data.to_date,
+            "owner_name": data.owner_name,
+            "min_days_pending": data.min_days_pending,
+            "date_by": data.date_by
+        },
+        emails_tosend=[user_email],
+        mapper=PAYMENT_PENDING_REPORT_MAPPER,
+        data_cls=PaymentPendingReportRepo,
+        data_key='owners',
+        converter_name='TRACKING_REPORT',
+        sheet_name="Payment Pending Report",
+        file_name='TibosCrmPaymentPendingReport.xlsx',
+        report_name="Payment Pending Report"
+    )
+
+    return SuccessResponseTypDict(
+        detail=BaseResponseTypDict(
+            msg="Excel sheet generation started, It will be sended to ur email",
+            status_code=200,
+            success=True
+        )
+    )
+
+
+@router.get('/report/payment-pending/export/fields')
+async def get_payment_pending_export_fields(user:dict=Depends(verify_user)):
+
+    if user['role']!=UserRoles.SUPER_ADMIN.value:
+        raise HTTPException(
+            status_code=401,
+            detail="Insufficient Permission"
+        )
+    fields=list(PAYMENT_PENDING_REPORT_MAPPER.values())
+    return SuccessResponseTypDict(
+        detail=BaseResponseTypDict(
+            msg="Export Fields fetched successfully",
+            status_code=200,
+            success=True
+        ),
+        data=fields
+    )

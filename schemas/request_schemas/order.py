@@ -1,6 +1,6 @@
 from pydantic import BaseModel,EmailStr
 from core.data_formats.typed_dicts.order_typdict import LogisticsInfo,StatusInfo,DeliveryInfo,CartOrderQtyUpdate
-from core.data_formats.enums.order_enums import InvoiceStatus,PaymentStatus,RenewalTypes,PurchaseTypes,DistributorType,OrderFilterRevenueEnum
+from core.data_formats.enums.order_enums import InvoiceStatus,PaymentStatus,RenewalTypes,PurchaseTypes,DistributorType,OrderFilterRevenueEnum,OrderFilterDateByEnum
 from typing import Optional,Union,List,Literal
 from datetime import date
 from core.data_formats.typed_dicts.order_typdict import OrderDateFilterTypDict
@@ -75,7 +75,6 @@ class RecoverOrderSchema(BaseModel):
     customer_id:str
 
 
-
 class OrderFilterSchema(BaseModel):
     payment_status:Optional[Union[str,PaymentStatus,None]]=None
     invoice_status:Optional[Union[str,InvoiceStatus,None]]=None
@@ -89,6 +88,7 @@ class OrderFilterSchema(BaseModel):
     product_id:Optional[str]=None
     owner_name:Optional[str]=None
     revenue_type:Optional[Union[str,OrderFilterRevenueEnum,None]]=None
+    product_type:Optional[str]=None
     date_filter:Optional[OrderDateFilterTypDict]=OrderDateFilterTypDict()
 
 
@@ -143,3 +143,17 @@ class UpdateCartOrderSchema(BaseModel):
     status_info:List[StatusInfo]
     logistic_info:LogisticsInfo
     products:List[UpdateCartOrderProductSchema]
+
+class OrderTrackingReportSchema(BaseModel):
+    from_date:date
+    to_date:date
+    owner_name:Optional[str]=None
+    date_by:Optional[OrderFilterDateByEnum]=OrderFilterDateByEnum.ACTIVATION_DATE
+
+class PaymentPendingReportSchema(BaseModel):
+    from_date:date
+    to_date:date
+    owner_name:Optional[str]=None
+    min_days_pending:Optional[int]=None
+    date_by:Optional[OrderFilterDateByEnum]=OrderFilterDateByEnum.ACTIVATION_DATE
+

@@ -348,3 +348,65 @@ class HandleOrdersRequest:
     
     async def get_cust_order(self,customer_id:str,distributor_id:str,product_id:str):
         return await OrdersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_cust_order(customer_id=customer_id,distributor_id=distributor_id,product_id=product_id)
+
+    @catch_errors
+    async def get_order_tracking_report(self,data):
+        report=await OrdersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_order_tracking_report(
+            from_date=data.from_date,
+            to_date=data.to_date,
+            owner_name=data.owner_name,
+            date_by=data.date_by
+        )
+        if not report or isinstance(report,ErrorResponseTypDict):
+            detail:ErrorResponseTypDict=ErrorResponseTypDict(
+                    status_code=400,
+                    msg="Error : Generating Order Tracking Report",
+                    description="A Unknown Error, Please Try Again Later!",
+                    success=False
+                ) if not isinstance(report,ErrorResponseTypDict) else report
+            
+            raise HTTPException(
+                status_code=detail.status_code,
+                detail=detail.model_dump(mode='json')
+            )
+        
+        return SuccessResponseTypDict(
+            detail=BaseResponseTypDict(
+                status_code=200,
+                success=True,
+                msg="Order tracking report generated successfully"
+            ),
+            data=report
+        )
+
+
+    async def get_payment_pending_report(self,data):
+        report=await OrdersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_payment_pending_report(
+            from_date=data.from_date,
+            to_date=data.to_date,
+            owner_name=data.owner_name,
+            min_days_pending=data.min_days_pending,
+            date_by=data.date_by
+        )
+        if not report or isinstance(report,ErrorResponseTypDict):
+            detail:ErrorResponseTypDict=ErrorResponseTypDict(
+                    status_code=400,
+                    msg="Error : Generating Payment Pending Report",
+                    description="A Unknown Error, Please Try Again Later!",
+                    success=False
+                ) if not isinstance(report,ErrorResponseTypDict) else report
+            
+            raise HTTPException(
+                status_code=detail.status_code,
+                detail=detail.model_dump(mode='json')
+            )
+        
+        return SuccessResponseTypDict(
+            detail=BaseResponseTypDict(
+                status_code=200,
+                success=True,
+                msg="Payment pending report generated successfully"
+            ),
+            data=report
+        )
+

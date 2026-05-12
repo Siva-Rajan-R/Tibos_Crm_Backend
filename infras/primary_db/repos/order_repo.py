@@ -260,7 +260,8 @@ class OrdersRepo(BaseRepoModel):
             'customer_id':Orders.customer_id,
             'distributor_id':Orders.distributor_id,
             'product_id':Orders.product_id,
-            'owner_name':Customers.owner
+            'owner_name':Customers.owner,
+            'product_type':Products.product_type
         }
         cursor=0 if cursor==1 else cursor
         search_term = f"%{query.lower()}%"
@@ -1077,6 +1078,479 @@ class OrdersRepo(BaseRepoModel):
         
         return results
         
+
+    async def get_order_tracking_report(self,from_date,to_date,owner_name=None,date_by=None):
+        """
+        Order Tracking Report grouped by customer owner.
+        
+        Columns:
+        1. activation_done_invoice_pending: activated=True, all invoices INCOMPLETED
+        2. payment_pending: invoice COMPLETED but payment not fully settled
+        3. po_received_activation_pending: activated=False, all invoices INCOMPLETED
+        """
+        from schemas.request_schemas.order import OrderTrackingReportSchema
+        from core.data_formats.enums.order_enums import OrderFilterDateByEnum
+
+        # --- Subquery: per-order invoice/payment aggregation ---
+        invoice_agg_subq = (
+            select(
+                OrdersPaymentInvoiceInfo.order_id,
+
+                # Whether any COMPLETED invoice exists
+                func.bool_or(
+                    OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value
+                ).label("has_completed_invoice"),
+
+                # Whether ALL invoices are INCOMPLETED (no completed invoice)
+                func.bool_and(
+                    OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.INCOMPLETED.value
+                ).label("all_invoices_incompleted"),
+
+                # Whether any payment is pending (not PAID / not FULL_PAYMENT_RECEIVED)
+                func.bool_or(
+                    and_(
+                        OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value,
+                        OrdersPaymentInvoiceInfo.payment_status.notin_([
+                            PaymentStatus.PAID.value,
+                            PaymentStatus.FULL_PAYMENT_RECEIVED.value
+                        ])
+                    )
+                ).label("has_pending_payment"),
+
+                # Total paid amount
+                func.coalesce(
+                    func.sum(OrdersPaymentInvoiceInfo.paid_amount), 0
+                ).label("total_paid"),
+            )
+            .group_by(OrdersPaymentInvoiceInfo.order_id)
+            .subquery()
+        )
+
+        # --- Owner label: coalesce null/empty to 'Others' ---
+        owner_label = func.coalesce(
+            func.nullif(func.trim(Customers.owner), ''),
+            'Others'
+        ).label("owner_name")
+
+        # --- Date field to filter on ---
+        date_by_val = None
+        if date_by:
+            date_by_val = date_by.value if hasattr(date_by, 'value') else date_by
+
+        if date_by_val == OrderFilterDateByEnum.REQUESTED_DATE.value:
+            date_field = cast(Orders.delivery_info["requested_date"].astext, Date)
+        elif date_by_val == OrderFilterDateByEnum.CREATED_DATE.value:
+            date_field = cast(Orders.created_at, Date)
+        else:
+            # Default: ACTIVATION_DATE (delivery_date)
+            date_field = cast(Orders.delivery_info["delivery_date"].astext, Date)
+
+        # --- Conditions ---
+        conditions = [
+            Orders.is_deleted == False,
+            date_field >= from_date,
+            date_field <= to_date,
+        ]
+
+        if owner_name:
+            conditions.append(Customers.owner == owner_name)
+
+        # --- CASE expressions for the three columns ---
+
+        # 1) Activation done, invoice need to raise:
+        #    activated=True AND all invoices are INCOMPLETED
+        activation_done_invoice_pending = func.coalesce(func.sum(
+            case(
+                (
+                    and_(
+                        Orders.activated == True,
+                        func.coalesce(invoice_agg_subq.c.all_invoices_incompleted, True) == True,
+                    ),
+                    customer_final_price
+                ),
+                else_=0
+            )
+        ), 0)
+
+        # 2) Payment pending:
+        #    Has completed invoice but payment is pending
+        #    Value = customer_price_with_gst - total_paid
+        payment_pending_val = func.coalesce(func.sum(
+            case(
+                (
+                    and_(
+                        func.coalesce(invoice_agg_subq.c.has_completed_invoice, False) == True,
+                        func.coalesce(invoice_agg_subq.c.has_pending_payment, False) == True,
+                    ),
+                    func.greatest(
+                        func.round(cast(customer_final_price_inc_gst, Numeric)) - func.coalesce(invoice_agg_subq.c.total_paid, 0),
+                        0
+                    )
+                ),
+                else_=0
+            )
+        ), 0)
+
+        # 3) PO received, activation need to done:
+        #    activated=False AND all invoices INCOMPLETED (or no invoice)
+        po_received_activation_pending = func.coalesce(func.sum(
+            case(
+                (
+                    and_(
+                        Orders.activated == False,
+                        func.coalesce(invoice_agg_subq.c.all_invoices_incompleted, True) == True,
+                    ),
+                    customer_final_price
+                ),
+                else_=0
+            )
+        ), 0)
+
+        # --- Main aggregation query ---
+        report_stmt = (
+            select(
+                owner_label,
+                func.round(cast(activation_done_invoice_pending, Numeric)).label("activation_done_invoice_pending"),
+                func.round(cast(payment_pending_val, Numeric), 2).label("payment_pending"),
+                func.round(cast(po_received_activation_pending, Numeric)).label("po_received_activation_pending"),
+                func.round(
+                    cast(activation_done_invoice_pending + payment_pending_val + po_received_activation_pending, Numeric), 2
+                ).label("grand_total"),
+            )
+            .select_from(Orders)
+            .outerjoin(invoice_agg_subq, invoice_agg_subq.c.order_id == Orders.id)
+            .join(Products, Products.id == Orders.product_id, isouter=True)
+            .join(Customers, Customers.id == Orders.customer_id, isouter=True)
+            .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
+            .where(*conditions)
+            .group_by(owner_label)
+            .order_by(owner_label)
+        )
+
+        owner_rows = (await self.session.execute(report_stmt)).mappings().all()
+
+        # --- Grand total row ---
+        grand_total_stmt = (
+            select(
+                func.round(cast(func.coalesce(func.sum(
+                    case(
+                        (
+                            and_(
+                                Orders.activated == True,
+                                func.coalesce(invoice_agg_subq.c.all_invoices_incompleted, True) == True,
+                            ),
+                            customer_final_price
+                        ),
+                        else_=0
+                    )
+                ), 0), Numeric)).label("activation_done_invoice_pending"),
+                func.round(cast(func.coalesce(func.sum(
+                    case(
+                        (
+                            and_(
+                                func.coalesce(invoice_agg_subq.c.has_completed_invoice, False) == True,
+                                func.coalesce(invoice_agg_subq.c.has_pending_payment, False) == True,
+                            ),
+                            func.greatest(
+                                func.round(cast(customer_final_price_inc_gst, Numeric)) - func.coalesce(invoice_agg_subq.c.total_paid, 0),
+                                0
+                            )
+                        ),
+                        else_=0
+                    )
+                ), 0), Numeric), 2).label("payment_pending"),
+                func.round(cast(func.coalesce(func.sum(
+                    case(
+                        (
+                            and_(
+                                Orders.activated == False,
+                                func.coalesce(invoice_agg_subq.c.all_invoices_incompleted, True) == True,
+                            ),
+                            customer_final_price
+                        ),
+                        else_=0
+                    )
+                ), 0), Numeric)).label("po_received_activation_pending"),
+            )
+            .select_from(Orders)
+            .outerjoin(invoice_agg_subq, invoice_agg_subq.c.order_id == Orders.id)
+            .join(Products, Products.id == Orders.product_id, isouter=True)
+            .join(Customers, Customers.id == Orders.customer_id, isouter=True)
+            .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
+            .where(*conditions)
+        )
+
+        grand_total_row = (await self.session.execute(grand_total_stmt)).mappings().one_or_none()
+
+        grand_total = {
+            "activation_done_invoice_pending": float(grand_total_row["activation_done_invoice_pending"] or 0),
+            "payment_pending": float(grand_total_row["payment_pending"] or 0),
+            "po_received_activation_pending": float(grand_total_row["po_received_activation_pending"] or 0),
+        }
+        grand_total["grand_total"] = round(
+            grand_total["activation_done_invoice_pending"] +
+            grand_total["payment_pending"] +
+            grand_total["po_received_activation_pending"], 2
+        )
+
+        owners_data = []
+        for row in owner_rows:
+            owners_data.append({
+                "owner_name": row["owner_name"],
+                "activation_done_invoice_pending": float(row["activation_done_invoice_pending"] or 0),
+                "payment_pending": float(row["payment_pending"] or 0),
+                "po_received_activation_pending": float(row["po_received_activation_pending"] or 0),
+                "grand_total": float(row["grand_total"] or 0),
+            })
+
+        return {
+            "owners": owners_data,
+            "grand_total": grand_total
+        }
+
+
+    async def get_payment_pending_report(self,from_date,to_date,owner_name=None,min_days_pending=None,date_by=None):
+        """
+        Payment Pending Report grouped by customer owner with aging buckets.
+        
+        Buckets:
+        1. 1-8 days: invoice_count + pending_value
+        2. 8-16 days: invoice_count + pending_value
+        3. 16-30 days: invoice_count + pending_value
+        4. >30 days: invoice_count + pending_value
+        + Grand Total per owner
+        """
+        from core.data_formats.enums.order_enums import OrderFilterDateByEnum
+
+        # --- Owner label ---
+        owner_label = func.coalesce(
+            func.nullif(func.trim(Customers.owner), ''),
+            'Others'
+        ).label("owner_name")
+
+        # --- Date field to filter on ---
+        date_by_val = None
+        if date_by:
+            date_by_val = date_by.value if hasattr(date_by, 'value') else date_by
+
+        if date_by_val == OrderFilterDateByEnum.REQUESTED_DATE.value:
+            date_field = cast(Orders.delivery_info["requested_date"].astext, Date)
+        elif date_by_val == OrderFilterDateByEnum.CREATED_DATE.value:
+            date_field = cast(Orders.created_at, Date)
+        else:
+            date_field = cast(Orders.delivery_info["delivery_date"].astext, Date)
+
+        # --- Invoice date as Date and days_pending ---
+        invoice_date_field = cast(OrdersPaymentInvoiceInfo.invoice_date, Date)
+        days_pending = func.greatest(
+            func.current_date() - invoice_date_field,
+            0
+        )
+
+        # --- Get total invoices and pending invoices per order ---
+        invoice_stats_subq = (
+            select(
+                OrdersPaymentInvoiceInfo.order_id,
+                func.count().label("total_invoices"),
+                func.count().filter(
+                    and_(
+                        OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value,
+                        OrdersPaymentInvoiceInfo.payment_status.notin_([
+                            PaymentStatus.PAID.value,
+                            PaymentStatus.FULL_PAYMENT_RECEIVED.value
+                        ])
+                    )
+                ).label("matching_invoices")
+            )
+            .group_by(OrdersPaymentInvoiceInfo.order_id)
+            .subquery()
+        )
+
+        # --- Invoice Value = full order amount (distributed across matching pending invoices to avoid duplication)
+        invoice_total_value = func.round(
+            cast(customer_final_price_inc_gst, Numeric) / func.nullif(invoice_stats_subq.c.matching_invoices, 0)
+        )
+
+        # --- Pending Value = expected invoice amount minus paid amount ---
+        split_expected_amount = func.round(
+            cast(customer_final_price_inc_gst, Numeric) / func.nullif(invoice_stats_subq.c.total_invoices, 0)
+        )
+        invoice_pending_value = func.greatest(
+            split_expected_amount - func.coalesce(OrdersPaymentInvoiceInfo.paid_amount, 0),
+            0
+        )
+
+        # --- Conditions: only COMPLETED invoices with pending payment ---
+        conditions = [
+            Orders.is_deleted == False,
+            date_field >= from_date,
+            date_field <= to_date,
+            OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value,
+            OrdersPaymentInvoiceInfo.payment_status.notin_([
+                PaymentStatus.PAID.value,
+                PaymentStatus.FULL_PAYMENT_RECEIVED.value
+            ]),
+        ]
+
+        if owner_name and owner_name.upper() != 'ALL':
+            conditions.append(Customers.owner == owner_name)
+
+        if min_days_pending is not None and min_days_pending > 0:
+            conditions.append(days_pending >= min_days_pending)
+
+        # --- Owner-level totals subquery ---
+        owner_totals_subq = (
+            select(
+                owner_label.label("owner_name_key"),
+                func.count().label("owner_invoice_count"),
+                func.round(cast(func.coalesce(func.sum(invoice_total_value), 0), Numeric), 2).label("owner_invoice_amount"),
+                func.round(cast(func.coalesce(func.sum(invoice_pending_value), 0), Numeric), 2).label("owner_pending_amount")
+            )
+            .select_from(Orders)
+            .join(OrdersPaymentInvoiceInfo, OrdersPaymentInvoiceInfo.order_id == Orders.id)
+            .join(Products, Products.id == Orders.product_id, isouter=True)
+            .join(Customers, Customers.id == Orders.customer_id, isouter=True)
+            .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
+            .join(invoice_stats_subq, invoice_stats_subq.c.order_id == Orders.id)
+            .where(*conditions)
+            .group_by(owner_label)
+            .subquery()
+        )
+
+        # --- Main aggregation query ---
+        report_stmt = (
+            select(
+                owner_label,
+                Customers.name.label("customer_name"),
+                Orders.ui_id.label("order_id"),
+                func.count().label("invoice_count"),
+                func.round(cast(func.coalesce(func.sum(invoice_total_value), 0), Numeric), 2).label("invoice_amount"),
+                func.round(cast(func.coalesce(func.sum(invoice_pending_value), 0), Numeric), 2).label("pending_amount")
+            )
+            .select_from(Orders)
+            .join(OrdersPaymentInvoiceInfo, OrdersPaymentInvoiceInfo.order_id == Orders.id)
+            .join(Products, Products.id == Orders.product_id, isouter=True)
+            .join(Customers, Customers.id == Orders.customer_id, isouter=True)
+            .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
+            .join(invoice_stats_subq, invoice_stats_subq.c.order_id == Orders.id)
+            .where(*conditions)
+            .group_by(owner_label, Customers.name, Orders.ui_id)
+            .order_by(owner_label, Customers.name, Orders.ui_id)
+        )
+
+        owner_rows = (await self.session.execute(report_stmt)).mappings().all()
+
+        # --- Owner-level summary list ---
+        summary_stmt = select(
+            owner_totals_subq.c.owner_name_key.label("owner_name"),
+            owner_totals_subq.c.owner_invoice_count,
+            owner_totals_subq.c.owner_invoice_amount,
+            owner_totals_subq.c.owner_pending_amount
+        ).order_by("owner_name")
+        
+        summary_rows = (await self.session.execute(summary_stmt)).mappings().all()
+        
+        owner_summaries = []
+        for s in summary_rows:
+            owner_summaries.append({
+                "owner_name": s["owner_name"],
+                "total_invoice_count": int(s["owner_invoice_count"] or 0),
+                "total_invoice_amount": float(s["owner_invoice_amount"] or 0),
+                "total_pending_amount": float(s["owner_pending_amount"] or 0),
+            })
+
+        # --- Grand total row ---
+        grand_total_stmt = (
+            select(
+                func.count().label("invoice_count"),
+                func.round(cast(func.coalesce(func.sum(invoice_total_value), 0), Numeric), 2).label("invoice_amount"),
+                func.round(cast(func.coalesce(func.sum(invoice_pending_value), 0), Numeric), 2).label("pending_amount")
+            )
+            .select_from(Orders)
+            .join(OrdersPaymentInvoiceInfo, OrdersPaymentInvoiceInfo.order_id == Orders.id)
+            .join(Products, Products.id == Orders.product_id, isouter=True)
+            .join(Customers, Customers.id == Orders.customer_id, isouter=True)
+            .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
+            .join(invoice_stats_subq, invoice_stats_subq.c.order_id == Orders.id)
+            .where(*conditions)
+        )
+
+        gt_row = (await self.session.execute(grand_total_stmt)).mappings().one_or_none()
+
+        # --- Format results ---
+        owners_data = []
+        for row in owner_rows:
+            owners_data.append({
+                "owner_name": row["owner_name"],
+                "customer_name": row["customer_name"],
+                "order_id": row["order_id"],
+                "invoice_count": int(row["invoice_count"] or 0),
+                "invoice_amount": float(row["invoice_amount"] or 0),
+                "pending_amount": float(row["pending_amount"] or 0),
+            })
+
+        grand_total = {
+            "invoice_count": int(gt_row["invoice_count"] or 0) if gt_row else 0,
+            "invoice_amount": float(gt_row["invoice_amount"] or 0) if gt_row else 0,
+            "pending_amount": float(gt_row["pending_amount"] or 0) if gt_row else 0,
+        }
+
+        return {
+            "owners": owners_data,
+            "owner_summaries": owner_summaries,
+            "grand_total": grand_total
+        }
+
+
+class OrderTrackingReportRepo(OrdersRepo):
+    async def get(self, **kwargs):
+        # We only return data for the first page since it's a summary
+        if kwargs.get('cursor') != 1:
+            return {"owners": [], "next_cursor": None}
+            
+        report = await self.get_order_tracking_report(
+            from_date=kwargs.get('from_date'),
+            to_date=kwargs.get('to_date'),
+            owner_name=kwargs.get('owner_name'),
+            date_by=kwargs.get('date_by')
+        )
+        
+        owners = report['owners']
+        gt = report['grand_total']
+        gt['owner_name'] = 'Grand Total'
+        gt['customer_name'] = ''
+        gt['order_id'] = ''
+        owners.append(gt)
+        
+        return {
+            "owners": owners,
+            "next_cursor": None
+        }
+
+class PaymentPendingReportRepo(OrdersRepo):
+    async def get(self, **kwargs):
+        if kwargs.get('cursor') != 1:
+            return {"owners": [], "next_cursor": None}
+            
+        report = await self.get_payment_pending_report(
+            from_date=kwargs.get('from_date'),
+            to_date=kwargs.get('to_date'),
+            owner_name=kwargs.get('owner_name'),
+            min_days_pending=kwargs.get('min_days_pending'),
+            date_by=kwargs.get('date_by')
+        )
+        
+        owners = report['owners']
+        gt = report['grand_total']
+        gt['owner_name'] = 'Total'
+        gt['customer_name'] = ''
+        gt['order_id'] = ''
+        owners.append(gt)
+        
+        return {
+            "owners": owners,
+            "next_cursor": None
+        }
 
 
 

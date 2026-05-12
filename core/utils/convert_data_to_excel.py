@@ -57,12 +57,17 @@ def order_data_converter(data:dict):
     return temp_data
 
 
+def tracking_report_data_converter(data:dict):
+    return data
+
+
 DATA_CONVERTER_MAPPER={
     'ACCOUNTS':account_data_converter,
     'CONTACTS':contact_data_converter,
     'PRODUCTS':product_data_converter,
     'DISTRIBUTORS':distributor_data_converter,
-    "ORDERS":order_data_converter
+    "ORDERS":order_data_converter,
+    "TRACKING_REPORT":tracking_report_data_converter
 }
 
 
@@ -73,7 +78,7 @@ def convert_data_to_excel_format(mapper:dict,data:list,converter_name:str):
     for i in data:
         fined_data=DATA_CONVERTER_MAPPER[converter_name.upper()](data=i)
         for key,val in mapper.items():
-            temp_dict[val]=fined_data[key]
+            temp_dict[val]=fined_data.get(key, "")
         final_ans.append(temp_dict)
         temp_dict={}
 

@@ -86,6 +86,23 @@ ORDERS_MAPPER={
     'delivery_date': 'activation_date',
 }
 
+ORDER_TRACKING_REPORT_MAPPER = {
+    'owner_name': 'Owner',
+    'activation_done_invoice_pending': 'Activation Done, Invoice Need to Raise',
+    'payment_pending': 'Payment Pending',
+    'po_received_activation_pending': 'PO Received, Activation Need to Done',
+    'grand_total': 'Grand Total'
+}
+
+PAYMENT_PENDING_REPORT_MAPPER = {
+    'owner_name': 'Owner',
+    'customer_name': 'Customer Name',
+    'order_id': 'Order ID',
+    'invoice_count': 'Invoice Count',
+    'invoice_amount': 'Invoice Amount',
+    'pending_amount': 'Pending Amount'
+}
+
 
 # final_dict={}
 # for key,val in ORDERS_MAPPER.items():

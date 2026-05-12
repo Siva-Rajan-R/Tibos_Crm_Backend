@@ -539,3 +539,10 @@ class OrdersService(BaseServiceModel):
     async def get_cust_order(self,customer_id:str,distributor_id:str,product_id:str):
         return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_cust_order(customer_id=customer_id,distributor_id=distributor_id,product_id=product_id)
 
+    @catch_errors
+    async def get_order_tracking_report(self,from_date,to_date,owner_name=None,date_by=None):
+        return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_order_tracking_report(from_date=from_date,to_date=to_date,owner_name=owner_name,date_by=date_by)
+
+    async def get_payment_pending_report(self,from_date,to_date,owner_name=None,min_days_pending=None,date_by=None):
+        return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_payment_pending_report(from_date=from_date,to_date=to_date,owner_name=owner_name,min_days_pending=min_days_pending,date_by=date_by)
+
