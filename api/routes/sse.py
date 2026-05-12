@@ -1,5 +1,6 @@
 from ..dependencies.token_verification import verify_user
 from fastapi import Request,APIRouter,Depends,Query,HTTPException
+from infras.primary_db.main import get_pg_db_session,AsyncSession
 from fastapi.security.http import HTTPAuthorizationCredentials,HTTPBasicCredentials
 from sse_starlette.sse import EventSourceResponse
 from services.sse import sse_manager,sse_msg_builder
@@ -12,9 +13,9 @@ router=APIRouter(
 )
 
 @router.get("/sse/stream")
-async def stream_bulk(request: Request,token:str=Query(...)):
+async def stream_bulk(request: Request,token:str=Query(...),session:AsyncSession=Depends(get_pg_db_session)):
     ic(token)
-    user=await verify_user(request=request,credentials=HTTPAuthorizationCredentials(scheme="Bearer",credentials=token))
+    user=await verify_user(request=request,credentials=HTTPAuthorizationCredentials(scheme="Bearer",credentials=token),session=session)
     ic(user)
     user_name=user['email'].split("@")[0]
     if not user:
