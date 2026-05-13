@@ -35,6 +35,7 @@ class ScheduleConfigSchema(BaseModel):
 
 class ReportScheduleSchema(BaseModel):
     schedule: ScheduleConfigSchema
+    recipients: List[EmailStr] = []
 
 
 class PendingDuesAlertSchema(BaseModel):
@@ -59,3 +60,14 @@ class PendingDuesAlertTestSchema(BaseModel):
 
 class EmailTemplateSchema(BaseModel):
     template_config: Dict[str, Any]
+
+
+class PendingInvoiceAlertSchema(BaseModel):
+    enabled: bool = False
+    days_after_order_created: int = 1
+
+
+class ActivationDateAlertSchema(BaseModel):
+    enabled: bool = False
+    days_before_activation: int = 2
+    days_after_activation: int = 2

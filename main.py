@@ -45,7 +45,7 @@ async def api_lifespan(app:FastAPI):
             await session.commit()
             ic("Hello")
         await check_redis_health()
-        # await redis_client.flushall()
+        await redis_client.flushall()
         asyncio.create_task(redis_listener())
         yield
     except Exception as e:

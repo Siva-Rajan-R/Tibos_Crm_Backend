@@ -25,7 +25,7 @@ async def stream_bulk(request: Request,token:str=Query(...),session:AsyncSession
         )
 
     user_id=user['id']
-    ic(user_id)
+    ic(f"🔌 User connected to SSE: {user_id} ({user['email']})")
     data = await sse_manager.create(user_id)
     queue=data['queue']
     if data['send_greet']:

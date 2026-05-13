@@ -4,7 +4,12 @@ from arq import Worker, cron
 from arq.connections import RedisSettings
 from core.settings import SETTINGS
 from tasks.arq_tasks.workers.report import generate_excel_report
-from tasks.arq_tasks.workers.alert import send_pending_dues_alert, send_report_schedule
+from tasks.arq_tasks.workers.alert import (
+    send_pending_dues_alert,
+    send_report_schedule,
+    send_pending_invoice_alert,
+    send_activation_date_alert,
+)
 
 
 async def main():
@@ -15,6 +20,8 @@ async def main():
             # whether the configured HH:MM matches before doing anything
             cron(send_pending_dues_alert, second=0),
             cron(send_report_schedule, second=0),
+            cron(send_pending_invoice_alert, second=0),
+            cron(send_activation_date_alert, second=0),
         ],
         redis_settings=RedisSettings.from_dsn(SETTINGS.REDIS_URL),
         max_jobs=10,

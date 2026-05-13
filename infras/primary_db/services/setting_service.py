@@ -1,6 +1,6 @@
 from ..repos.setting_repo import SettingsRepo
 from schemas.db_schemas.setting import SettingsDbSchema
-from schemas.request_schemas.setting import EmailSettingSchema, EmailUpdateSchema, ReportScheduleSchema, PendingDuesAlertSchema, PendingDuesAlertTestSchema, EmailTemplateSchema
+from schemas.request_schemas.setting import EmailSettingSchema, EmailUpdateSchema, ReportScheduleSchema, PendingDuesAlertSchema, PendingDuesAlertTestSchema, EmailTemplateSchema, PendingInvoiceAlertSchema, ActivationDateAlertSchema
 from ..models.settings import Settings
 from sqlalchemy import update,select,delete,func
 from icecream import ic
@@ -77,12 +77,23 @@ class SettingsService:
         return await SettingsRepo(session=self.session).upsert_replace(name=SettingsEnum.EMAIL_TEMPLATE.value, datas=datas)
 
     async def report_schedule_upsert(self, data: ReportScheduleSchema):
-        datas = data.schedule.model_dump(mode='json')
+        datas = {
+            **data.schedule.model_dump(mode='json'),
+            "recipients": [str(e) for e in data.recipients]
+        }
         return await SettingsRepo(session=self.session).upsert_replace(name=SettingsEnum.REPORT_SCHEDULE.value, datas=datas)
 
     async def pending_dues_alert_upsert(self, data: PendingDuesAlertSchema):
         datas = data.model_dump(mode='json')
         return await SettingsRepo(session=self.session).upsert_replace(name=SettingsEnum.PENDING_DUES_ALERT.value, datas=datas)
+
+    async def pending_invoice_alert_upsert(self, data: PendingInvoiceAlertSchema):
+        datas = data.model_dump(mode='json')
+        return await SettingsRepo(session=self.session).upsert_replace(name=SettingsEnum.PENDING_INVOICE_ALERT.value, datas=datas)
+
+    async def activation_date_alert_upsert(self, data: ActivationDateAlertSchema):
+        datas = data.model_dump(mode='json')
+        return await SettingsRepo(session=self.session).upsert_replace(name=SettingsEnum.ACTIVATION_DATE_ALERT.value, datas=datas)
 
     async def get(self,id:int):
         settings=await SettingsRepo(session=self.session).get(id=id)

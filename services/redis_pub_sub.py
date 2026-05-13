@@ -5,21 +5,35 @@ from .sse import sse_manager
 from icecream import ic
 
 async def redis_listener():
+    ic("📡 Starting Redis Pub/Sub listener on 'sse_channel'...")
+    while True:
+        try:
+            pubsub = redis_client.pubsub()
+            await pubsub.subscribe("sse_channel")
+            ic("✅ Subscribed to 'sse_channel'")
 
-    pubsub = redis_client.pubsub()
-    await pubsub.subscribe("sse_channel")
+            async for message in pubsub.listen():
+                if message["type"] != "message":
+                    continue
 
-    async for message in pubsub.listen():
-        ic(message)
-        if message["type"] != "message":
-            continue
+                try:
+                    payload = json.loads(message["data"])
+                    client_id = payload.get("client_id")
+                    data = payload.get("data")
 
-        payload = json.loads(message["data"])
-
-        client_id = payload["client_id"]
-        data = payload["data"]
-
-        await sse_manager.send(client_id, data)
+                    if client_id and data:
+                        ic(f"📩 Redis listener relaying message to {client_id}")
+                        success = await sse_manager.send(client_id, data)
+                        if not success:
+                            ic(f"⚠️ SSE delivery failed for {client_id} (not connected?)")
+                    else:
+                        ic(f"⚠️ Invalid payload: {payload}")
+                except Exception as e:
+                    ic(f"❌ Error processing message: {e}")
+                    
+        except Exception as e:
+            ic(f"❌ Redis listener connection error: {e}")
+            await asyncio.sleep(5)  # Retry after 5 seconds
 
 
 async def notify(client_id, data):
