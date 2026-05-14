@@ -1,4 +1,6 @@
 from typing import cast,List
+import io
+import pandas as pd
 from . import HTTPException,BaseRepoModel
 from ..models.order import Orders,OrdersPaymentInvoiceInfo
 from ..models.product import Products
@@ -20,7 +22,7 @@ from models.response_models.req_res_models import SuccessResponseTypDict,BaseRes
 from core.utils.discount_validator import validate_discount
 from ..models.ui_id import TablesUiLId
 from schemas.request_schemas.order import OrderFilterSchema
-from datetime import datetime,timedelta
+from datetime import datetime, timedelta, date
 from core.constants import DEFAULT_ADDON_YEAR
 from typing import Optional,Literal
 from core.data_formats.enums.order_enums import OrderFilterDateByEnum
@@ -285,7 +287,13 @@ class OrdersRepo(BaseRepoModel):
                 Orders.logistic_info['renewal_type'].astext.ilike(search_term),
                 Distributors.name.ilike(search_term),
                 Orders.logistic_info['bill_to'].astext.ilike(search_term),
-                Orders.logistic_info['distributor_type'].astext.ilike(search_term)
+                Orders.logistic_info['distributor_type'].astext.ilike(search_term),
+                exists().where(
+                    and_(
+                        OrdersPaymentInvoiceInfo.order_id == Orders.id,
+                        OrdersPaymentInvoiceInfo.invoice_number.ilike(search_term)
+                    )
+                )
             )
         )
 
@@ -469,10 +477,18 @@ class OrdersRepo(BaseRepoModel):
                     ).label("pending_invoice"),
 
                     func.count().filter(
-                        OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value
+                        and_(
+                            OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value,
+                            OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.PAID.value,
+                            OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.FULL_PAYMENT_RECEIVED.value
+                        )
                     ).label("completed_invoices_count"),
                     func.sum(func.coalesce(OrdersPaymentInvoiceInfo.paid_amount, 0)).filter(
-                        OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value
+                        and_(
+                            OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value,
+                            OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.PAID.value,
+                            OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.FULL_PAYMENT_RECEIVED.value
+                        )
                     ).label("completed_paid_total"),
 
                     func.count().filter(
@@ -598,11 +614,9 @@ class OrdersRepo(BaseRepoModel):
                 func.coalesce(invoice_stats_subq.c.short_paid_sum, 0)
             )
 
-            tds_pending_amount_raw = func.greatest(
-                pending_amount_expr - (
-                    not_paid_amount_raw + gst_pending_amount_raw + half_pending_amount_raw + short_pending_amount_raw
-                ),
-                0
+            tds_pending_amount_raw = func.round(
+                func.coalesce(invoice_stats_subq.c.tds_pendings, 0) * expected_invoice_amount - 
+                func.coalesce(invoice_stats_subq.c.tds_paid_sum, 0)
             )
 
             not_paid_amount = case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.NOT_PAID.value), not_paid_amount_raw), else_=0)
@@ -744,7 +758,13 @@ class OrdersRepo(BaseRepoModel):
                     Orders.logistic_info['renewal_type'].astext.ilike(search_term),
                     Distributors.name.ilike(search_term),
                     Orders.logistic_info['bill_to'].astext.ilike(search_term),
-                    Orders.logistic_info['distributor_type'].astext.ilike(search_term)
+                    Orders.logistic_info['distributor_type'].astext.ilike(search_term),
+                    exists().where(
+                        and_(
+                            OrdersPaymentInvoiceInfo.order_id == Orders.id,
+                            OrdersPaymentInvoiceInfo.invoice_number.ilike(search_term)
+                        )
+                    )
                 ),
                 Orders.is_deleted==False
             )
@@ -1496,10 +1516,134 @@ class OrdersRepo(BaseRepoModel):
         }
 
         return {
-            "owners": owners_data,
             "owner_summaries": owner_summaries,
             "grand_total": grand_total
         }
+
+    async def get_distributor_projection_report(self, distributor_id, from_date, to_date, starting_month=None, date_by=OrderFilterDateByEnum.CREATED_DATE.value):
+        """
+        Distributor Projection Report grouped by order creation month with 12-month projections.
+        """
+        # Determine which date field to use based on date_by
+        if date_by == OrderFilterDateByEnum.ACTIVATION_DATE.value:
+            date_field = cast(Orders.delivery_info["delivery_date"].astext, Date)
+        elif date_by == OrderFilterDateByEnum.REQUESTED_DATE.value:
+            date_field = cast(Orders.delivery_info["requested_date"].astext, Date)
+        else:
+            # Default to created_at with IST timezone for consistency with dashboard
+            date_field = func.date(func.timezone("Asia/Kolkata", Orders.created_at))
+
+        # Re-derive month expressions from the selected date_field
+        # If date_field is already a Date type (from cast), we can just use to_char on it
+        order_month_expr = func.to_char(date_field, "Mon-YY")
+        order_month_sort = func.date_trunc("month", date_field)
+
+        conditions = [
+            Orders.is_deleted == False,
+            Orders.distributor_id == distributor_id,
+            date_field >= from_date,
+            date_field <= to_date,
+        ]
+
+        report_stmt = (
+            select(
+                order_month_expr.label("order_month"),
+                order_month_sort.label("order_month_sort"),
+                func.sum(distri_final_price).label("total_value")
+            )
+            .select_from(Orders)
+            .join(Products, Products.id == Orders.product_id, isouter=True)
+            .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
+            .where(*conditions)
+            .group_by(order_month_expr, order_month_sort)
+            .order_by(desc(order_month_sort))
+        )
+
+        rows = (await self.session.execute(report_stmt)).mappings().all()
+
+        result_rows = []
+        all_columns = set()
+
+        if starting_month:
+            try:
+                # Expecting YYYY-MM
+                ref_date_obj = datetime.strptime(starting_month, "%Y-%m").date()
+            except Exception:
+                ref_date_obj = date.today().replace(day=1)
+        else:
+            ref_date_obj = date.today().replace(day=1)
+
+        current_month_str = ref_date_obj.strftime("%b-%y").lower()
+
+        for row in rows:
+            order_month_str = row["order_month"]
+            total_value = float(row["total_value"] or 0)
+            split_value = round(total_value / 12, 2) if total_value else 0
+            
+            # Base month object (the actual month of the order)
+            base_date = row["order_month_sort"]
+            if hasattr(base_date, 'replace'):
+                base_date = base_date.replace(tzinfo=None)
+            
+            # Ensure base_date is a date or datetime
+            if isinstance(base_date, str):
+                base_date = datetime.datetime.strptime(base_date[:10], "%Y-%m-%d")
+
+            projections = []
+            
+            for i in range(1, 13):
+                # Calculate future month and year
+                proj_month = base_date.month + i
+                proj_year = base_date.year + ((proj_month - 1) // 12)
+                proj_month = ((proj_month - 1) % 12) + 1
+                
+                # Format exactly as "%b-%y" (e.g., "Jun-25")
+                proj_date_obj = date(proj_year, proj_month, 1)
+                proj_month_str = proj_date_obj.strftime("%b-%y")
+                
+                # Ensure all 12 months of this year are in the columns list to satisfy "where is jan feb"
+                for m in range(1, 13):
+                    m_date = date(proj_year, m, 1)
+                    all_columns.add((proj_year, m, m_date.strftime("%b-%y")))
+                
+                # Logic: All months on or before the reference month are "happy" (received/current)
+                # All months after the reference month are "bad" (to be collected)
+                is_happy = proj_date_obj <= ref_date_obj
+                
+                projections.append({
+                    "month": proj_month_str,
+                    "amount": split_value,
+                    "type": "happy" if is_happy else "bad"
+                })
+                
+            total_happy = 0
+            total_bad = 0
+            for proj in projections:
+                if proj["type"] == "happy":
+                    total_happy += proj["amount"]
+                else:
+                    total_bad += proj["amount"]
+
+            result_rows.append({
+                "month": order_month_str,
+                "total_value": total_value,
+                "split_value": split_value,
+                "total_happy": round(total_happy, 2),
+                "total_bad": round(total_bad, 2),
+                "projection": projections
+            })
+
+        # Sort columns chronologically by year then month
+        sorted_cols = [x[2] for x in sorted(list(all_columns), key=lambda x: (x[0], x[1]))]
+
+        return {
+            "rows": result_rows,
+            "columns": sorted_cols
+        }
+
+
+
+
 
 
 class OrderTrackingReportRepo(OrdersRepo):
@@ -1508,9 +1652,16 @@ class OrderTrackingReportRepo(OrdersRepo):
         if kwargs.get('cursor') != 1:
             return {"owners": [], "next_cursor": None}
             
+        from_date = kwargs.get('from_date')
+        to_date = kwargs.get('to_date')
+        if isinstance(from_date, str):
+            from_date = datetime.strptime(from_date[:10], "%Y-%m-%d").date()
+        if isinstance(to_date, str):
+            to_date = datetime.strptime(to_date[:10], "%Y-%m-%d").date()
+
         report = await self.get_order_tracking_report(
-            from_date=kwargs.get('from_date'),
-            to_date=kwargs.get('to_date'),
+            from_date=from_date,
+            to_date=to_date,
             owner_name=kwargs.get('owner_name'),
             date_by=kwargs.get('date_by')
         )
@@ -1532,9 +1683,16 @@ class PaymentPendingReportRepo(OrdersRepo):
         if kwargs.get('cursor') != 1:
             return {"owners": [], "next_cursor": None}
             
+        from_date = kwargs.get('from_date')
+        to_date = kwargs.get('to_date')
+        if isinstance(from_date, str):
+            from_date = datetime.strptime(from_date[:10], "%Y-%m-%d").date()
+        if isinstance(to_date, str):
+            to_date = datetime.strptime(to_date[:10], "%Y-%m-%d").date()
+
         report = await self.get_payment_pending_report(
-            from_date=kwargs.get('from_date'),
-            to_date=kwargs.get('to_date'),
+            from_date=from_date,
+            to_date=to_date,
             owner_name=kwargs.get('owner_name'),
             min_days_pending=kwargs.get('min_days_pending'),
             date_by=kwargs.get('date_by')
@@ -1549,6 +1707,34 @@ class PaymentPendingReportRepo(OrdersRepo):
         
         return {
             "owners": owners,
+            "next_cursor": None
+        }
+
+class DistributorProjectionReportRepo(OrdersRepo):
+    async def get(self, **kwargs):
+        cursor = kwargs.get('cursor', 1)
+        if cursor is not None and int(cursor) != 1:
+            return {"rows": [], "columns": [], "next_cursor": None}
+            
+        from_date = kwargs.get('from_date')
+        to_date = kwargs.get('to_date')
+        
+        # Convert strings back to dates if they came from JSON serialization in background jobs
+        if isinstance(from_date, str):
+            from_date = datetime.strptime(from_date[:10], "%Y-%m-%d").date()
+        if isinstance(to_date, str):
+            to_date = datetime.strptime(to_date[:10], "%Y-%m-%d").date()
+
+        report = await self.get_distributor_projection_report(
+            distributor_id=kwargs.get('distributor_id'),
+            from_date=from_date,
+            to_date=to_date,
+            date_by=kwargs.get('date_by')
+        )
+        
+        return {
+            "rows": report["rows"],
+            "columns": report["columns"],
             "next_cursor": None
         }
 

@@ -103,6 +103,15 @@ PAYMENT_PENDING_REPORT_MAPPER = {
     'pending_amount': 'Pending Amount'
 }
 
+DISTRIBUTOR_PROJECTION_REPORT_MAPPER = {
+    'month': 'Order Month',
+    'total_value': 'Total Value',
+    'split_value': 'Split Amount',
+    'total_happy': 'Total Happy (Received)',
+    'total_bad': 'Total Bad (Pending)',
+    'projections': 'Projection Months'
+}
+
 
 # final_dict={}
 # for key,val in ORDERS_MAPPER.items():

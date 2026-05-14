@@ -546,3 +546,12 @@ class OrdersService(BaseServiceModel):
     async def get_payment_pending_report(self,from_date,to_date,owner_name=None,min_days_pending=None,date_by=None):
         return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_payment_pending_report(from_date=from_date,to_date=to_date,owner_name=owner_name,min_days_pending=min_days_pending,date_by=date_by)
 
+    async def get_distributor_projection_report(self, distributor_id, from_date, to_date, starting_month=None, date_by=None):
+        return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_distributor_projection_report(
+            distributor_id=distributor_id, from_date=from_date, to_date=to_date, starting_month=starting_month, date_by=date_by
+        )
+
+
+
+
+

@@ -28,19 +28,6 @@ class HandleOrdersRequest:
         self.cur_user_id=cur_user_id
 
     async def add(self,data:AddOrderSchema,request:Request,bgt:BackgroundTasks):
-        # invoice_no=data.status_info.get('invoice_number')
-        # invoice_date=data.status_info.get('invoice_date')
-        # invoice_sts=data.status_info.get('invoice_status')
-        # if invoice_sts.value==InvoiceStatus.COMPLETED.value and ((not invoice_no or len(invoice_no)<1 or (not invoice_date))):
-        #     raise HTTPException(
-        #         status_code=400,
-        #         detail=ErrorResponseTypDict(
-        #             status_code=400,
-        #             success=False,
-        #             msg="Error : Creading Order",
-        #             description="Enter a vaid Inovice number or Date"
-        #         ).model_dump(mode='json')
-        #     )
         if (data.logistic_info.get('purchase_type')==PurchaseTypes.EXISTING_ADD_ON.value and data.last_order_id is None):
             raise HTTPException(
                 status_code=400,
@@ -74,9 +61,6 @@ class HandleOrdersRequest:
                 ).model_dump(mode='json')
             )
         
-        ic(data.logistic_info)
-
-        
         res=await OrdersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(data=data)
         if not res or isinstance(res,ErrorResponseTypDict):
             detail:ErrorResponseTypDict=ErrorResponseTypDict(
@@ -101,7 +85,6 @@ class HandleOrdersRequest:
             )
         )
     
-    # @catch_errors
     async def add_bulk(self,type:ImportExportTypeEnum,file:UploadFile):
         if type.value==ImportExportTypeEnum.EXCEL.value:
             datas_toadd=extract_excel_data(excel_file=file.file,headings_mapper=ORDERS_MAPPER)
@@ -139,20 +122,6 @@ class HandleOrdersRequest:
     
     @catch_errors
     async def update(self,data:UpdateOrderSchema,request:Request,bgt:BackgroundTasks):
-        # invoice_no=data.status_info.get('invoice_number')
-        # invoice_date=data.status_info.get('invoice_date')
-        # invoice_sts=data.status_info.get('invoice_status')
-        # if invoice_sts.value==InvoiceStatus.COMPLETED.value and ((not invoice_no or len(invoice_no)<1 or (not invoice_date))):
-        #     raise HTTPException(
-        #         status_code=400,
-        #         detail=ErrorResponseTypDict(
-        #             status_code=400,
-        #             success=False,
-        #             msg="Error : Creading Order",
-        #             description="Enter a vaid Inovice number or Date"
-        #         ).model_dump(mode='json')
-        #     )
-        ic(data.logistic_info.get('purchase_type'))
         if (data.logistic_info.get('purchase_type')==PurchaseTypes.EXISTING_ADD_ON.value and data.last_order_id is None):
             raise HTTPException(
                 status_code=400,
@@ -185,7 +154,6 @@ class HandleOrdersRequest:
                     description="Invalid vendor discount format"
                 ).model_dump(mode='json')
             )
-        ic(data.logistic_info)
         res = await OrdersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=data)
         if not res or isinstance(res,ErrorResponseTypDict):
             detail:ErrorResponseTypDict=ErrorResponseTypDict(
@@ -238,7 +206,6 @@ class HandleOrdersRequest:
 
     @catch_errors    
     async def delete_bulk(self,data:OrderBulkDeleteSchema,soft_delete:bool=True):
-        ic(self.user_role)
         if self.user_role!=UserRoles.SUPER_ADMIN.value:
             raise HTTPException(
                 status_code=400,
@@ -410,3 +377,32 @@ class HandleOrdersRequest:
             data=report
         )
 
+    async def get_distributor_projection_report(self,data):
+        report=await OrdersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_distributor_projection_report(
+            distributor_id=data.distributor_id,
+            from_date=data.from_date,
+            to_date=data.to_date,
+            starting_month=data.starting_month,
+            date_by=data.date_by.value if hasattr(data.date_by, 'value') else data.date_by
+        )
+        if not report or isinstance(report,ErrorResponseTypDict):
+            detail:ErrorResponseTypDict=ErrorResponseTypDict(
+                    status_code=400,
+                    msg="Error : Generating Distributor Projection Report",
+                    description="A Unknown Error, Please Try Again Later!",
+                    success=False
+                ) if not isinstance(report,ErrorResponseTypDict) else report
+            
+            raise HTTPException(
+                status_code=detail.status_code,
+                detail=detail.model_dump(mode='json')
+            )
+        
+        return SuccessResponseTypDict(
+            detail=BaseResponseTypDict(
+                status_code=200,
+                success=True,
+                msg="Distributor projection report generated successfully"
+            ),
+            data=report
+        )

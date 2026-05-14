@@ -1,4 +1,4 @@
-from models.import_export_models.exports.excel_headings_mapper import ACCOUNTS_MAPPER,CONTACTS_MAPPER,PRODUCTS_MAPPER,DISTRI_MAPPER,ORDERS_MAPPER
+from models.import_export_models.exports.excel_headings_mapper import ACCOUNTS_MAPPER,CONTACTS_MAPPER,PRODUCTS_MAPPER,DISTRI_MAPPER,ORDERS_MAPPER, DISTRIBUTOR_PROJECTION_REPORT_MAPPER
 from infras.primary_db.repos.customer_repo import CustomersRepo
 from infras.primary_db.repos.contact_repo import ContactsRepo
 from infras.primary_db.repos.product_repo import ProductsRepo
@@ -45,20 +45,53 @@ async def create_excel_export(
                 if val in custom_fields:
                     temp_mapper[key]=val
             mapper=temp_mapper
-        wb, ws=init_excel(sheet_name=sheet_name)
-        write_header = True
-        while True:
-            if OFFSET is not None:
-                data=(await data_cls(session=session,user_role=UserRoles.SUPER_ADMIN,cur_user_id="").get(**kwargs,cursor=OFFSET,limit=CHUNK_SIZE))
-                ic("data-1",data)
-            if not OFFSET or not data[data_key] or len(data[data_key])<1:
-                break
+        if converter_name == "PROJECTION_REPORT":
+            # Special handling for matrix-style projection report
+            data = await data_cls(session=session, user_role=UserRoles.SUPER_ADMIN, cur_user_id="").get(**kwargs)
+            rows = data.get("rows", [])
+            columns = data.get("columns", [])
+            excel_rows = []
             
-            converted_data=convert_data_to_excel_format(mapper=mapper,data=data[data_key],converter_name=converter_name)
-            ic(converted_data)
-            append_excel_rows(ws=ws,datas=converted_data,write_header=write_header)
-            OFFSET=data['next_cursor']
-            write_header=False
+            # Map projection months to actual column names for better readability
+            projection_field_name = DISTRIBUTOR_PROJECTION_REPORT_MAPPER.get('projections', 'Projection Months')
+
+            for row in rows:
+                entry = {}
+                # Add base fields if they are in the filtered mapper
+                for key, display_name in mapper.items():
+                    if key != 'projections':
+                        # Use 0 as default for total_happy and total_bad if they are numeric
+                        val = row.get(key)
+                        if val is None:
+                            entry[display_name] = 0 if 'Total' in display_name else ""
+                        else:
+                            entry[display_name] = val
+                
+                # If projection months are selected, expand them into individual columns
+                if projection_field_name in mapper.values():
+                    for col in columns:
+                        proj = next((p for p in row.get("projection", []) if p["month"] == col), None)
+                        entry[col] = proj["amount"] if proj else 0
+                
+                excel_rows.append(entry)
+            
+            wb, ws = init_excel(sheet_name=sheet_name)
+            append_excel_rows(ws=ws, datas=excel_rows, write_header=True)
+        else:
+            wb, ws=init_excel(sheet_name=sheet_name)
+            write_header = True
+            while True:
+                if OFFSET is not None:
+                    data=(await data_cls(session=session,user_role=UserRoles.SUPER_ADMIN,cur_user_id="").get(**kwargs,cursor=OFFSET,limit=CHUNK_SIZE))
+                    ic("data-1",data)
+                if not OFFSET or not data[data_key] or len(data[data_key])<1:
+                    break
+                
+                converted_data=convert_data_to_excel_format(mapper=mapper,data=data[data_key],converter_name=converter_name)
+                ic(converted_data)
+                append_excel_rows(ws=ws,datas=converted_data,write_header=write_header)
+                OFFSET=data['next_cursor']
+                write_header=False
 
         wb.save(filename=file_name)
         blob_name=upload_excel_to_blob(local_file_path=file_name)

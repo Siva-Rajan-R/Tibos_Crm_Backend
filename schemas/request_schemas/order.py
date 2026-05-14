@@ -157,3 +157,10 @@ class PaymentPendingReportSchema(BaseModel):
     min_days_pending:Optional[int]=None
     date_by:Optional[OrderFilterDateByEnum]=OrderFilterDateByEnum.ACTIVATION_DATE
 
+
+class DistributorProjectionReportSchema(BaseModel):
+    distributor_id: str
+    from_date: date
+    to_date: date
+    starting_month: Optional[str] = None
+    date_by: Optional[OrderFilterDateByEnum] = OrderFilterDateByEnum.CREATED_DATE
