@@ -112,6 +112,22 @@ DISTRIBUTOR_PROJECTION_REPORT_MAPPER = {
     'projections': 'Projection Months'
 }
 
+PENDING_INVOICE_REPORT_MAPPER = {
+    'ui_id': 'Order ID',
+    'customer_name': 'Customer Name',
+    'owner_name': 'Owner Name',
+    'days_since_created': 'Days Since Created',
+    'invoice_status': 'Invoice Status'
+}
+
+ACTIVATION_ALERT_REPORT_MAPPER = {
+    'ui_id': 'Order ID',
+    'customer_name': 'Customer Name',
+    'owner_name': 'Owner Name',
+    'activation_date': 'Activation Date',
+    'days_diff': 'Days Difference',
+    'status': 'Status Type'
+}
 
 # final_dict={}
 # for key,val in ORDERS_MAPPER.items():

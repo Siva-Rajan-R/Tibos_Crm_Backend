@@ -1,6 +1,6 @@
 from ..repos.setting_repo import SettingsRepo
 from schemas.db_schemas.setting import SettingsDbSchema
-from schemas.request_schemas.setting import EmailSettingSchema, EmailUpdateSchema, ReportScheduleSchema, PendingDuesAlertSchema, PendingDuesAlertTestSchema, EmailTemplateSchema, PendingInvoiceAlertSchema, ActivationDateAlertSchema
+from schemas.request_schemas.setting import EmailSettingSchema, EmailUpdateSchema, ReportScheduleSchema, PendingDuesAlertSchema, PendingDuesAlertTestSchema, EmailTemplateSchema, PendingInvoiceAlertSchema, ActivationDateAlertSchema, GlobalAlertsSchema
 from ..models.settings import Settings
 from sqlalchemy import update,select,delete,func
 from icecream import ic
@@ -13,10 +13,16 @@ from core.utils.uuid_generator import generate_uuid
 from core.data_formats.enums.dd_enums import SettingsEnum
 from services.email_service import send_email
 from core.constants import SECRET_KEY
+from tasks.arq_tasks.enqueues.alert import enqueue_test_report_job
 
 class SettingsService:
     def __init__(self,session:AsyncSession):
         self.session=session
+
+    async def trigger_test_report(self, report_type: str, recipients: list):
+        # Trigger the arq job
+        await enqueue_test_report_job(report_type=report_type, recipients=recipients)
+        return True
 
     async def init_settings(self):
         for name in list(SettingsEnum._value2member_map_.values()):
@@ -94,6 +100,10 @@ class SettingsService:
     async def activation_date_alert_upsert(self, data: ActivationDateAlertSchema):
         datas = data.model_dump(mode='json')
         return await SettingsRepo(session=self.session).upsert_replace(name=SettingsEnum.ACTIVATION_DATE_ALERT.value, datas=datas)
+
+    async def global_alerts_upsert(self, data: GlobalAlertsSchema):
+        datas = data.model_dump(mode='json')
+        return await SettingsRepo(session=self.session).upsert_replace(name=SettingsEnum.GLOBAL_ALERTS.value, datas=datas)
 
     async def get(self,id:int):
         settings=await SettingsRepo(session=self.session).get(id=id)

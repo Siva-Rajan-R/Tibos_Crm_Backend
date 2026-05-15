@@ -9,12 +9,13 @@ from tasks.arq_tasks.workers.alert import (
     send_report_schedule,
     send_pending_invoice_alert,
     send_activation_date_alert,
+    run_test_report,
 )
 
 
 async def main():
     worker = Worker(
-        functions=[generate_excel_report],
+        functions=[generate_excel_report, run_test_report],
         cron_jobs=[
             # runs every minute at second :00 — each function checks internally
             # whether the configured HH:MM matches before doing anything

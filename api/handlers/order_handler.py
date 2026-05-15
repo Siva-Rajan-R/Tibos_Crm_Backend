@@ -1,3 +1,4 @@
+from typing import Optional
 from infras.primary_db.services.order_service import OrdersService
 from sqlalchemy import select,delete,update,or_,func,String
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -377,12 +378,11 @@ class HandleOrdersRequest:
             data=report
         )
 
-    async def get_distributor_projection_report(self,data):
-        report=await OrdersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_distributor_projection_report(
+    async def get_distributor_projection_report(self, data):
+        report = await OrdersService(session=self.session, user_role=self.user_role, cur_user_id=self.cur_user_id).get_distributor_projection_report(
             distributor_id=data.distributor_id,
             from_date=data.from_date,
             to_date=data.to_date,
-            starting_month=data.starting_month,
             date_by=data.date_by.value if hasattr(data.date_by, 'value') else data.date_by
         )
         if not report or isinstance(report,ErrorResponseTypDict):
@@ -405,4 +405,47 @@ class HandleOrdersRequest:
                 msg="Distributor projection report generated successfully"
             ),
             data=report
+        )
+
+    async def get_pending_invoice_alert(self, days_threshold: Optional[int] = None):
+        if days_threshold is None:
+            settings_service = SettingsService(session=self.session)
+            settings = await settings_service.getby_name(name=SettingsEnum.PENDING_INVOICE_ALERT)
+            
+            days_threshold = 1
+            if settings and settings.get('settings'):
+                datas = settings['settings'][0].get('datas', {})
+                days_threshold = int(datas.get('days_threshold', 1))
+            
+        res = await OrdersService(session=self.session, user_role=self.user_role, cur_user_id=self.cur_user_id).get_pending_invoice_alert(days_threshold=days_threshold)
+        return SuccessResponseTypDict(
+            detail=BaseResponseTypDict(
+                status_code=200,
+                success=True,
+                msg="Pending invoice alerts fetched successfully"
+            ),
+            data=res
+        )
+
+    async def get_activation_date_alert(self, days_before: Optional[int] = None, days_after: Optional[int] = None):
+        if days_before is None or days_after is None:
+            settings_service = SettingsService(session=self.session)
+            settings = await settings_service.getby_name(name=SettingsEnum.ACTIVATION_DATE_ALERT)
+            
+            if days_before is None: days_before = 2
+            if days_after is None: days_after = 2
+            
+            if settings and settings.get('settings'):
+                datas = settings['settings'][0].get('datas', {})
+                if days_before == 2: days_before = int(datas.get('days_before', 2))
+                if days_after == 2: days_after = int(datas.get('days_after', 2))
+            
+        res = await OrdersService(session=self.session, user_role=self.user_role, cur_user_id=self.cur_user_id).get_activation_date_alert(days_before=days_before, days_after=days_after)
+        return SuccessResponseTypDict(
+            detail=BaseResponseTypDict(
+                status_code=200,
+                success=True,
+                msg="Activation date alerts fetched successfully"
+            ),
+            data=res
         )

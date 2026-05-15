@@ -5,13 +5,22 @@ from api.dependencies.token_verification import verify_user
 from ..handlers.contact_handler import HandleContactsRequest
 from typing import Optional,Literal
 from core.data_formats.enums.dd_enums import ImportExportTypeEnum
-from schemas.request_schemas.setting import EmailSettingSchema, EmailUpdateSchema, ReportScheduleSchema, PendingDuesAlertSchema, PendingDuesAlertTestSchema, EmailTemplateSchema, PendingInvoiceAlertSchema, ActivationDateAlertSchema
+from schemas.request_schemas.setting import (
+    EmailSettingSchema, EmailUpdateSchema, ReportScheduleSchema, 
+    PendingDuesAlertSchema, PendingDuesAlertTestSchema, EmailTemplateSchema, 
+    PendingInvoiceAlertSchema, ActivationDateAlertSchema, TriggerTestReportSchema,
+    GlobalAlertsSchema
+)
 from infras.primary_db.main import AsyncSession,get_pg_db_session
 from infras.primary_db.services.setting_service import SettingsService
 from core.data_formats.enums.dd_enums import SettingsEnum
 
 
 router=APIRouter(prefix="/settings",tags=["Settings CRUD"])
+
+@router.post('/test-report')
+async def trigger_test_report(data: TriggerTestReportSchema, session: AsyncSession = Depends(get_pg_db_session)):
+    return await SettingsService(session=session).trigger_test_report(report_type=data.report_type, recipients=data.recipients)
 
 @router.post('/email')
 async def settings_email(data:EmailSettingSchema,session:AsyncSession=Depends(get_pg_db_session)):
@@ -57,3 +66,7 @@ async def upsert_pending_invoice_alert(data:PendingInvoiceAlertSchema,session:As
 @router.post('/activation-date-alert')
 async def upsert_activation_date_alert(data:ActivationDateAlertSchema,session:AsyncSession=Depends(get_pg_db_session)):
     return await SettingsService(session=session).activation_date_alert_upsert(data=data)
+
+@router.post('/unified-alerts')
+async def upsert_unified_alerts(data:GlobalAlertsSchema,session:AsyncSession=Depends(get_pg_db_session)):
+    return await SettingsService(session=session).global_alerts_upsert(data=data)

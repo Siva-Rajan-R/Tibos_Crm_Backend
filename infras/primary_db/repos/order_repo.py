@@ -1,6 +1,7 @@
 from typing import cast,List
 import io
 import pandas as pd
+from datetime import datetime, timedelta, date
 from . import HTTPException,BaseRepoModel
 from ..models.order import Orders,OrdersPaymentInvoiceInfo
 from ..models.product import Products
@@ -619,6 +620,10 @@ class OrdersRepo(BaseRepoModel):
                 func.coalesce(invoice_stats_subq.c.tds_paid_sum, 0)
             )
 
+            pending_invoice_amount_raw = func.round(
+                func.coalesce(invoice_stats_subq.c.pending_invoice, 0) * expected_invoice_amount
+            )
+
             not_paid_amount = case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.NOT_PAID.value), not_paid_amount_raw), else_=0)
             gst_pending_amount = case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.GST_PENDING.value), gst_pending_amount_raw), else_=0)
             half_pending_amount = case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.HALF_PAYMENT_RECEIVED.value), half_pending_amount_raw), else_=0)
@@ -701,6 +706,7 @@ class OrdersRepo(BaseRepoModel):
                     func.sum(gst_pending_amount).label("gst_amounts"),
                     func.sum(half_pending_amount).label("half_amounts"),
                     func.sum(short_pending_amount).label("short_amounts"),
+                    func.sum(pending_invoice_amount_raw).label("pending_amounts"),
                     func.sum(not_paid_amount + tds_pending_amount + gst_pending_amount + half_pending_amount + short_pending_amount).label("tot_pending_amounts")
 
                 )
@@ -1168,9 +1174,12 @@ class OrdersRepo(BaseRepoModel):
         # --- Conditions ---
         conditions = [
             Orders.is_deleted == False,
-            date_field >= from_date,
-            date_field <= to_date,
         ]
+        
+        if from_date:
+            conditions.append(date_field >= from_date)
+        if to_date:
+            conditions.append(date_field <= to_date)
 
         if owner_name:
             conditions.append(Customers.owner == owner_name)
@@ -1353,7 +1362,9 @@ class OrdersRepo(BaseRepoModel):
         if date_by:
             date_by_val = date_by.value if hasattr(date_by, 'value') else date_by
 
-        if date_by_val == OrderFilterDateByEnum.REQUESTED_DATE.value:
+        if date_by_val == OrderFilterDateByEnum.ACTIVATION_DATE.value:
+            date_field = cast(Orders.delivery_info["delivery_date"].astext, Date)
+        elif date_by_val == OrderFilterDateByEnum.REQUESTED_DATE.value:
             date_field = cast(Orders.delivery_info["requested_date"].astext, Date)
         elif date_by_val == OrderFilterDateByEnum.CREATED_DATE.value:
             date_field = cast(Orders.created_at, Date)
@@ -1403,14 +1414,17 @@ class OrdersRepo(BaseRepoModel):
         # --- Conditions: only COMPLETED invoices with pending payment ---
         conditions = [
             Orders.is_deleted == False,
-            date_field >= from_date,
-            date_field <= to_date,
             OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value,
             OrdersPaymentInvoiceInfo.payment_status.notin_([
                 PaymentStatus.PAID.value,
                 PaymentStatus.FULL_PAYMENT_RECEIVED.value
             ]),
         ]
+
+        if from_date:
+            conditions.append(date_field >= from_date)
+        if to_date:
+            conditions.append(date_field <= to_date)
 
         if owner_name and owner_name.upper() != 'ALL':
             conditions.append(Customers.owner == owner_name)
@@ -1516,11 +1530,12 @@ class OrdersRepo(BaseRepoModel):
         }
 
         return {
+            "owners": owners_data,
             "owner_summaries": owner_summaries,
             "grand_total": grand_total
         }
 
-    async def get_distributor_projection_report(self, distributor_id, from_date, to_date, starting_month=None, date_by=OrderFilterDateByEnum.CREATED_DATE.value):
+    async def get_distributor_projection_report(self, distributor_id, from_date, to_date, starting_month=None, date_by=OrderFilterDateByEnum.ACTIVATION_DATE.value):
         """
         Distributor Projection Report grouped by order creation month with 12-month projections.
         """
@@ -1540,10 +1555,15 @@ class OrdersRepo(BaseRepoModel):
 
         conditions = [
             Orders.is_deleted == False,
-            Orders.distributor_id == distributor_id,
-            date_field >= from_date,
-            date_field <= to_date,
         ]
+
+        if distributor_id and distributor_id.upper() != 'ALL':
+            conditions.append(Orders.distributor_id == distributor_id)
+
+        if from_date:
+            conditions.append(date_field >= from_date)
+        if to_date:
+            conditions.append(date_field <= to_date)
 
         report_stmt = (
             select(
@@ -1640,6 +1660,76 @@ class OrdersRepo(BaseRepoModel):
             "rows": result_rows,
             "columns": sorted_cols
         }
+
+    async def get_pending_invoice_alert(self, days_threshold: int):
+        stmt = (
+            select(
+                Orders.id.label("order_id"),
+                Orders.ui_id.label("ui_id"),
+                Customers.name.label("customer_name"),
+                Customers.owner.label("owner_name"),
+                Orders.created_at,
+                func.floor(func.extract('epoch', (func.now() - Orders.created_at)) / 86400).label("days_since_created"),
+                OrdersPaymentInvoiceInfo.invoice_status
+            )
+            .join(Customers, Orders.customer_id == Customers.id)
+            .join(OrdersPaymentInvoiceInfo, Orders.id == OrdersPaymentInvoiceInfo.order_id)
+            .where(
+                and_(
+                    OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.INCOMPLETED.value,
+                    Orders.is_deleted == False,
+                    Orders.created_at <= (datetime.now() - timedelta(days=days_threshold)) if days_threshold > 0 else True
+                )
+            )
+            .order_by(desc(Orders.created_at))
+        )
+        
+        results = (await self.session.execute(stmt)).mappings().all()
+        return [dict(r) for r in results]
+
+    async def get_activation_date_alert(self, days_before: Optional[int] = 2, days_after: Optional[int] = 2):
+        today = date.today()
+        # Treat 0 as None (All Time)
+        ub = None if (days_before is None or days_before == 0) else days_before
+        ua = None if (days_after is None or days_after == 0) else days_after
+        
+        upcoming_limit = today + timedelta(days=ub) if ub is not None else None
+        overdue_limit = today - timedelta(days=ua) if ua is not None else None
+
+        async def _get_alert_data(start_date: date, end_date: date):
+            # Postgres Date - Date = integer (days)
+            diff_col = (cast(Orders.delivery_info['delivery_date'].astext, Date) - func.current_date()).label("days_diff")
+            
+            stmt = (
+                select(
+                    Orders.id.label("order_id"),
+                    Orders.ui_id.label("ui_id"),
+                    Customers.name.label("customer_name"),
+                    Customers.owner.label("owner_name"),
+                    Orders.delivery_info['delivery_date'].astext.label("activation_date"),
+                    diff_col
+                )
+                .join(Customers, Orders.customer_id == Customers.id)
+                .where(
+                    and_(
+                        Orders.activated == False,
+                        Orders.is_deleted == False,
+                        cast(Orders.delivery_info['delivery_date'].astext, Date) >= start_date if start_date else True,
+                        cast(Orders.delivery_info['delivery_date'].astext, Date) <= end_date if end_date else True
+                    )
+                )
+                .order_by(cast(Orders.delivery_info['delivery_date'].astext, Date))
+            )
+            res = await self.session.execute(stmt)
+            return [dict(r) for r in res.mappings().all()]
+
+        # Upcoming: From today to today + days_before (or unlimited if 0)
+        upcoming = await _get_alert_data(today, today + timedelta(days=days_before) if days_before > 0 else None)
+        
+        # Overdue: From today - days_after (or unlimited if 0) to yesterday
+        overdue = await _get_alert_data(today - timedelta(days=days_after) if days_after > 0 else None, today - timedelta(days=1))
+
+        return {"upcoming": upcoming, "overdue": overdue}
 
 
 
@@ -1738,5 +1828,49 @@ class DistributorProjectionReportRepo(OrdersRepo):
             "next_cursor": None
         }
 
+class PendingInvoiceReportRepo(OrdersRepo):
+    async def get(self, **kwargs):
+        cursor = kwargs.get('cursor', 1)
+        if cursor is not None and int(cursor) != 1:
+            return {"data": [], "next_cursor": None}
+            
+        # Extract parameters - handle string values from background jobs
+        days_threshold = kwargs.get('days_threshold')
+        if isinstance(days_threshold, str):
+            days_threshold = int(days_threshold)
+        elif days_threshold is None:
+            days_threshold = 0
+            
+        data = await self.get_pending_invoice_alert(days_threshold=days_threshold)
+        
+        return {
+            "data": data,
+            "next_cursor": None
+        }
+
+class ActivationAlertReportRepo(OrdersRepo):
+    async def get(self, **kwargs):
+        cursor = kwargs.get('cursor', 1)
+        if cursor is not None and int(cursor) != 1:
+            return {"data": [], "next_cursor": None}
+            
+        days_before = kwargs.get('days_before', 2)
+        days_after = kwargs.get('days_after', 2)
+        
+        if isinstance(days_before, str): days_before = int(days_before)
+        if isinstance(days_after, str): days_after = int(days_after)
+            
+        report = await self.get_activation_date_alert(
+            days_before=days_before,
+            days_after=days_after
+        )
+        
+        upcoming = [{**r, "status": "Upcoming"} for r in report["upcoming"]]
+        overdue = [{**r, "status": "Overdue"} for r in report["overdue"]]
+        
+        return {
+            "data": upcoming + overdue,
+            "next_cursor": None
+        }
 
 

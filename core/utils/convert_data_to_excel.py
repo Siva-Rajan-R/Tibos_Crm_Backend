@@ -67,7 +67,8 @@ DATA_CONVERTER_MAPPER={
     'PRODUCTS':product_data_converter,
     'DISTRIBUTORS':distributor_data_converter,
     "ORDERS":order_data_converter,
-    "TRACKING_REPORT":tracking_report_data_converter
+    "TRACKING_REPORT":tracking_report_data_converter,
+    "DEFAULT_JSON_CONVERTER":tracking_report_data_converter
 }
 
 

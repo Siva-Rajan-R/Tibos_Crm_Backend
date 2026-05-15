@@ -223,7 +223,7 @@ def _base_style() -> str:
     """
 
 
-def get_payment_summary_html(report_data: dict, generated_at: str = None) -> str:
+def get_payment_summary_html(report_data: dict, from_date_iso: str = None, to_date_iso: str = None, generated_at: str = None) -> str:
     """
     Generates Payment Summary (Order Tracking) report email.
     """
@@ -232,9 +232,13 @@ def get_payment_summary_html(report_data: dict, generated_at: str = None) -> str
 
     owners = report_data.get("owners", [])
     grand_total = report_data.get("grand_total", {})
+    
+    # Limit to 15 rows
+    display_owners = owners[:15]
+    has_more = len(owners) > 15
 
     rows_html = ""
-    for row in owners:
+    for row in display_owners:
         rows_html += f"""
         <tr>
             <td style="font-weight:500;">{row.get('owner_name', '-')}</td>
@@ -296,9 +300,10 @@ def get_payment_summary_html(report_data: dict, generated_at: str = None) -> str
                     </tbody>
                 </table>
             </div>
+            {f'<div style="text-align:center; padding:10px; color:#64748b; font-size:12px; font-style:italic;">... and {len(owners) - 15} more owners</div>' if has_more else ''}
             
             <div class="btn-container">
-                <a href="{FRONTEND_URL}/report-view/payment_summary" class="btn">View in CRM Dashboard</a>
+                <a href="{FRONTEND_URL}/report-view/payment_summary?from_date={from_date_iso}&to_date={to_date_iso}&date_by=ACTIVATION_DATE" class="btn">View Full Report in CRM</a>
             </div>
         </div>
         <div class="footer">
@@ -310,7 +315,7 @@ def get_payment_summary_html(report_data: dict, generated_at: str = None) -> str
     """
 
 
-def get_payment_pending_html(report_data: dict, generated_at: str = None) -> str:
+def get_payment_pending_html(report_data: dict, from_date_iso: str = None, to_date_iso: str = None, generated_at: str = None) -> str:
     """
     Generates Payment Pending report email.
     """
@@ -320,6 +325,10 @@ def get_payment_pending_html(report_data: dict, generated_at: str = None) -> str
     owners = report_data.get("owners", [])
     grand_total = report_data.get("grand_total", {})
     owner_summaries = report_data.get("owner_summaries", [])
+    
+    # Limit to 15 rows
+    display_owners = owners[:15]
+    has_more = len(owners) > 15
 
     summary_html = ""
     for s in owner_summaries:
@@ -333,7 +342,7 @@ def get_payment_pending_html(report_data: dict, generated_at: str = None) -> str
         """
 
     rows_html = ""
-    for row in owners:
+    for row in display_owners:
         rows_html += f"""
         <tr>
             <td style="font-weight:500;">{row.get('owner_name', '-')}</td>
@@ -401,9 +410,10 @@ def get_payment_pending_html(report_data: dict, generated_at: str = None) -> str
                     </tbody>
                 </table>
             </div>
-            
+            {f'<div style="text-align:center; padding:10px; color:#64748b; font-size:12px; font-style:italic;">... and {len(owners) - 15} more entries</div>' if has_more else ''}
+
             <div class="btn-container">
-                <a href="{FRONTEND_URL}/report-view/payment_pending" class="btn btn-red">Take Action on Pending Payments</a>
+                <a href="{FRONTEND_URL}/admin/activation-date-alert?from_date={from_date_iso}&to_date={to_date_iso}&min_days_pending=0&date_by=ACTIVATION_DATE" class="btn btn-red">View Full Report in CRM</a>
             </div>
         </div>
         <div class="footer">
@@ -422,8 +432,12 @@ def get_pending_invoice_alert_html(flagged_orders: list, days_threshold: int, ge
     if not generated_at:
         generated_at = datetime.now().strftime("%d %b %Y, %I:%M %p IST")
 
+    # Limit to 15 rows
+    display_orders = flagged_orders[:15]
+    has_more = len(flagged_orders) > 15
+
     rows_html = ""
-    for order in flagged_orders:
+    for order in display_orders:
         days = order.get("days_since_created", 0)
         badge_cls = "badge-red" if days > 30 else ("badge-amber" if days > 7 else "badge-blue")
         rows_html += f"""
@@ -471,9 +485,10 @@ def get_pending_invoice_alert_html(flagged_orders: list, days_threshold: int, ge
                     <tbody>{rows_html}</tbody>
                 </table>
             </div>
+            {f'<div style="text-align:center; padding:10px; color:#64748b; font-size:12px; font-style:italic;">... and {len(flagged_orders) - 15} more orders</div>' if has_more else ''}
             
             <div class="btn-container">
-                <a href="{FRONTEND_URL}/orders" class="btn" style="background:#d97706;">Review Flagged Orders</a>
+                <a href="{FRONTEND_URL}/admin/pending-invoice-alert" class="btn" style="background:#d97706;">View All Pending Invoices</a>
             </div>
         </div>
         <div class="footer">
@@ -493,8 +508,12 @@ def get_activation_date_alert_html(upcoming_orders: list, overdue_orders: list, 
         generated_at = datetime.now().strftime("%d %b %Y, %I:%M %p IST")
 
     def _render_rows(orders, is_overdue=False):
+        # Limit to 15 per section
+        display_orders = orders[:15]
+        has_more = len(orders) > 15
+        
         html = ""
-        for order in orders:
+        for order in display_orders:
             diff_label = "days past" if is_overdue else "days until"
             badge_cls = "badge-red" if is_overdue else "badge-blue"
             html += f"""
@@ -506,6 +525,8 @@ def get_activation_date_alert_html(upcoming_orders: list, overdue_orders: list, 
                 <td><span class="badge {badge_cls}">{order.get('days_diff', 0)} {diff_label}</span></td>
             </tr>
             """
+        if has_more:
+            html += f'<tr><td colspan="5" style="text-align:center; padding:10px; color:#64748b; font-size:11px; font-style:italic;">... and {len(orders) - 15} more orders</td></tr>'
         return html
 
     upcoming_html = _render_rows(upcoming_orders) if upcoming_orders else '<tr><td colspan="5" style="text-align:center; padding:32px; color:#94a3b8; font-style:italic;">No upcoming activations found in this window.</td></tr>'
@@ -555,7 +576,7 @@ def get_activation_date_alert_html(upcoming_orders: list, overdue_orders: list, 
             </div>
             
             <div class="btn-container">
-                <a href="{FRONTEND_URL}/orders" class="btn" style="background:#059669;">Manage Deliveries</a>
+                <a href="{FRONTEND_URL}/activation-date-alert" class="btn" style="background:#059669;">View Full Activation Report</a>
             </div>
         </div>
         <div class="footer">
@@ -1372,5 +1393,156 @@ def get_combined_report_html(
 
 </body>
 
+</html>
+"""
+
+
+def get_pending_dues_breakdown_html(categories: list, counts: dict, total_dues: int, total_amounts: float, generated_at: str = None) -> str:
+    """
+    Generates a premium breakdown email for pending dues, mirroring the dashboard's design.
+    """
+    if not generated_at:
+        generated_at = datetime.now().strftime("%d %b %Y, %I:%M %p IST")
+
+    CATEGORY_META = {
+        "tds_pending":      {"label": "TDS PENDING",      "color": "#7c3aed", "bg": "#f5f3ff", "icon": "T", "sub": "Tax deducted at source"},
+        "not_paid":         {"label": "NOT PAID",          "color": "#e11d48", "bg": "#fff1f2", "icon": "N", "sub": "Unpaid invoices"},
+        "gst_pending":      {"label": "GST PENDING",       "color": "#d97706", "bg": "#fffbeb", "icon": "G", "sub": "GST dues pending"},
+        "short_pending":    {"label": "SHORT PENDING",     "color": "#b45309", "bg": "#fef9c3", "icon": "S", "sub": "Short payment amounts"},
+        "half_pending":     {"label": "HALF PENDING",      "color": "#c2410c", "bg": "#fff7ed", "icon": "H", "sub": "Partial payments pending"},
+        "pending_invoices": {"label": "PENDING INVOICES",  "color": "#374151", "bg": "#f9fafb", "icon": "I", "sub": "Orders awaiting generation"},
+        "not_activated":    {"label": "NOT ACTIVATED",     "color": "#db2777", "bg": "#fdf2f8", "icon": "X", "sub": "Inactive accounts"},
+    }
+
+    cards_html = ""
+    # Process in pairs for 2-column layout
+    for i in range(0, len(categories), 2):
+        row_cats = categories[i:i+2]
+        cards_html += '<tr>'
+        for cat_key in row_cats:
+            meta = CATEGORY_META.get(cat_key, {"label": cat_key.upper(), "color": "#64748b", "bg": "#f8fafc", "icon": "?", "sub": ""})
+            data = counts.get(cat_key, {"count": 0, "amount": 0})
+            count = data.get("count", 0)
+            amount = data.get("amount", 0)
+            
+            cards_html += f"""
+            <td width="50%" style="padding:8px; vertical-align:top;">
+                <table width="100%" cellpadding="0" cellspacing="0" style="background:{meta['bg']}; border:1px solid {meta['color']}20; border-radius:12px; overflow:hidden;">
+                    <tr>
+                        <td style="padding:16px;">
+                            <table width="100%" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td width="40" height="40" style="background:{meta['color']}15; border-radius:8px; text-align:center; vertical-align:middle;">
+                                        <span style="font-size:18px; font-weight:900; color:{meta['color']};">{meta['icon']}</span>
+                                    </td>
+                                    <td align="right" style="vertical-align:top;">
+                                        <span style="background:{meta['color']}; color:#fff; font-size:12px; font-weight:800; padding:2px 10px; border-radius:20px;">{count}</span>
+                                    </td>
+                                </tr>
+                            </table>
+                            <div style="margin-top:12px;">
+                                <p style="margin:0; font-size:10px; font-weight:800; color:{meta['color']}; letter-spacing:1px; text-transform:uppercase;">{meta['label']}</p>
+                                <p style="margin:4px 0; font-size:20px; font-weight:900; color:{meta['color']};">{_currency(amount)}</p>
+                                <p style="margin:0; font-size:10px; color:#64748b;">{meta['sub']}</p>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+            """
+        if len(row_cats) == 1:
+            cards_html += '<td width="50%"></td>'
+        cards_html += '</tr>'
+
+    return f"""
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Pending Dues Breakdown</title>
+</head>
+<body style="margin:0; padding:0; background-color:#f1f5f9; font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif;">
+    <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#f1f5f9; padding:40px 20px;">
+        <tr>
+            <td align="center">
+                <table width="600" cellpadding="0" cellspacing="0" style="background-color:#ffffff; border-radius:16px; overflow:hidden; box-shadow:0 10px 25px rgba(0,0,0,0.05); border:1px solid #e2e8f0;">
+                    <!-- Header -->
+                    <tr>
+                        <td style="background: linear-gradient(135deg, #e11d48 0%, #be123c 100%); padding:40px; text-align:left;">
+                            <h1 style="margin:0; font-size:28px; font-weight:800; color:#ffffff; letter-spacing:-0.5px;">Pending Dues Breakdown</h1>
+                            <p style="margin:10px 0 0; font-size:14px; color:rgba(255,255,255,0.8); font-style:italic;">Detailed view of all pending amounts &middot; {generated_at}</p>
+                        </td>
+                    </tr>
+
+                    <!-- Summary Stats -->
+                    <tr>
+                        <td style="padding:32px 32px 16px;">
+                            <table width="100%" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td width="50%" style="padding-right:12px;">
+                                        <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#fff1f2; border:2px solid #fecdd3; border-radius:16px; padding:20px;">
+                                            <tr>
+                                                <td>
+                                                    <span style="background-color:#e11d48; color:#ffffff; font-size:10px; font-weight:800; padding:3px 10px; border-radius:4px; letter-spacing:1px;">PRIMARY</span>
+                                                    <p style="margin:12px 0 4px; font-size:10px; font-weight:800; color:#be123c; letter-spacing:1px;">TOTAL PENDING DUES</p>
+                                                    <p style="margin:0; font-size:48px; font-weight:900; color:#e11d48; line-height:1;">{total_dues}</p>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                    <td width="50%" style="padding-left:12px;">
+                                        <table width="100%" cellpadding="0" cellspacing="0" style="background-color:#fff7ed; border:2px solid #fed7aa; border-radius:16px; padding:20px;">
+                                            <tr>
+                                                <td>
+                                                    <span style="background-color:#ea580c; color:#ffffff; font-size:10px; font-weight:800; padding:3px 10px; border-radius:4px; letter-spacing:1px;">TOTAL</span>
+                                                    <p style="margin:12px 0 4px; font-size:10px; font-weight:800; color:#c2410c; letter-spacing:1px;">TOTAL PENDING AMOUNTS</p>
+                                                    <p style="margin:0; font-size:28px; font-weight:900; color:#ea580c; line-height:1.2;">{_currency(total_amounts)}</p>
+                                                </td>
+                                            </tr>
+                                        </table>
+                                    </td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Divider -->
+                    <tr>
+                        <td style="padding:20px 32px;">
+                            <table width="100%" cellpadding="0" cellspacing="0">
+                                <tr>
+                                    <td style="border-top:1px solid #e5e7eb;"></td>
+                                    <td style="width:200px; text-align:center; font-size:10px; font-weight:700; color:#94a3b8; letter-spacing:2px; text-transform:uppercase; padding:0 15px;">Breakdown by Category</td>
+                                    <td style="border-top:1px solid #e5e7eb;"></td>
+                                </tr>
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Category Cards -->
+                    <tr>
+                        <td style="padding:0 24px 32px;">
+                            <table width="100%" cellpadding="0" cellspacing="0">
+                                {cards_html}
+                            </table>
+                        </td>
+                    </tr>
+
+                    <!-- Footer -->
+                    <tr>
+                        <td style="background-color:#f8fafc; padding:30px; text-align:center; border-top:1px solid #e2e8f0;">
+                            <p style="margin:0; font-size:12px; font-weight:700; color:#1e293b;">TIBOS CRM Intelligence</p>
+                            <p style="margin:4px 0 0; font-size:10px; color:#64748b;">Generated on {generated_at}</p>
+                            <div style="margin-top:20px;">
+                                <a href="{FRONTEND_URL}/reports" style="background-color:#0f172a; color:#ffffff; text-decoration:none; font-size:12px; font-weight:700; padding:12px 24px; border-radius:8px;">View Full Reports</a>
+                            </div>
+                        </td>
+                    </tr>
+                </table>
+            </td>
+        </tr>
+    </table>
+</body>
 </html>
 """

@@ -551,6 +551,12 @@ class OrdersService(BaseServiceModel):
             distributor_id=distributor_id, from_date=from_date, to_date=to_date, starting_month=starting_month, date_by=date_by
         )
 
+    async def get_pending_invoice_alert(self, days_threshold: int):
+        return await OrdersRepo(session=self.session, user_role=self.user_role, cur_user_id=self.cur_user_id).get_pending_invoice_alert(days_threshold=days_threshold)
+
+    async def get_activation_date_alert(self, days_before: int, days_after: int):
+        return await OrdersRepo(session=self.session, user_role=self.user_role, cur_user_id=self.cur_user_id).get_activation_date_alert(days_before=days_before, days_after=days_after)
+
 
 
 

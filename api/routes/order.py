@@ -8,9 +8,23 @@ from core.data_formats.enums.dd_enums import ImportExportTypeEnum
 from schemas.request_schemas.order import OrderFilterSchema
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict
 from core.utils.export_func import create_excel_export
-from infras.primary_db.repos.order_repo import OrdersRepo, OrderTrackingReportRepo, PaymentPendingReportRepo, DistributorProjectionReportRepo
+from infras.primary_db.repos.order_repo import (
+    OrdersRepo, 
+    OrderTrackingReportRepo, 
+    PaymentPendingReportRepo, 
+    DistributorProjectionReportRepo,
+    PendingInvoiceReportRepo,
+    ActivationAlertReportRepo
+)
 from core.data_formats.enums.user_enums import UserRoles
-from models.import_export_models.exports.excel_headings_mapper import ORDERS_MAPPER, ORDER_TRACKING_REPORT_MAPPER, PAYMENT_PENDING_REPORT_MAPPER, DISTRIBUTOR_PROJECTION_REPORT_MAPPER
+from models.import_export_models.exports.excel_headings_mapper import (
+    ORDERS_MAPPER, 
+    ORDER_TRACKING_REPORT_MAPPER, 
+    PAYMENT_PENDING_REPORT_MAPPER, 
+    DISTRIBUTOR_PROJECTION_REPORT_MAPPER,
+    PENDING_INVOICE_REPORT_MAPPER,
+    ACTIVATION_ALERT_REPORT_MAPPER
+)
 from schemas.request_schemas.export import ExportFields
 from tasks.arq_tasks.enqueues.report import enqueue_excel_report_job
 from pydantic import EmailStr
@@ -425,3 +439,77 @@ async def get_distributor_projection_export_fields(user:dict=Depends(verify_user
         ),
         data=fields
     )
+
+@router.get('/report/pending-invoices')
+async def get_pending_invoice_alert(days_threshold: Optional[int] = Query(None), user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+    return await HandleOrdersRequest(
+        session=session,
+        user_role=user['role'],
+        cur_user_id=user['id']
+    ).get_pending_invoice_alert(days_threshold=days_threshold)
+
+@router.get('/report/activation-alerts')
+async def get_activation_date_alert(days_before: Optional[int] = Query(None), days_after: Optional[int] = Query(None), user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+    return await HandleOrdersRequest(
+        session=session,
+        user_role=user['role'],
+        cur_user_id=user['id']
+    ).get_activation_date_alert(days_before=days_before, days_after=days_after)
+
+@router.post('/report/pending-invoices/export')
+async def export_pending_invoice_report(days_threshold: Optional[int] = Query(0), user:dict=Depends(verify_user)):
+    if user['role']!=UserRoles.SUPER_ADMIN.value:
+        raise HTTPException(status_code=401, detail="Insufficient Permission")
+    
+    user_email:EmailStr=user['email']
+    if user_email.split('@')[-1].lower()!='tibos.in':
+        raise HTTPException(status_code=401, detail="Invalid User for export")
+    
+    await enqueue_excel_report_job(
+        user_id=user['id'],
+        kwargs={"days_threshold": days_threshold},
+        emails_tosend=[user_email],
+        mapper=PENDING_INVOICE_REPORT_MAPPER,
+        data_cls=PendingInvoiceReportRepo,
+        data_key='data',
+        converter_name='DEFAULT_JSON_CONVERTER',
+        sheet_name="Pending Invoices",
+        file_name='TibosCrmPendingInvoices.xlsx',
+        report_name="Pending Invoices Report"
+    )
+    return SuccessResponseTypDict(detail=BaseResponseTypDict(msg="Export started", status_code=200, success=True))
+
+@router.get('/report/pending-invoices/export/fields')
+async def get_pending_invoice_export_fields(user:dict=Depends(verify_user)):
+    if user['role']!=UserRoles.SUPER_ADMIN.value:
+        raise HTTPException(status_code=401, detail="Insufficient Permission")
+    return SuccessResponseTypDict(detail=BaseResponseTypDict(msg="Success", status_code=200, success=True), data=list(PENDING_INVOICE_REPORT_MAPPER.values()))
+
+@router.post('/report/activation-alerts/export')
+async def export_activation_alerts_report(days_before: int = 2, days_after: int = 2, user:dict=Depends(verify_user)):
+    if user['role']!=UserRoles.SUPER_ADMIN.value:
+        raise HTTPException(status_code=401, detail="Insufficient Permission")
+    
+    user_email:EmailStr=user['email']
+    if user_email.split('@')[-1].lower()!='tibos.in':
+        raise HTTPException(status_code=401, detail="Invalid User for export")
+    
+    await enqueue_excel_report_job(
+        user_id=user['id'],
+        kwargs={"days_before": days_before, "days_after": days_after},
+        emails_tosend=[user_email],
+        mapper=ACTIVATION_ALERT_REPORT_MAPPER,
+        data_cls=ActivationAlertReportRepo,
+        data_key='data',
+        converter_name='DEFAULT_JSON_CONVERTER',
+        sheet_name="Activation Alerts",
+        file_name='TibosCrmActivationAlerts.xlsx',
+        report_name="Activation Alerts Report"
+    )
+    return SuccessResponseTypDict(detail=BaseResponseTypDict(msg="Export started", status_code=200, success=True))
+
+@router.get('/report/activation-alerts/export/fields')
+async def get_activation_alerts_export_fields(user:dict=Depends(verify_user)):
+    if user['role']!=UserRoles.SUPER_ADMIN.value:
+        raise HTTPException(status_code=401, detail="Insufficient Permission")
+    return SuccessResponseTypDict(detail=BaseResponseTypDict(msg="Success", status_code=200, success=True), data=list(ACTIVATION_ALERT_REPORT_MAPPER.values()))

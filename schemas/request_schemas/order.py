@@ -145,22 +145,23 @@ class UpdateCartOrderSchema(BaseModel):
     products:List[UpdateCartOrderProductSchema]
 
 class OrderTrackingReportSchema(BaseModel):
-    from_date:date
-    to_date:date
+    from_date:Optional[date]=None
+    to_date:Optional[date]=None
     owner_name:Optional[str]=None
     date_by:Optional[OrderFilterDateByEnum]=OrderFilterDateByEnum.ACTIVATION_DATE
 
+
 class PaymentPendingReportSchema(BaseModel):
-    from_date:date
-    to_date:date
+    from_date:Optional[date]=None
+    to_date:Optional[date]=None
     owner_name:Optional[str]=None
     min_days_pending:Optional[int]=None
     date_by:Optional[OrderFilterDateByEnum]=OrderFilterDateByEnum.ACTIVATION_DATE
 
 
 class DistributorProjectionReportSchema(BaseModel):
-    distributor_id: str
-    from_date: date
-    to_date: date
+    distributor_id: Optional[str] = None
+    from_date: Optional[date]=None
+    to_date: Optional[date]=None
     starting_month: Optional[str] = None
-    date_by: Optional[OrderFilterDateByEnum] = OrderFilterDateByEnum.CREATED_DATE
+    date_by: Optional[OrderFilterDateByEnum] = OrderFilterDateByEnum.ACTIVATION_DATE

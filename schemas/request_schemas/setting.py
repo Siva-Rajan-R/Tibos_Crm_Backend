@@ -71,3 +71,37 @@ class ActivationDateAlertSchema(BaseModel):
     enabled: bool = False
     days_before_activation: int = 2
     days_after_activation: int = 2
+
+
+class TriggerTestReportSchema(BaseModel):
+    report_type: str
+    recipients: List[EmailStr]
+
+
+class GlobalAlertsSchema(BaseModel):
+    recipients: List[EmailStr] = []
+    sender_email: Optional[EmailStr] = None
+    
+    # Reports Schedule (Payment Summary + Pending)
+    payment_summary_enabled: bool = True
+    payment_pending_enabled: bool = True
+    payment_pending_min_days: Optional[int] = None
+    daily: DailyScheduleSchema = DailyScheduleSchema()
+    weekly: WeeklyScheduleSchema = WeeklyScheduleSchema()
+    monthly: MonthlyScheduleSchema = MonthlyScheduleSchema()
+    
+    # Pending Dues Alert
+    dues_enabled: bool = False
+    dues_time: str = "09:00"
+    dues_categories: List[str] = []
+    
+    # Pending Invoice Alert
+    invoice_enabled: bool = False
+    invoice_time: str = "09:00"
+    invoice_days: int = 1
+    
+    # Activation Date Alert
+    activation_enabled: bool = False
+    activation_time: str = "09:00"
+    activation_before: int = 2
+    activation_after: int = 2
