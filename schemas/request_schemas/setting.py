@@ -92,16 +92,13 @@ class GlobalAlertsSchema(BaseModel):
     
     # Pending Dues Alert
     dues_enabled: bool = False
-    dues_time: str = "09:00"
     dues_categories: List[str] = []
     
     # Pending Invoice Alert
     invoice_enabled: bool = False
-    invoice_time: str = "09:00"
     invoice_days: int = 1
     
     # Activation Date Alert
     activation_enabled: bool = False
-    activation_time: str = "09:00"
     activation_before: int = 2
     activation_after: int = 2

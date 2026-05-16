@@ -98,8 +98,6 @@ async def _send_pending_dues_email(session, recipients, categories, subject="Pen
             "gst_pending":      {"count": res.get("gst_pendings", 0),      "amount": res.get("gst_amounts", 0)},
             "short_pending":    {"count": res.get("short_pendings", 0),    "amount": res.get("short_amounts", 0)},
             "half_pending":     {"count": res.get("half_pendings", 0),     "amount": res.get("half_amounts", 0)},
-            "pending_invoices": {"count": res.get("pending_invoice", 0),   "amount": res.get("pending_amounts", 0)},
-            "not_activated":    {"count": res.get("not_activated", 0),     "amount": 0},
         }
 
         # Filter categories based on config
@@ -130,10 +128,10 @@ async def _send_pending_dues_email(session, recipients, categories, subject="Pen
         return False
 
 
-async def send_pending_dues_alert(ctx):
+async def send_pending_dues_alert(ctx, force=False):
     """
-    Runs every minute via ARQ cron.
-    Sends the pending-dues breakdown email when the configured IST time matches.
+    Runs every minute via ARQ cron (if still in cron) OR called from send_report_schedule.
+    Sends the pending-dues breakdown email.
     Redis key prevents double-sends within the same calendar day.
     """
     redis = ctx["redis"]
@@ -145,6 +143,7 @@ async def send_pending_dues_alert(ctx):
         global_cfg = await _get_global_config(session)
         if global_cfg:
             enabled = global_cfg.get("dues_enabled", False)
+            # Use global schedule if called from there, otherwise fallback to dues_time if it exists
             alert_time = global_cfg.get("dues_time", "09:00")
             recipients = global_cfg.get("recipients", [])
             categories = global_cfg.get("dues_categories", [])
@@ -158,7 +157,10 @@ async def send_pending_dues_alert(ctx):
             recipients = config.get("recipients", [])
             categories = config.get("categories", [])
 
-    if not enabled or alert_time != current_hhmm:
+    if not enabled:
+        return
+        
+    if not force and alert_time != current_hhmm:
         return
 
     dedup_key = f"alert:pending_dues:sent:{today}"
@@ -170,7 +172,7 @@ async def send_pending_dues_alert(ctx):
         ic("[alert] pending dues: no recipients configured, skipping")
         return
 
-    ic(f"[alert] sending pending dues alert to {recipients} at {current_hhmm} IST")
+    ic(f"[alert] sending pending dues alert to {recipients}")
     
     sender_email = await _get_sender_email(session, global_cfg)
     success = await _send_pending_dues_email(
@@ -276,11 +278,11 @@ async def send_report_schedule(ctx):
 
                     # Use All-Time for pending report to ensure all outstanding items are captured
                     # but use ACTIVATION_DATE for consistency with frontend
-                    data = await repo.get_payment_pending_report(from_date=None, to_date=None, min_days_pending=min_days, date_by='ACTIVATION_DATE')
+                    data = await repo.get_payment_pending_report(from_date=from_date, to_date=to_date, min_days_pending=min_days, date_by='ACTIVATION_DATE')
                     html = get_payment_pending_html(
                         report_data=data,
-                        from_date_iso=None,
-                        to_date_iso=None,
+                        from_date_iso=from_date_iso,
+                        to_date_iso=to_date_iso,
                         min_days_pending=min_days
                     )
                     sender_email = await _get_sender_email(session, global_cfg)
@@ -293,8 +295,14 @@ async def send_report_schedule(ctx):
                         sender_email_id=sender_email
                     )
             
+            # --- Also trigger other enabled Alerts (Dues, Invoice, Activation) ---
+            # These will only send once per day due to their internal deduplication logic
+            await send_pending_dues_alert(ctx, force=True)
+            await send_pending_invoice_alert(ctx, force=True)
+            await send_activation_date_alert(ctx, force=True)
+
             await _mark_sent(redis, dedup_key)
-            ic(f"[report] {cadence} reports sent successfully")
+            ic(f"[report] {cadence} reports and alerts sent successfully")
             
             # SSE Notification
             async with AsyncLocalSession() as session:
@@ -302,7 +310,7 @@ async def send_report_schedule(ctx):
                     session=session,
                     recipients=recipients,
                     title=f"{subject_prefix} Sent",
-                    description=f"Automated {cadence} reports have been dispatched.",
+                    description=f"Automated {cadence} reports and alerts have been dispatched.",
                     type="info"
                 )
             return True
@@ -337,11 +345,10 @@ async def send_report_schedule(ctx):
 #  Orders where invoice is still INCOMPLETED
 #  after N days since order creation
 # ─────────────────────────────────────────────
-async def send_pending_invoice_alert(ctx):
+async def send_pending_invoice_alert(ctx, force=False):
     """
-    Runs every minute via ARQ cron.
-    Checks at 09:00 IST daily. Queries orders older than
-    configured days_after_order_created with incomplete invoices.
+    Runs every minute via ARQ cron (if still in cron) OR called from send_report_schedule.
+    Queries orders older than configured days_after_order_created with incomplete invoices.
     Sends to REPORT_SCHEDULE recipients.
     """
     redis = ctx["redis"]
@@ -377,7 +384,10 @@ async def send_pending_invoice_alert(ctx):
             sched_config = dict(sched_rows[0]).get("datas", {}) if sched_rows else {}
             recipients = sched_config.get("recipients", [])
 
-    if not enabled or alert_time != current_hhmm:
+    if not enabled:
+        return
+        
+    if not force and alert_time != current_hhmm:
         return
 
     # Also check pending dues alert recipients as fallback
@@ -478,11 +488,10 @@ async def send_pending_invoice_alert(ctx):
 #  ACTIVATION DATE ALERT
 #  Orders approaching or past activation date
 # ─────────────────────────────────────────────
-async def send_activation_date_alert(ctx):
+async def send_activation_date_alert(ctx, force=False):
     """
-    Runs every minute via ARQ cron.
-    Checks at 09:00 IST daily. Queries orders with activation dates
-    within the configured before/after window.
+    Runs every minute via ARQ cron (if still in cron) OR called from send_report_schedule.
+    Queries orders with activation dates within the configured before/after window.
     Sends to REPORT_SCHEDULE recipients.
     """
     redis = ctx["redis"]
@@ -521,7 +530,10 @@ async def send_activation_date_alert(ctx):
             sched_config = dict(sched_rows[0]).get("datas", {}) if sched_rows else {}
             recipients = sched_config.get("recipients", [])
 
-    if not enabled or alert_time != current_hhmm:
+    if not enabled:
+        return
+        
+    if not force and alert_time != current_hhmm:
         return
 
     if not recipients:
@@ -699,9 +711,9 @@ async def run_test_report(ctx, report_type: str, recipients: list):
                 except:
                     min_days = 0
 
-                # Use All-Time for pending report and ACTIVATION_DATE for consistency
-                pending_data = await repo.get_payment_pending_report(from_date=None, to_date=None, min_days_pending=min_days, date_by='ACTIVATION_DATE')
-                html_pending = get_payment_pending_html(report_data=pending_data, from_date_iso=None, to_date_iso=None, min_days_pending=min_days)
+                # Use current month for consistency with daily reports
+                pending_data = await repo.get_payment_pending_report(from_date=from_date, to_date=to_date, min_days_pending=min_days, date_by='ACTIVATION_DATE')
+                html_pending = get_payment_pending_html(report_data=pending_data, from_date_iso=from_date_iso, to_date_iso=to_date_iso, min_days_pending=min_days)
                 await send_email(client_ip="manual-trigger", reciver_emails=recipients, subject="[Test] Payment Pending Report", body=html_pending, is_html=True, sender_email_id=sender_email)
 
             # 2. Check for other enabled alerts (Global Config with Legacy Fallback)

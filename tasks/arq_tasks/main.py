@@ -19,10 +19,7 @@ async def main():
         cron_jobs=[
             # runs every minute at second :00 — each function checks internally
             # whether the configured HH:MM matches before doing anything
-            cron(send_pending_dues_alert, second=0),
             cron(send_report_schedule, second=0),
-            cron(send_pending_invoice_alert, second=0),
-            cron(send_activation_date_alert, second=0),
         ],
         redis_settings=RedisSettings.from_dsn(SETTINGS.REDIS_URL),
         max_jobs=10,

@@ -315,7 +315,7 @@ def get_payment_summary_html(report_data: dict, from_date_iso: str = None, to_da
     """
 
 
-def get_payment_pending_html(report_data: dict, from_date_iso: str = None, to_date_iso: str = None, generated_at: str = None) -> str:
+def get_payment_pending_html(report_data: dict, from_date_iso: str = None, to_date_iso: str = None, generated_at: str = None, min_days_pending: int = 0) -> str:
     """
     Generates Payment Pending report email.
     """
@@ -413,7 +413,7 @@ def get_payment_pending_html(report_data: dict, from_date_iso: str = None, to_da
             {f'<div style="text-align:center; padding:10px; color:#64748b; font-size:12px; font-style:italic;">... and {len(owners) - 15} more entries</div>' if has_more else ''}
 
             <div class="btn-container">
-                <a href="{FRONTEND_URL}/admin/activation-date-alert?from_date={from_date_iso}&to_date={to_date_iso}&min_days_pending=0&date_by=ACTIVATION_DATE" class="btn btn-red">View Full Report in CRM</a>
+                <a href="{FRONTEND_URL}/report-view/payment_pending?from_date={from_date_iso}&to_date={to_date_iso}&min_days_pending={min_days_pending}&date_by=ACTIVATION_DATE" class="btn btn-red">View Full Report in CRM</a>
             </div>
         </div>
         <div class="footer">
@@ -596,7 +596,8 @@ def get_combined_report_html(
     to_date_str: str = None,
     from_date_iso: str = None,
     to_date_iso: str = None,
-    generated_at: str = None
+    generated_at: str = None,
+    min_days_pending: int = 0
 ) -> str:
 
     from datetime import datetime, timedelta
@@ -1360,7 +1361,7 @@ def get_combined_report_html(
             </a>
 
             <a
-                href="{FRONTEND_URL}/report-view/payment_pending?from_date={from_date_iso}&to_date={to_date_iso}&min_days_pending=0&date_by=ACTIVATION_DATE"
+                href="{FRONTEND_URL}/report-view/payment_pending?from_date={from_date_iso}&to_date={to_date_iso}&min_days_pending={min_days_pending}&date_by=ACTIVATION_DATE"
                 class="btn btn-red"
                 target="_blank"
             >
@@ -1403,15 +1404,12 @@ def get_pending_dues_breakdown_html(categories: list, counts: dict, total_dues: 
     """
     if not generated_at:
         generated_at = datetime.now().strftime("%d %b %Y, %I:%M %p IST")
-
     CATEGORY_META = {
         "tds_pending":      {"label": "TDS PENDING",      "color": "#7c3aed", "bg": "#f5f3ff", "icon": "T", "sub": "Tax deducted at source"},
         "not_paid":         {"label": "NOT PAID",          "color": "#e11d48", "bg": "#fff1f2", "icon": "N", "sub": "Unpaid invoices"},
         "gst_pending":      {"label": "GST PENDING",       "color": "#d97706", "bg": "#fffbeb", "icon": "G", "sub": "GST dues pending"},
         "short_pending":    {"label": "SHORT PENDING",     "color": "#b45309", "bg": "#fef9c3", "icon": "S", "sub": "Short payment amounts"},
         "half_pending":     {"label": "HALF PENDING",      "color": "#c2410c", "bg": "#fff7ed", "icon": "H", "sub": "Partial payments pending"},
-        "pending_invoices": {"label": "PENDING INVOICES",  "color": "#374151", "bg": "#f9fafb", "icon": "I", "sub": "Orders awaiting generation"},
-        "not_activated":    {"label": "NOT ACTIVATED",     "color": "#db2777", "bg": "#fdf2f8", "icon": "X", "sub": "Inactive accounts"},
     }
 
     cards_html = ""

@@ -681,33 +681,33 @@ class OrdersRepo(BaseRepoModel):
 
             orders_infos_stmt=(
                 select(
-                    func.sum(profit_loss_price).label("total_revenue"),
-                    func.sum(distri_final_price).label("distributor_value"),
-                    func.sum(Orders.quantity).label("total_license"),
+                    func.coalesce(func.sum(profit_loss_price), 0).label("total_revenue"),
+                    func.coalesce(func.sum(distri_final_price), 0).label("distributor_value"),
+                    func.coalesce(func.sum(Orders.quantity), 0).label("total_license"),
                     func.count(Orders.id).label("total_orders"),
-                    func.sum(customer_final_price).label("order_value"),
+                    func.coalesce(func.sum(customer_final_price), 0).label("order_value"),
                     func.count().filter(Orders.activated.is_(False)).label("not_activated"),
-                    func.sum(invoice_stats_subq.c.pending_invoice).label("pending_invoice"),
-                    func.sum(case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.TDS_PENDING.value), invoice_stats_subq.c.tds_pendings), else_=0)).label("tds_pendings"),
-                    func.sum(
+                    func.coalesce(func.sum(invoice_stats_subq.c.pending_invoice), 0).label("pending_invoice"),
+                    func.coalesce(func.sum(case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.TDS_PENDING.value), invoice_stats_subq.c.tds_pendings), else_=0)), 0).label("tds_pendings"),
+                    func.coalesce(func.sum(
                         case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.TDS_PENDING.value), invoice_stats_subq.c.tds_pendings), else_=0) +
                         case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.NOT_PAID.value), invoice_stats_subq.c.not_paid_pendings), else_=0) +
                         case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.GST_PENDING.value), invoice_stats_subq.c.gst_pendings), else_=0) +
                         case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.HALF_PAYMENT_RECEIVED.value), invoice_stats_subq.c.half_pendings), else_=0) +
                         case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.SHORT_PAYMENT_RECEIVED.value), invoice_stats_subq.c.short_pendings), else_=0)
-                    ).label("tot_pending_dues"),
-                    func.sum(vendor_disc_price).label("vendor_value"),
-                    func.sum(case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.NOT_PAID.value), invoice_stats_subq.c.not_paid_pendings), else_=0)).label("not_paid_pendings"),
-                    func.sum(case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.GST_PENDING.value), invoice_stats_subq.c.gst_pendings), else_=0)).label("gst_pendings"),
-                    func.sum(case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.HALF_PAYMENT_RECEIVED.value), invoice_stats_subq.c.half_pendings), else_=0)).label("half_pendings"),
-                    func.sum(case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.SHORT_PAYMENT_RECEIVED.value), invoice_stats_subq.c.short_pendings), else_=0)).label("short_pendings"),
-                    func.sum(not_paid_amount).label("not_paid_amounts"),
-                    func.sum(tds_pending_amount).label("tds_amounts"),
-                    func.sum(gst_pending_amount).label("gst_amounts"),
-                    func.sum(half_pending_amount).label("half_amounts"),
-                    func.sum(short_pending_amount).label("short_amounts"),
-                    func.sum(pending_invoice_amount_raw).label("pending_amounts"),
-                    func.sum(not_paid_amount + tds_pending_amount + gst_pending_amount + half_pending_amount + short_pending_amount).label("tot_pending_amounts")
+                    ), 0).label("tot_pending_dues"),
+                    func.coalesce(func.sum(vendor_disc_price), 0).label("vendor_value"),
+                    func.coalesce(func.sum(case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.NOT_PAID.value), invoice_stats_subq.c.not_paid_pendings), else_=0)), 0).label("not_paid_pendings"),
+                    func.coalesce(func.sum(case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.GST_PENDING.value), invoice_stats_subq.c.gst_pendings), else_=0)), 0).label("gst_pendings"),
+                    func.coalesce(func.sum(case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.HALF_PAYMENT_RECEIVED.value), invoice_stats_subq.c.half_pendings), else_=0)), 0).label("half_pendings"),
+                    func.coalesce(func.sum(case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.SHORT_PAYMENT_RECEIVED.value), invoice_stats_subq.c.short_pendings), else_=0)), 0).label("short_pendings"),
+                    func.coalesce(func.sum(not_paid_amount), 0).label("not_paid_amounts"),
+                    func.coalesce(func.sum(tds_pending_amount), 0).label("tds_amounts"),
+                    func.coalesce(func.sum(gst_pending_amount), 0).label("gst_amounts"),
+                    func.coalesce(func.sum(half_pending_amount), 0).label("half_amounts"),
+                    func.coalesce(func.sum(short_pending_amount), 0).label("short_amounts"),
+                    func.coalesce(func.sum(pending_invoice_amount_raw), 0).label("pending_amounts"),
+                    func.coalesce(func.sum(not_paid_amount + tds_pending_amount + gst_pending_amount + half_pending_amount + short_pending_amount), 0).label("tot_pending_amounts")
 
                 )
                 .outerjoin(payment_subq, payment_subq.c.order_id == Orders.id)
@@ -818,37 +818,64 @@ class OrdersRepo(BaseRepoModel):
         orders_infos={}
         ic(cursor)
         if cursor==0:
-            payment_subq = (
+            invoice_stats_subq = (
                 select(
                     OrdersPaymentInvoiceInfo.order_id,
-                    func.sum(func.coalesce(OrdersPaymentInvoiceInfo.paid_amount, 0)).label("paid_total")
+                    func.count().label("total_invoices"),
+
+                    func.count().filter(
+                        OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.INCOMPLETED.value
+                    ).label("pending_invoice"),
+
+                    func.count().filter(
+                        and_(
+                            OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value,
+                            OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.PAID.value,
+                            OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.FULL_PAYMENT_RECEIVED.value
+                        )
+                    ).label("completed_invoices_count"),
+                    func.sum(func.coalesce(OrdersPaymentInvoiceInfo.paid_amount, 0)).filter(
+                        and_(
+                            OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value,
+                            OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.PAID.value,
+                            OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.FULL_PAYMENT_RECEIVED.value
+                        )
+                    ).label("completed_paid_total"),
                 )
                 .group_by(OrdersPaymentInvoiceInfo.order_id)
                 .subquery()
             )
 
-            customer_price = (Orders.unit_price * Orders.quantity)
+            customer_amount_with_gst = func.round(customer_final_price * 1.18)
+            expected_invoice_amount = customer_amount_with_gst / func.nullif(invoice_stats_subq.c.total_invoices, 0)
+
+            pending_invoice_amount_raw = func.round(
+                func.coalesce(invoice_stats_subq.c.pending_invoice, 0) * expected_invoice_amount
+            )
+
+            pending_payment_amount_expr = func.round(
+                func.coalesce(invoice_stats_subq.c.completed_invoices_count, 0) * expected_invoice_amount - 
+                func.coalesce(invoice_stats_subq.c.completed_paid_total, 0)
+            )
 
             orders_infos=(await self.session.execute(
                 select(
-                    func.sum(
-                        func.round(customer_price * 1.18) -
-                        func.coalesce(payment_subq.c.paid_total, 0)
-                    ).filter(and_(OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.PAID.value,OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.FULL_PAYMENT_RECEIVED.value)).label("pending_amounts"),
-                    func.sum(profit_loss_price).label("total_revenue"),
+                    func.coalesce(func.sum(profit_loss_price), 0).label("total_revenue"),
+                    func.coalesce(func.sum(distri_final_price), 0).label("distributor_value"),
+                    func.coalesce(func.sum(Orders.quantity), 0).label("total_license"),
                     func.count(Orders.id).label("total_orders"),
-                    func.sum(customer_final_price).label("order_value"),
-                    func.count(OrdersPaymentInvoiceInfo.id).filter(OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.INCOMPLETED.value).label("pending_invoice"),
-                    func.count().filter(and_(OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.PAID.value,OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.FULL_PAYMENT_RECEIVED.value)).label("pending_dues")
+                    func.coalesce(func.sum(customer_final_price), 0).label("order_value"),
+                    func.count().filter(Orders.activated.is_(False)).label("not_activated"),
+                    func.coalesce(func.sum(invoice_stats_subq.c.pending_invoice), 0).label("pending_invoice"),
+                    func.coalesce(func.sum(vendor_disc_price), 0).label("vendor_value"),
+                    func.coalesce(func.sum(pending_invoice_amount_raw), 0).label("pending_amounts"),
+                    func.coalesce(func.sum(pending_payment_amount_expr), 0).label("tot_pending_amounts"),
+                    func.coalesce(func.sum(invoice_stats_subq.c.completed_invoices_count), 0).label("tot_pending_dues")
                 )
-                .outerjoin(
-                    payment_subq, payment_subq.c.order_id == Orders.id
-                )
-                .join(OrdersPaymentInvoiceInfo,OrdersPaymentInvoiceInfo.order_id==Orders.id,isouter=True)
+                .outerjoin(invoice_stats_subq, invoice_stats_subq.c.order_id == Orders.id)
                 .join(Products, Products.id == Orders.product_id, isouter=True)
                 .join(Customers, Customers.id == Orders.customer_id, isouter=True)
                 .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
-                .join(Users, Users.id == Orders.deleted_by, isouter=True)
                 .where(Orders.customer_id==customer_id,Orders.is_deleted==False)
             )).mappings().one_or_none()
 
@@ -1668,8 +1695,8 @@ class OrdersRepo(BaseRepoModel):
                 Orders.ui_id.label("ui_id"),
                 Customers.name.label("customer_name"),
                 Customers.owner.label("owner_name"),
-                Orders.created_at,
-                func.floor(func.extract('epoch', (func.now() - Orders.created_at)) / 86400).label("days_since_created"),
+                func.date(func.timezone("Asia/Kolkata", Orders.created_at)).label("created_at"),
+                (func.current_date() - func.date(func.timezone("Asia/Kolkata", Orders.created_at))).label("days_since_created"),
                 OrdersPaymentInvoiceInfo.invoice_status
             )
             .join(Customers, Orders.customer_id == Customers.id)
@@ -1678,7 +1705,7 @@ class OrdersRepo(BaseRepoModel):
                 and_(
                     OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.INCOMPLETED.value,
                     Orders.is_deleted == False,
-                    Orders.created_at <= (datetime.now() - timedelta(days=days_threshold)) if days_threshold > 0 else True
+                    func.date(func.timezone("Asia/Kolkata", Orders.created_at)) <= (func.current_date() - days_threshold) if days_threshold > 0 else True
                 )
             )
             .order_by(desc(Orders.created_at))
@@ -1688,16 +1715,7 @@ class OrdersRepo(BaseRepoModel):
         return [dict(r) for r in results]
 
     async def get_activation_date_alert(self, days_before: Optional[int] = 2, days_after: Optional[int] = 2):
-        today = date.today()
-        # Treat 0 as None (All Time)
-        ub = None if (days_before is None or days_before == 0) else days_before
-        ua = None if (days_after is None or days_after == 0) else days_after
-        
-        upcoming_limit = today + timedelta(days=ub) if ub is not None else None
-        overdue_limit = today - timedelta(days=ua) if ua is not None else None
-
-        async def _get_alert_data(start_date: date, end_date: date):
-            # Postgres Date - Date = integer (days)
+        async def _get_alert_data(start_date_expr, end_date_expr):
             diff_col = (cast(Orders.delivery_info['delivery_date'].astext, Date) - func.current_date()).label("days_diff")
             
             stmt = (
@@ -1714,8 +1732,8 @@ class OrdersRepo(BaseRepoModel):
                     and_(
                         Orders.activated == False,
                         Orders.is_deleted == False,
-                        cast(Orders.delivery_info['delivery_date'].astext, Date) >= start_date if start_date else True,
-                        cast(Orders.delivery_info['delivery_date'].astext, Date) <= end_date if end_date else True
+                        cast(Orders.delivery_info['delivery_date'].astext, Date) >= start_date_expr if start_date_expr is not None else True,
+                        cast(Orders.delivery_info['delivery_date'].astext, Date) <= end_date_expr if end_date_expr is not None else True
                     )
                 )
                 .order_by(cast(Orders.delivery_info['delivery_date'].astext, Date))
@@ -1723,11 +1741,17 @@ class OrdersRepo(BaseRepoModel):
             res = await self.session.execute(stmt)
             return [dict(r) for r in res.mappings().all()]
 
-        # Upcoming: From today to today + days_before (or unlimited if 0)
-        upcoming = await _get_alert_data(today, today + timedelta(days=days_before) if days_before > 0 else None)
+        # Upcoming: From today onwards (limited by days_before if > 0)
+        upcoming = await _get_alert_data(
+            func.current_date(), 
+            (func.current_date() + days_before) if days_before > 0 else None
+        )
         
-        # Overdue: From today - days_after (or unlimited if 0) to yesterday
-        overdue = await _get_alert_data(today - timedelta(days=days_after) if days_after > 0 else None, today - timedelta(days=1))
+        # Overdue: Everything in the past up to (today - days_after)
+        overdue = await _get_alert_data(
+            None, 
+            (func.current_date() - max(1, days_after))
+        )
 
         return {"upcoming": upcoming, "overdue": overdue}
 
