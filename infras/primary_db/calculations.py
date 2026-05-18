@@ -12,8 +12,26 @@ PrevOrder = aliased(Orders)
 
 customer_tot_price=func.coalesce(Orders.unit_price*Orders.quantity,0)
 
+total_invoices_count_subq = (
+    select(func.count(OrdersPaymentInvoiceInfo.id))
+    .where(OrdersPaymentInvoiceInfo.order_id == Orders.id)
+    .correlate(Orders)
+    .scalar_subquery()
+)
+
+expected_order_total_with_gst = customer_tot_price * 1.18
+expected_invoice_amount = expected_order_total_with_gst / func.nullif(total_invoices_count_subq, 0)
+
 total_paid_amount = func.coalesce(
-    func.sum(OrdersPaymentInvoiceInfo.paid_amount), 0
+    func.sum(
+        case(
+            (
+                OrdersPaymentInvoiceInfo.payment_status.in_(["PAID", "FULL PAYMENT RECEIVED"]),
+                expected_invoice_amount
+            ),
+            else_=OrdersPaymentInvoiceInfo.paid_amount
+        )
+    ), 0
 )
 
 distributor_tot_price=func.round(func.coalesce((Products.price+func.coalesce(Orders.additional_price, 0))*Orders.quantity,0))

@@ -32,6 +32,39 @@ class Orders(PG_BASE):
     deleted_at=Column(DateTime(timezone=True),nullable=True)
 
     order_payment_invoice_info=relationship("OrdersPaymentInvoiceInfo",back_populates="order",cascade="all, delete-orphan")
+    order_renewals=relationship("OrderRenewals", foreign_keys="[OrderRenewals.new_order_id]", back_populates="new_order", cascade="all, delete-orphan")
+    order_add_ons=relationship("OrderAddOns", foreign_keys="[OrderAddOns.new_order_id]", back_populates="new_order", cascade="all, delete-orphan")
+
+
+class OrderRenewals(PG_BASE):
+    __tablename__ = "order_renewals"
+    id = Column(String, primary_key=True)
+    parent_order_id = Column(String, ForeignKey("orders.id", ondelete="CASCADE"), nullable=False)
+    new_order_id = Column(String, ForeignKey("orders.id", ondelete="CASCADE"), nullable=False, unique=True)
+    
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+
+    parent_order = relationship("Orders", foreign_keys=[parent_order_id])
+    new_order = relationship("Orders", foreign_keys=[new_order_id], back_populates="order_renewals")
+
+
+class OrderAddOns(PG_BASE):
+    __tablename__ = "order_add_ons"
+    id = Column(String, primary_key=True)
+    parent_order_id = Column(String, ForeignKey("orders.id", ondelete="CASCADE"), nullable=False)
+    new_order_id = Column(String, ForeignKey("orders.id", ondelete="CASCADE"), nullable=False, unique=True)
+    
+    base_quantity = Column(Integer, nullable=False)
+    addon_quantity = Column(Integer, nullable=False)
+    base_price = Column(Float, nullable=False)
+    addon_price = Column(Float, nullable=False)
+    remaining_days = Column(Integer, nullable=False)
+    
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+
+    parent_order = relationship("Orders", foreign_keys=[parent_order_id])
+    new_order = relationship("Orders", foreign_keys=[new_order_id], back_populates="order_add_ons")
+
 
 
 class OrdersPaymentInvoiceInfo(PG_BASE):
@@ -113,3 +146,38 @@ class CartOrders(PG_BASE):
     customer=relationship("Customers",back_populates="order_cart")
     order_cart=relationship("CartOrdersProduct",back_populates="order",cascade="all, delete-orphan")
     cart_order_payment_invoice_info=relationship("CartOrdersPaymentInvoiceInfo",back_populates="cart_order",cascade="all, delete-orphan")
+    cart_order_renewals=relationship("CartOrderRenewals", foreign_keys="[CartOrderRenewals.new_cart_order_id]", back_populates="new_order", cascade="all, delete-orphan")
+    cart_order_add_ons=relationship("CartOrderAddOns", foreign_keys="[CartOrderAddOns.new_cart_order_id]", back_populates="new_order", cascade="all, delete-orphan")
+
+class CartOrderRenewals(PG_BASE):
+    __tablename__ = "cart_order_renewals"
+    id = Column(String, primary_key=True)
+    parent_cart_order_id = Column(String, ForeignKey("cart_orders.id", ondelete="CASCADE"), nullable=False)
+    new_cart_order_id = Column(String, ForeignKey("cart_orders.id", ondelete="CASCADE"), nullable=False, unique=True)
+    
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+
+    parent_order = relationship("CartOrders", foreign_keys=[parent_cart_order_id])
+    new_order = relationship("CartOrders", foreign_keys=[new_cart_order_id], back_populates="cart_order_renewals")
+
+
+class CartOrderAddOns(PG_BASE):
+    __tablename__ = "cart_order_add_ons"
+    id = Column(String, primary_key=True)
+    parent_cart_order_id = Column(String, ForeignKey("cart_orders.id", ondelete="CASCADE"), nullable=False)
+    new_cart_order_id = Column(String, ForeignKey("cart_orders.id", ondelete="CASCADE"), nullable=False, unique=True)
+    
+    # In a cart order context, an addon might have multiple products, so we'd typically need
+    # add on fields per product. For simplicity, we can store total addon info here or 
+    # rely on the cart_order_product table's unit_price/qty.
+    # We will mirror the basic structure.
+    base_quantity = Column(Integer, nullable=True)
+    addon_quantity = Column(Integer, nullable=True)
+    base_price = Column(Float, nullable=True)
+    addon_price = Column(Float, nullable=True)
+    remaining_days = Column(Integer, nullable=True)
+    
+    created_at = Column(TIMESTAMP(timezone=True), server_default=func.now())
+
+    parent_order = relationship("CartOrders", foreign_keys=[parent_cart_order_id])
+    new_order = relationship("CartOrders", foreign_keys=[new_cart_order_id], back_populates="cart_order_add_ons")

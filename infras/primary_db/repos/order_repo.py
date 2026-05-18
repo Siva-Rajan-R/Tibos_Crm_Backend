@@ -3,7 +3,8 @@ import io
 import pandas as pd
 from datetime import datetime, timedelta, date
 from . import HTTPException,BaseRepoModel
-from ..models.order import Orders,OrdersPaymentInvoiceInfo
+from ..models.order import Orders,OrdersPaymentInvoiceInfo,OrderRenewals,OrderAddOns
+from core.utils.uuid_generator import generate_uuid
 from ..models.product import Products
 from ..models.customer import Customers
 from ..models.distributor import Distributors
@@ -107,7 +108,11 @@ class OrdersRepo(BaseRepoModel):
             func.date(expiry_date).label("last_order_expiry_date"),
             self.subquery.c.status_info,
             self.subquery.c.total_paid_amount,
-
+            OrderAddOns.base_quantity.label("addon_base_quantity"),
+            OrderAddOns.addon_quantity.label("addon_quantity"),
+            OrderAddOns.base_price.label("addon_base_price"),
+            OrderAddOns.addon_price.label("addon_price"),
+            OrderAddOns.remaining_days.label("addon_remaining_days"),
         )
 
     async def is_order_exists(self,customer_id:str,product_id:str):
@@ -126,13 +131,65 @@ class OrdersRepo(BaseRepoModel):
 
     @start_db_transaction
     async def add(self,data:AddOrderDbSchema):
-        self.session.add(Orders(**data.model_dump(mode='json',exclude=['lui_id','status_info'])))
+        new_order = Orders(**data.model_dump(mode='json',exclude=['lui_id','status_info']))
+        self.session.add(new_order)
         invoicetoadd=data.model_dump(mode='json')
         invoicetoadd_bulk=[]
         for status in invoicetoadd['status_info']:
-            invoicetoadd_bulk.append(OrdersPaymentInvoiceInfo(**status,order_id=data.id))
+            if status.get("payment_status") in ("FULL PAYMENT RECEIVED", "PAID"):
+                status["paid_amount"] = status.get("invoice_amount") or 0.0
+                status["remaining_amount"] = 0.0
+            clean_status = {
+                k: v for k, v in status.items()
+                if k in ("id", "payment_status", "invoice_status", "invoice_number", "invoice_date", "paid_amount")
+            }
+            invoicetoadd_bulk.append(OrdersPaymentInvoiceInfo(**clean_status,order_id=data.id))
         
         self.session.add_all(invoicetoadd_bulk)
+        
+        purchase_type = data.logistic_info.get("purchase_type")
+        parent_id = data.logistic_info.get("last_order_id")
+        
+        if purchase_type == PurchaseTypes.EXISTING_RENEWAL.value and parent_id:
+            renewal = OrderRenewals(
+                id=generate_uuid(),
+                parent_order_id=parent_id,
+                new_order_id=data.id
+            )
+            self.session.add(renewal)
+        elif purchase_type == PurchaseTypes.EXISTING_ADD_ON.value and parent_id:
+            parent_order_qry = await self.session.execute(select(Orders.quantity, Orders.unit_price).where(Orders.id == parent_id))
+            parent_order_data = parent_order_qry.first()
+            if parent_order_data:
+                # Need remaining days, but since we are inserting, we can calculate it from the expected delivery date difference
+                from core.utils.calculations import get_remaining_days
+                from core.constants import DEFAULT_ADDON_YEAR
+                
+                cur_delivery = data.delivery_info.get("delivery_date")
+                last_expiry_str = data.logistic_info.get("last_ord_expiry_date")
+                
+                remaining_d = 0
+                if cur_delivery and last_expiry_str:
+                    try:
+                        cur_delivery_date = datetime.strptime(cur_delivery, "%Y-%m-%d").date()
+                        last_expiry_date = datetime.strptime(last_expiry_str, "%Y-%m-%d").date()
+                        expiry_date = last_expiry_date + timedelta(days=DEFAULT_ADDON_YEAR+1)
+                        remaining_d = get_remaining_days(from_date=expiry_date, to_date=cur_delivery)
+                    except Exception:
+                        remaining_d = 0
+
+                addon = OrderAddOns(
+                    id=generate_uuid(),
+                    parent_order_id=parent_id,
+                    new_order_id=data.id,
+                    base_quantity=parent_order_data[0],
+                    addon_quantity=data.quantity,
+                    base_price=parent_order_data[1],
+                    addon_price=data.unit_price,
+                    remaining_days=remaining_d
+                )
+                self.session.add(addon)
+
         await self.session.execute(update(TablesUiLId).where(TablesUiLId.id=="1").values(order_luiid=data.ui_id))
         # need to implement invoice generation process + email sending
         return True
@@ -147,6 +204,54 @@ class OrdersRepo(BaseRepoModel):
             self.session.add_all(datas)
 
             await self.session.flush()
+            
+            from core.utils.calculations import get_remaining_days
+            from core.constants import DEFAULT_ADDON_YEAR
+            
+            addons_to_insert = []
+            renewals_to_insert = []
+            for order in datas:
+                purchase_type = order.logistic_info.get("purchase_type")
+                parent_id = order.logistic_info.get("last_order_id")
+                
+                if purchase_type == PurchaseTypes.EXISTING_RENEWAL.value and parent_id:
+                    renewals_to_insert.append(OrderRenewals(
+                        id=generate_uuid(),
+                        parent_order_id=parent_id,
+                        new_order_id=order.id
+                    ))
+                elif purchase_type == PurchaseTypes.EXISTING_ADD_ON.value and parent_id:
+                    parent_order_qry = await self.session.execute(select(Orders.quantity, Orders.unit_price).where(Orders.id == parent_id))
+                    parent_order_data = parent_order_qry.first()
+                    if parent_order_data:
+                        cur_delivery = order.delivery_info.get("delivery_date")
+                        last_expiry_str = order.logistic_info.get("last_ord_expiry_date")
+                        
+                        remaining_d = 0
+                        if cur_delivery and last_expiry_str:
+                            try:
+                                cur_delivery_date = datetime.strptime(cur_delivery, "%Y-%m-%d").date()
+                                last_expiry_date = datetime.strptime(last_expiry_str, "%Y-%m-%d").date()
+                                expiry_date = last_expiry_date + timedelta(days=DEFAULT_ADDON_YEAR+1)
+                                remaining_d = get_remaining_days(from_date=expiry_date, to_date=cur_delivery)
+                            except Exception:
+                                remaining_d = 0
+
+                        addons_to_insert.append(OrderAddOns(
+                            id=generate_uuid(),
+                            parent_order_id=parent_id,
+                            new_order_id=order.id,
+                            base_quantity=parent_order_data[0],
+                            addon_quantity=order.quantity,
+                            base_price=parent_order_data[1],
+                            addon_price=order.unit_price,
+                            remaining_days=remaining_d
+                        ))
+
+            if renewals_to_insert:
+                self.session.add_all(renewals_to_insert)
+            if addons_to_insert:
+                self.session.add_all(addons_to_insert)
 
             self.session.add_all(status_datas)
 
@@ -168,7 +273,14 @@ class OrdersRepo(BaseRepoModel):
         invoicetoadd_bulk=[]
         await self.session.execute(delete(OrdersPaymentInvoiceInfo).where(OrdersPaymentInvoiceInfo.order_id==data.order_id))
         for status in invoicetoadd['status_info']:
-            invoicetoadd_bulk.append(OrdersPaymentInvoiceInfo(**status,order_id=data.order_id))
+            if status.get("payment_status") in ("FULL PAYMENT RECEIVED", "PAID"):
+                status["paid_amount"] = status.get("invoice_amount") or 0.0
+                status["remaining_amount"] = 0.0
+            clean_status = {
+                k: v for k, v in status.items()
+                if k in ("id", "payment_status", "invoice_status", "invoice_number", "invoice_date", "paid_amount")
+            }
+            invoicetoadd_bulk.append(OrdersPaymentInvoiceInfo(**clean_status,order_id=data.order_id))
         
         self.session.add_all(invoicetoadd_bulk)
 
@@ -250,7 +362,6 @@ class OrdersRepo(BaseRepoModel):
 
         ic(filter)
         conditions = []
-        total_orders_condition=[]
         filters=[]
         filter_mapper={
             'activation_status':Orders.activated,
@@ -266,9 +377,9 @@ class OrdersRepo(BaseRepoModel):
             'owner_name':Customers.owner,
             'product_type':Products.product_type
         }
-        cursor=0 if cursor==1 else cursor
+        cursor=int(cursor)
+        limit=int(limit)
         search_term = f"%{query.lower()}%"
-        # cursor = (offset - 1) * limit
 
         # ---------------- BASE CONDITIONS ----------------
         conditions.append(
@@ -298,7 +409,6 @@ class OrdersRepo(BaseRepoModel):
             )
         )
 
-        # conditions.append(Orders.sequence_id > cursor)
         conditions.append(Orders.is_deleted.is_(include_deleted))
         # ---------------- DATE FIELDS ----------------
         date_expr = func.date(func.timezone("Asia/Kolkata", Orders.created_at))
@@ -351,15 +461,11 @@ class OrdersRepo(BaseRepoModel):
             .join(Products,Products.id==Orders.product_id,isouter=True)
             .join(Customers,Customers.id==Orders.customer_id,isouter=True)
             .join(Distributors,Distributors.id==Orders.distributor_id,isouter=True)
-            # .join(OrdersPaymentInvoiceInfo, OrdersPaymentInvoiceInfo.order_id == Orders.id,isouter=True)
+            .join(OrderAddOns, OrderAddOns.new_order_id == Orders.id, isouter=True)
             .where(
                 *conditions,
-                *filters,
-                Orders.sequence_id>cursor
+                *filters
             )
-            .limit(limit)
-            .order_by(Orders.sequence_id.asc())
-
         )
 
         ic(filter.date_filter)
@@ -375,7 +481,6 @@ class OrdersRepo(BaseRepoModel):
                 Orders.activated.is_(True)
             )
 
-
         if active_condition is not None:
             orders_toquery = orders_toquery.where(active_condition)
 
@@ -390,9 +495,8 @@ class OrdersRepo(BaseRepoModel):
             date_tofilter = cast(Orders.created_at,Date)
         ic(date_tofilter)
 
-        date_filter_condition=None
-        revenue_filter_condition=None
-
+        from_date = None
+        to_date = None
         if date_tofilter is not None:
             final_date = cast(date_tofilter, Date)
             from_date = filter.date_filter.get("from_date")
@@ -405,334 +509,411 @@ class OrdersRepo(BaseRepoModel):
                 )
             )
 
-            date_filter_condition=and_(
-                final_date >= from_date,
-                final_date <= to_date
-            )
-        ic(filter)
-        ic(type(filter))
-        ic()
-       
-        if getattr(filter,'revenue_type',None):
-            revenue=filter.revenue_type.value if isinstance(filter.revenue_type,OrderFilterRevenueEnum) else filter.revenue_type
-            if revenue==OrderFilterRevenueEnum.PROFIT.value:
-                revenue_filter_condition=and_(
-                    profit_loss_price>0
-                )
-
-                orders_toquery=orders_toquery.where(
-                    and_(
-                        profit_loss_price>0
-                    )
-                )
-
-            elif revenue==OrderFilterRevenueEnum.LOSS.value:
-                revenue_filter_condition=and_(
-                    profit_loss_price<0
-                )
-
-                orders_toquery=orders_toquery.where(
-                    and_(
-                        profit_loss_price<0
-                    )
-                )
         if in_search and len(in_search)>0:
             orders_toquery=orders_toquery.where(Orders.id.in_(in_search))
             
+        # Execute normal orders query
         queried_orders=(await self.session.execute(orders_toquery)).mappings().all()
-        orders_infos={}
-        purchase_stats=[]
-        pending_amounts=0
-        ic(cursor)
 
-
-        if cursor==0:
-            
-            payment_subq = (
-                select(
-                    OrdersPaymentInvoiceInfo.order_id,
-                    func.sum(func.coalesce(OrdersPaymentInvoiceInfo.paid_amount, 0)).label("paid_total")
-                )
-                .group_by(OrdersPaymentInvoiceInfo.order_id)
-                .subquery()
-            )
-
-            payment_cust_price=case(
-                (
-                    func.coalesce(payment_subq.c.paid_total,0)>(customer_final_price*1.18),
-                    0
+        # Execute cart orders query
+        from ..models.order import CartOrders, CartOrdersProduct, CartOrdersPaymentInvoiceInfo, CartOrdersAdditionalQuantity
+        from infras.primary_db.repos.order_cart_repo import OrdersCartRepo
+        
+        cart_repo = OrdersCartRepo(session=self.session, user_role=self.user_role, cur_user_id=self.cur_user_id)
+        
+        cart_conditions = []
+        cart_filters = []
+        
+        cart_conditions.append(
+            or_(
+                CartOrders.id.ilike(search_term),
+                CartOrders.ui_id.ilike(search_term),
+                CartOrders.distributor_id.ilike(search_term),
+                Distributors.ui_id.ilike(search_term),
+                Customers.name.ilike(search_term),
+                Customers.email.ilike(search_term),
+                Customers.mobile_number.ilike(search_term),
+                CartOrders.logistic_info['purchase_type'].astext.ilike(search_term),
+                CartOrders.logistic_info['renewal_type'].astext.ilike(search_term),
+                Distributors.name.ilike(search_term),
+                CartOrders.logistic_info['bill_to'].astext.ilike(search_term),
+                CartOrders.logistic_info['distributor_type'].astext.ilike(search_term),
+                exists().where(
+                    and_(
+                        CartOrdersPaymentInvoiceInfo.order_id == CartOrders.id,
+                        CartOrdersPaymentInvoiceInfo.invoice_number.ilike(search_term)
+                    )
                 ),
-                else_=(customer_final_price*1.18)
-            )
-
-
-            
-
-            invoice_stats_subq = (
-                select(
-                    OrdersPaymentInvoiceInfo.order_id,
-                    func.count().label("total_invoices"),
-
-                    func.count().filter(
-                        OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.INCOMPLETED.value
-                    ).label("pending_invoice"),
-
-                    func.count().filter(
-                        and_(
-                            OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value,
-                            OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.PAID.value,
-                            OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.FULL_PAYMENT_RECEIVED.value
+                exists().where(
+                    and_(
+                        CartOrdersProduct.order_id == CartOrders.id,
+                        exists().where(
+                            and_(
+                                Products.id == CartOrdersProduct.product_id,
+                                or_(
+                                    Products.name.ilike(search_term),
+                                    Products.id.ilike(search_term),
+                                    Products.ui_id.ilike(search_term),
+                                    Products.product_type.ilike(search_term)
+                                )
+                            )
                         )
-                    ).label("completed_invoices_count"),
-                    func.sum(func.coalesce(OrdersPaymentInvoiceInfo.paid_amount, 0)).filter(
-                        and_(
-                            OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value,
-                            OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.PAID.value,
-                            OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.FULL_PAYMENT_RECEIVED.value
-                        )
-                    ).label("completed_paid_total"),
-
-                    func.count().filter(
-                        and_(
-                            OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.TDS_PENDING.value,
-                            OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value
-                        )
-                    ).label("tds_pendings"),
-                    func.sum(func.coalesce(OrdersPaymentInvoiceInfo.paid_amount, 0)).filter(
-                        and_(
-                            OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.TDS_PENDING.value,
-                            OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value
-                        )
-                    ).label("tds_paid_sum"),
-
-                    func.count().filter(
-                        and_(
-                            OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.NOT_PAID.value,
-                            OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value
-                        )
-                    ).label("not_paid_pendings"),
-                    func.sum(func.coalesce(OrdersPaymentInvoiceInfo.paid_amount, 0)).filter(
-                        and_(
-                            OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.NOT_PAID.value,
-                            OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value
-                        )
-                    ).label("not_paid_paid_sum"),
-
-                    func.count().filter(
-                        and_(
-                            OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.GST_PENDING.value,
-                            OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value
-                        )
-                    ).label("gst_pendings"),
-                    func.sum(func.coalesce(OrdersPaymentInvoiceInfo.paid_amount, 0)).filter(
-                        and_(
-                            OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.GST_PENDING.value,
-                            OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value
-                        )
-                    ).label("gst_paid_sum"),
-
-                    func.count().filter(
-                        and_(
-                            OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.HALF_PAYMENT_RECEIVED.value,
-                            OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value
-                        )
-                    ).label("half_pendings"),
-                    func.sum(func.coalesce(OrdersPaymentInvoiceInfo.paid_amount, 0)).filter(
-                        and_(
-                            OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.HALF_PAYMENT_RECEIVED.value,
-                            OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value
-                        )
-                    ).label("half_paid_sum"),
-
-                    func.count().filter(
-                        and_(
-                            OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.SHORT_PAYMENT_RECEIVED.value,
-                            OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value
-                        )
-                    ).label("short_pendings"),
-                    func.sum(func.coalesce(OrdersPaymentInvoiceInfo.paid_amount, 0)).filter(
-                        and_(
-                            OrdersPaymentInvoiceInfo.payment_status == PaymentStatus.SHORT_PAYMENT_RECEIVED.value,
-                            OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value
-                        )
-                    ).label("short_paid_sum"),
+                    )
                 )
-                .group_by(OrdersPaymentInvoiceInfo.order_id)
-                .subquery()
             )
+        )
+        cart_conditions.append(CartOrders.is_deleted.is_(include_deleted))
 
-            # pending_amt_status=[
-            #     s.value for s in PaymentStatus
-            #     if s not in {PaymentStatus.PAID, PaymentStatus.FULL_PAYMENT_RECEIVED}
-            # ]
-            # pending_amount_calc=func.abs(func.round(payment_cust_price) - func.coalesce(payment_subq.c.paid_total, 0))
-            
+        for key, value in filter.model_dump(mode='json').items():
+            if value is None:
+                continue
 
-            customer_amount_with_gst = func.round(customer_final_price * 1.18)
-            expected_invoice_amount = customer_amount_with_gst / func.nullif(invoice_stats_subq.c.total_invoices, 0)
-
-            pending_amount_expr = func.round(
-                func.coalesce(invoice_stats_subq.c.completed_invoices_count, 0) * expected_invoice_amount - 
-                func.coalesce(invoice_stats_subq.c.completed_paid_total, 0)
-            )
-
-            pending_amount_filtered = case(
-                (
-                    (
-                        func.coalesce(invoice_stats_subq.c.not_paid_pendings, 0) +
-                        func.coalesce(invoice_stats_subq.c.tds_pendings, 0) +
-                        func.coalesce(invoice_stats_subq.c.gst_pendings, 0) +
-                        func.coalesce(invoice_stats_subq.c.half_pendings, 0) +
-                        func.coalesce(invoice_stats_subq.c.short_pendings, 0)
-                    ) > 0,
-                    pending_amount_expr
-                ),
-                else_=0
-            )
-
-
-            payment_status_filter = filter.payment_status
-            if hasattr(payment_status_filter, "value"):
-                payment_status_filter = payment_status_filter.value
-
-            not_paid_amount_raw = func.round(
-                func.coalesce(invoice_stats_subq.c.not_paid_pendings, 0) * expected_invoice_amount - 
-                func.coalesce(invoice_stats_subq.c.not_paid_paid_sum, 0)
-            )
-
-            gst_pending_amount_raw = func.round(
-                func.coalesce(invoice_stats_subq.c.gst_pendings, 0) * expected_invoice_amount - 
-                func.coalesce(invoice_stats_subq.c.gst_paid_sum, 0)
-            )
-
-            half_pending_amount_raw = func.round(
-                func.coalesce(invoice_stats_subq.c.half_pendings, 0) * expected_invoice_amount - 
-                func.coalesce(invoice_stats_subq.c.half_paid_sum, 0)
-            )
-
-            short_pending_amount_raw = func.round(
-                func.coalesce(invoice_stats_subq.c.short_pendings, 0) * expected_invoice_amount - 
-                func.coalesce(invoice_stats_subq.c.short_paid_sum, 0)
-            )
-
-            tds_pending_amount_raw = func.round(
-                func.coalesce(invoice_stats_subq.c.tds_pendings, 0) * expected_invoice_amount - 
-                func.coalesce(invoice_stats_subq.c.tds_paid_sum, 0)
-            )
-
-            pending_invoice_amount_raw = func.round(
-                func.coalesce(invoice_stats_subq.c.pending_invoice, 0) * expected_invoice_amount
-            )
-
-            not_paid_amount = case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.NOT_PAID.value), not_paid_amount_raw), else_=0)
-            gst_pending_amount = case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.GST_PENDING.value), gst_pending_amount_raw), else_=0)
-            half_pending_amount = case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.HALF_PAYMENT_RECEIVED.value), half_pending_amount_raw), else_=0)
-            short_pending_amount = case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.SHORT_PAYMENT_RECEIVED.value), short_pending_amount_raw), else_=0)
-            tds_pending_amount = case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.TDS_PENDING.value), tds_pending_amount_raw), else_=0)
-
-
-            purchase_type = Orders.logistic_info['purchase_type'].astext
-
-            pivot_query = select(
-                Orders.distributor_id,
-
-                func.sum(
-                    case((purchase_type == "EXISTING-RENEWAL", customer_final_price), else_=0)
-                ).label("existing_renewal"),
-
-                func.sum(
-                    case((purchase_type == "NEW-LOGO-RENEWAL", customer_final_price), else_=0)
-                ).label("new_logo_renewal"),
-
-                func.sum(
-                    case((purchase_type == "NET-NEW-CUSTOMER", customer_final_price), else_=0)
-                ).label("net_new_customer"),
-
-                func.sum(
-                    case((purchase_type == "EXISTING-ADD-ON", customer_final_price), else_=0)
-                ).label("existing_add_on"),
-            ).select_from(Orders)
-
-
-            pivot_query = pivot_query.where(
-                *conditions,
-                *filters,
-                Orders.is_deleted == False
-            )
-
-            if date_filter_condition is not None:
-                pivot_query = pivot_query.where(date_filter_condition)
-
-            if revenue_filter_condition is not None:
-                pivot_query = pivot_query.where(revenue_filter_condition)
-
-
-            pivot_query = pivot_query \
-            .join(Products, Products.id == Orders.product_id, isouter=True) \
-            .join(Customers, Customers.id == Orders.customer_id, isouter=True) \
-            .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
-            
-            if active_condition is not None:
-                pivot_query = pivot_query.where(active_condition)
-            pivot_query = pivot_query.group_by(Orders.distributor_id)
-
-            purchase_stats = (await self.session.execute(pivot_query)).mappings().all()
-
-
-            orders_infos_stmt=(
-                select(
-                    func.coalesce(func.sum(profit_loss_price), 0).label("total_revenue"),
-                    func.coalesce(func.sum(distri_final_price), 0).label("distributor_value"),
-                    func.coalesce(func.sum(Orders.quantity), 0).label("total_license"),
-                    func.count(Orders.id).label("total_orders"),
-                    func.coalesce(func.sum(customer_final_price), 0).label("order_value"),
-                    func.count().filter(Orders.activated.is_(False)).label("not_activated"),
-                    func.coalesce(func.sum(invoice_stats_subq.c.pending_invoice), 0).label("pending_invoice"),
-                    func.coalesce(func.sum(case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.TDS_PENDING.value), invoice_stats_subq.c.tds_pendings), else_=0)), 0).label("tds_pendings"),
-                    func.coalesce(func.sum(
-                        case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.TDS_PENDING.value), invoice_stats_subq.c.tds_pendings), else_=0) +
-                        case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.NOT_PAID.value), invoice_stats_subq.c.not_paid_pendings), else_=0) +
-                        case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.GST_PENDING.value), invoice_stats_subq.c.gst_pendings), else_=0) +
-                        case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.HALF_PAYMENT_RECEIVED.value), invoice_stats_subq.c.half_pendings), else_=0) +
-                        case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.SHORT_PAYMENT_RECEIVED.value), invoice_stats_subq.c.short_pendings), else_=0)
-                    ), 0).label("tot_pending_dues"),
-                    func.coalesce(func.sum(vendor_disc_price), 0).label("vendor_value"),
-                    func.coalesce(func.sum(case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.NOT_PAID.value), invoice_stats_subq.c.not_paid_pendings), else_=0)), 0).label("not_paid_pendings"),
-                    func.coalesce(func.sum(case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.GST_PENDING.value), invoice_stats_subq.c.gst_pendings), else_=0)), 0).label("gst_pendings"),
-                    func.coalesce(func.sum(case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.HALF_PAYMENT_RECEIVED.value), invoice_stats_subq.c.half_pendings), else_=0)), 0).label("half_pendings"),
-                    func.coalesce(func.sum(case((or_(payment_status_filter == None, payment_status_filter == PaymentStatus.SHORT_PAYMENT_RECEIVED.value), invoice_stats_subq.c.short_pendings), else_=0)), 0).label("short_pendings"),
-                    func.coalesce(func.sum(not_paid_amount), 0).label("not_paid_amounts"),
-                    func.coalesce(func.sum(tds_pending_amount), 0).label("tds_amounts"),
-                    func.coalesce(func.sum(gst_pending_amount), 0).label("gst_amounts"),
-                    func.coalesce(func.sum(half_pending_amount), 0).label("half_amounts"),
-                    func.coalesce(func.sum(short_pending_amount), 0).label("short_amounts"),
-                    func.coalesce(func.sum(pending_invoice_amount_raw), 0).label("pending_amounts"),
-                    func.coalesce(func.sum(not_paid_amount + tds_pending_amount + gst_pending_amount + half_pending_amount + short_pending_amount), 0).label("tot_pending_amounts")
-
+            if key == "payment_status":
+                cart_filters.append(
+                    exists().where(
+                        and_(
+                            CartOrdersPaymentInvoiceInfo.order_id == CartOrders.id,
+                            CartOrdersPaymentInvoiceInfo.payment_status == value,
+                            CartOrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value
+                        )
+                    )
                 )
-                .outerjoin(payment_subq, payment_subq.c.order_id == Orders.id)
-                .outerjoin(invoice_stats_subq, invoice_stats_subq.c.order_id == Orders.id)
-                .join(Products, Products.id == Orders.product_id, isouter=True)
-                .join(Customers, Customers.id == Orders.customer_id, isouter=True)
-                .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
-                .where(*conditions,*filters,Orders.is_deleted==False)
-                .where(date_filter_condition if date_filter_condition is not None else true())
-                .where(revenue_filter_condition if revenue_filter_condition is not None else true())
+
+            elif key == "invoice_status":
+                cart_filters.append(
+                    exists().where(
+                        and_(
+                            CartOrdersPaymentInvoiceInfo.order_id == CartOrders.id,
+                            CartOrdersPaymentInvoiceInfo.invoice_status == value
+                        )
+                    )
+                )
+
+            elif key != "date_filter" and key != "revenue_type":
+                if key == "activation_status":
+                    cart_filters.append(CartOrders.activated == value)
+                elif key == "distributor_id":
+                    cart_filters.append(CartOrders.distributor_id == value)
+                elif key == "customer_id":
+                    cart_filters.append(CartOrders.customer_id == value)
+                elif key == "product_id":
+                    cart_filters.append(
+                        exists().where(
+                            and_(
+                                CartOrdersProduct.order_id == CartOrders.id,
+                                CartOrdersProduct.product_id == value
+                            )
+                        )
+                    )
+                elif key == "owner_name":
+                    cart_filters.append(Customers.owner == value)
+                elif key == "product_type":
+                    cart_filters.append(
+                        exists().where(
+                            and_(
+                                CartOrdersProduct.order_id == CartOrders.id,
+                                exists().where(
+                                    and_(
+                                        Products.id == CartOrdersProduct.product_id,
+                                        Products.product_type == value
+                                    )
+                                )
+                            )
+                        )
+                    )
+                elif key == "purchase_type":
+                    cart_filters.append(CartOrders.logistic_info['purchase_type'].astext == value)
+                elif key == "renewal_type":
+                    cart_filters.append(CartOrders.logistic_info['renewal_type'].astext == value)
+                elif key == "distributor_type":
+                    cart_filters.append(CartOrders.logistic_info['distributor_type'].astext == value)
+
+        cart_toquery = (
+            select(
+                *cart_repo.orders_cols
+            )
+            .join(Distributors, Distributors.id == CartOrders.distributor_id, isouter=True)
+            .join(Customers, Customers.id == CartOrders.customer_id, isouter=True)
+            .join(cart_repo.product_subquery, cart_repo.product_subquery.c.order_id == CartOrders.id, isouter=True)
+            .join(cart_repo.payment_subquery, cart_repo.payment_subquery.c.order_id == CartOrders.id, isouter=True)
+            .where(
+                *cart_conditions,
+                *cart_filters
+            )
+        )
+
+        cart_date_tofilter = None
+        if date_by == OrderFilterDateByEnum.REQUESTED_DATE.value:
+            cart_date_tofilter = cast(CartOrders.delivery_info["requested_date"].astext, Date)
+        elif date_by == OrderFilterDateByEnum.ACTIVATION_DATE.value: 
+            cart_date_tofilter = cast(CartOrders.delivery_info["delivery_date"].astext, Date)
+        elif date_by == OrderFilterDateByEnum.CREATED_DATE.value:
+            cart_date_tofilter = cast(CartOrders.created_at, Date)
+
+        if cart_date_tofilter is not None and from_date is not None and to_date is not None:
+            cart_toquery = cart_toquery.where(
+                and_(
+                    cart_date_tofilter >= from_date,
+                    cart_date_tofilter <= to_date
+                )
             )
 
-            if active_condition is not None:
-                orders_infos_stmt = orders_infos_stmt.where(active_condition)
+        if active:
+            cart_delivery_date = cast(CartOrders.delivery_info["delivery_date"].astext, Date)
+            cart_active_condition = and_(
+                cart_delivery_date >= func.current_date() - text("INTERVAL '365 days'"),
+                CartOrders.activated.is_(True)
+            )
+            cart_toquery = cart_toquery.where(cart_active_condition)
 
-            orders_infos=(await self.session.execute(orders_infos_stmt)).mappings().one_or_none()
+        if in_search and len(in_search) > 0:
+            cart_toquery = cart_toquery.where(CartOrders.id.in_(in_search))
 
+        cart_orders_results = (await self.session.execute(cart_toquery)).mappings().all()
+
+        # Map both standard and cart orders to a unified format
+        mapped_normal = []
+        for row in queried_orders:
+            o = dict(row)
+            o["products"] = [{
+                "id": o.get("product_id"),
+                "product_id": o.get("product_id"),
+                "name": o.get("product_name"),
+                "price": o.get("product_price"),
+                "quantity": o.get("quantity"),
+                "unit_price": o.get("unit_price"),
+                "additional_price": o.get("additional_price"),
+                "additional_discount": o.get("additional_discount"),
+                "discount_id": o.get("discount_id"),
+                "vendor_commision": o.get("vendor_commision"),
+                "customer_price": o.get("customer_price"),
+                "distributor_price": o.get("distributor_price"),
+                "vendor_total_price": o.get("vendor_total_price"),
+                "profit_loss": o.get("profit_loss"),
+            }]
+            disc_val = o.get("distributor_discount")
+            if isinstance(disc_val, dict):
+                o["distributor_discount"] = disc_val
+            elif isinstance(disc_val, str) and disc_val.strip().startswith("{"):
+                import json
+                try:
+                    o["distributor_discount"] = json.loads(disc_val)
+                except Exception:
+                    o["distributor_discount"] = {"discount": disc_val}
+            else:
+                o["distributor_discount"] = {"discount": str(disc_val or "0")}
+            o["total_price"] = o.get("customer_price") or 0.0
+            o["total_license"] = o.get("quantity") or 0
+            
+            # Map Add-On specifically if present
+            if o.get("addon_quantity") is not None:
+                o["addon_info"] = {
+                    "base_quantity": o.get("addon_base_quantity"),
+                    "addon_quantity": o.get("addon_quantity"),
+                    "base_price": o.get("addon_base_price"),
+                    "addon_price": o.get("addon_price"),
+                    "remaining_days": o.get("addon_remaining_days"),
+                }
+                
+            mapped_normal.append(o)
+
+        mapped_cart = []
+        for row in cart_orders_results:
+            o = cart_repo._map_single_cart_order(row)
+            products_list = o.get("products") or []
+            
+            product_names = [p.get("name") or p.get("product_name") or "" for p in products_list]
+            product_names = [name for name in product_names if name]
+            o["product_name"] = ", ".join(product_names) if product_names else "Multiple Products"
+            
+            product_ui_ids = [p.get("product_ui_id") or p.get("ui_id") or "" for p in products_list]
+            product_ui_ids = [ui for ui in product_ui_ids if ui]
+            o["product_ui_id"] = ", ".join(product_ui_ids) if product_ui_ids else "MULT-PROD"
+            
+            first_product_discount = "0"
+            if products_list:
+                first_p = products_list[0]
+                disc_obj = first_p.get("discount")
+                if isinstance(disc_obj, dict):
+                    first_product_discount = str(disc_obj.get("discount") or "0")
+                else:
+                    first_product_discount = str(first_p.get("additional_discount") or "0")
+            o["distributor_discount"] = {"discount": first_product_discount}
+            o["customer_email"] = o.get("customer_email") or ""
+            mapped_cart.append(o)
+
+        combined_mapped = mapped_normal + mapped_cart
+
+        # Filter by revenue type in Python
+        if getattr(filter, 'revenue_type', None):
+            revenue = filter.revenue_type.value if isinstance(filter.revenue_type, OrderFilterRevenueEnum) else filter.revenue_type
+            if revenue == OrderFilterRevenueEnum.PROFIT.value:
+                combined_mapped = [o for o in combined_mapped if (o.get("profit_loss") or 0.0) > 0]
+            elif revenue == OrderFilterRevenueEnum.LOSS.value:
+                combined_mapped = [o for o in combined_mapped if (o.get("profit_loss") or 0.0) < 0]
+
+        # Sort by created_at descending
+        def get_created_at(order):
+            c_at = order.get("created_at") or order.get("order_created_at")
+            if c_at is None:
+                return datetime.min
+            if isinstance(c_at, str):
+                try:
+                    dt = datetime.fromisoformat(c_at.replace("Z", "+00:00"))
+                    return dt.replace(tzinfo=None)
+                except Exception:
+                    try:
+                        dt = datetime.strptime(c_at, "%Y-%m-%d")
+                        return dt.replace(tzinfo=None)
+                    except Exception:
+                        return datetime.min
+            if isinstance(c_at, (datetime, date)):
+                if isinstance(c_at, date) and not isinstance(c_at, datetime):
+                    return datetime.combine(c_at, datetime.min.time())
+                return c_at.replace(tzinfo=None)
+            return datetime.min
+
+        combined_mapped.sort(key=get_created_at, reverse=True)
+
+        # 3. Calculate statistics over the combined dataset
+        total_revenue = 0.0
+        distributor_value = 0.0
+        total_license = 0
+        total_orders = len(combined_mapped)
+        order_value = 0.0
+        not_activated = 0
+        
+        pending_invoice = 0
+        tds_pendings = 0
+        tot_pending_dues = 0
+        vendor_value = 0.0
+        
+        not_paid_pendings = 0
+        gst_pendings = 0
+        half_pendings = 0
+        short_pendings = 0
+        
+        not_paid_amounts = 0.0
+        tds_amounts = 0.0
+        gst_amounts = 0.0
+        half_amounts = 0.0
+        short_amounts = 0.0
+        pending_amounts = 0.0
+        tot_pending_amounts = 0.0
+        
+        distributor_pivot = {}
+
+        for o in combined_mapped:
+            order_total_price = o.get("customer_price") or 0.0
+            order_distributor_price = o.get("distributor_price") or 0.0
+            order_vendor_total_price = o.get("vendor_total_price") or 0.0
+            order_profit_loss = o.get("profit_loss") or 0.0
+            order_license_val = o.get("quantity") or 0
+            purchase_type = (o.get("logistic_info") or {}).get("purchase_type") or ""
+            
+            total_revenue += order_profit_loss
+            distributor_value += order_distributor_price
+            total_license += order_license_val
+            order_value += order_total_price
+            vendor_value += order_vendor_total_price
+            
+            if not o.get("activated"):
+                not_activated += 1
+                
+            invoices = o.get("status_info") or []
+            for inv in invoices:
+                invoice_status = inv.get("invoice_status")
+                payment_status = inv.get("payment_status")
+                paid_amount = float(inv.get("paid_amount") or 0)
+                
+                cust_total_inc_gst = round(order_total_price * 1.18)
+                count = len(invoices)
+                per_invoice_amt = round(cust_total_inc_gst / count) if count > 0 else 0
+                
+                remaining_bal = max(per_invoice_amt - paid_amount, 0)
+                if payment_status in (PaymentStatus.PAID.value, PaymentStatus.FULL_PAYMENT_RECEIVED.value):
+                    remaining_bal = 0.0
+                
+                if invoice_status == "COMPLETED":
+                    if payment_status == PaymentStatus.NOT_PAID.value:
+                        not_paid_pendings += 1
+                        not_paid_amounts += remaining_bal
+                    elif payment_status == PaymentStatus.GST_PENDING.value:
+                        gst_pendings += 1
+                        gst_amounts += remaining_bal
+                    elif payment_status == PaymentStatus.HALF_PAYMENT_RECEIVED.value:
+                        half_pendings += 1
+                        half_amounts += remaining_bal
+                    elif payment_status == PaymentStatus.SHORT_PAYMENT_RECEIVED.value:
+                        short_pendings += 1
+                        short_amounts += remaining_bal
+                    elif payment_status == PaymentStatus.TDS_PENDING.value:
+                        tds_pendings += 1
+                        tds_amounts += remaining_bal
+                elif invoice_status == "PENDING" or invoice_status == "INCOMPLETED":
+                    pending_invoice += 1
+                    pending_amounts += per_invoice_amt
+                    
+            # Pivot group
+            dist_id = o.get("distributor_id")
+            if dist_id:
+                if dist_id not in distributor_pivot:
+                    distributor_pivot[dist_id] = {
+                        "distributor_id": dist_id,
+                        "existing_renewal": 0.0,
+                        "new_logo_renewal": 0.0,
+                        "net_new_customer": 0.0,
+                        "existing_add_on": 0.0
+                    }
+                p_pivot = distributor_pivot[dist_id]
+                if purchase_type == "EXISTING-RENEWAL":
+                    p_pivot["existing_renewal"] += order_total_price
+                elif purchase_type == "NEW-LOGO-RENEWAL":
+                    p_pivot["new_logo_renewal"] += order_total_price
+                elif purchase_type == "NET-NEW-CUSTOMER":
+                    p_pivot["net_new_customer"] += order_total_price
+                elif purchase_type == "EXISTING-ADD-ON":
+                    p_pivot["existing_add_on"] += order_total_price
+
+        purchase_stats = list(distributor_pivot.values())
+        tot_pending_amounts = not_paid_amounts + gst_amounts + half_amounts + short_amounts + tds_amounts
+        tot_pending_dues = not_paid_pendings + gst_pendings + half_pendings + short_pendings + tds_pendings
+
+        stats = {
+            "total_revenue": total_revenue,
+            "distributor_value": distributor_value,
+            "total_license": total_license,
+            "total_orders": total_orders,
+            "order_value": order_value,
+            "not_activated": not_activated,
+            "pending_invoice": pending_invoice,
+            "tds_pendings": tds_pendings,
+            "tot_pending_dues": tot_pending_dues,
+            "vendor_value": vendor_value,
+            "not_paid_pendings": not_paid_pendings,
+            "gst_pendings": gst_pendings,
+            "half_pendings": half_pendings,
+            "short_pendings": short_pendings,
+            "not_paid_amounts": not_paid_amounts,
+            "tds_amounts": tds_amounts,
+            "gst_amounts": gst_amounts,
+            "half_amounts": half_amounts,
+            "short_amounts": short_amounts,
+            "pending_amounts": pending_amounts,
+            "tot_pending_amounts": tot_pending_amounts,
+        }
+
+        # 4. Paginate
+        start_idx = 0 if cursor == 1 else cursor
+        end_idx = start_idx + limit
+        paginated_orders = combined_mapped[start_idx:end_idx]
 
         return {
-            **orders_infos,
+            **stats,
             "purchase_stats": purchase_stats,
-            'total_pages':ceil(orders_infos.get('total_orders',0)/limit),
-            'next_cursor':queried_orders[-1]['sequence_id'] if (len(queried_orders)>0 and queried_orders[-1]['sequence_id']!=1) else None,
-            'orders':queried_orders,
-
+            "total_pages": ceil(len(combined_mapped) / limit) if limit > 0 else 1,
+            "next_cursor": start_idx + len(paginated_orders) if (start_idx + len(paginated_orders) < len(combined_mapped)) else None,
+            "orders": paginated_orders
         }
     
     async def search(self,query:str):
@@ -747,6 +928,7 @@ class OrdersRepo(BaseRepoModel):
             .join(Products,Products.id==Orders.product_id,isouter=True)
             .join(Customers,Customers.id==Orders.customer_id,isouter=True)
             .join(Distributors,Distributors.id==Orders.distributor_id,isouter=True)
+            .join(OrderAddOns, OrderAddOns.new_order_id == Orders.id, isouter=True)
             .join(OrdersPaymentInvoiceInfo, OrdersPaymentInvoiceInfo.order_id == Orders.id,isouter=True)
             .where(
                 or_(
@@ -792,101 +974,339 @@ class OrdersRepo(BaseRepoModel):
             .join(Products,Products.id==Orders.product_id,isouter=True)
             .join(Customers,Customers.id==Orders.customer_id,isouter=True)
             .join(Distributors,Distributors.id==Orders.distributor_id,isouter=True) 
+            .join(OrderAddOns, OrderAddOns.new_order_id == Orders.id, isouter=True)
             .where(or_(Orders.id==order_id,Orders.ui_id==order_id),Orders.is_deleted==include_delete)
         )).mappings().one_or_none()
 
-        return {'order':queried_orders}
+        if queried_orders is not None:
+            o = dict(queried_orders)
+            
+            # Fetch sum of registered addon quantities on this parent order (both placed standard addons and draft cart addons)
+            addon_sum_query = select(func.coalesce(func.sum(OrderAddOns.addon_quantity), 0)).where(OrderAddOns.parent_order_id == o.get("id"))
+            total_addon_qty = (await self.session.execute(addon_sum_query)).scalar_one()
+            
+            from ..models.order import CartOrders, CartOrdersProduct
+            draft_sum_query = (
+                select(func.coalesce(func.sum(CartOrdersProduct.quantity), 0))
+                .join(CartOrders, CartOrders.id == CartOrdersProduct.order_id)
+                .where(
+                    CartOrders.logistic_info['last_order_id'].astext == o.get("id"),
+                    CartOrders.logistic_info['purchase_type'].astext == 'EXISTING-ADD-ON',
+                    CartOrders.is_deleted == False
+                )
+            )
+            draft_addon_qty = (await self.session.execute(draft_sum_query)).scalar_one()
+            
+            o["total_addon_quantity"] = total_addon_qty + draft_addon_qty
+            
+            o["products"] = [{
+                "id": o.get("product_id"),
+                "product_id": o.get("product_id"),
+                "name": o.get("product_name"),
+                "price": o.get("product_price"),
+                "quantity": o.get("quantity"),
+                "unit_price": o.get("unit_price"),
+                "additional_price": o.get("additional_price"),
+                "additional_discount": o.get("additional_discount"),
+                "discount_id": o.get("discount_id"),
+                "vendor_commision": o.get("vendor_commision"),
+                "customer_price": o.get("customer_price"),
+                "distributor_price": o.get("distributor_price"),
+                "vendor_total_price": o.get("vendor_total_price"),
+                "profit_loss": o.get("profit_loss"),
+            }]
+            disc_val = o.get("distributor_discount")
+            if isinstance(disc_val, dict):
+                o["distributor_discount"] = disc_val
+            elif isinstance(disc_val, str) and disc_val.strip().startswith("{"):
+                import json
+                try:
+                    o["distributor_discount"] = json.loads(disc_val)
+                except Exception:
+                    o["distributor_discount"] = {"discount": disc_val}
+            else:
+                o["distributor_discount"] = {"discount": str(disc_val or "0")}
+            o["total_price"] = o.get("customer_price") or 0.0
+            o["total_license"] = o.get("quantity") or 0
+            return {'order': o}
+
+        # Fallback to CartOrders
+        from ..models.order import CartOrders, CartOrdersProduct, CartOrdersPaymentInvoiceInfo, CartOrderAddOns
+        from infras.primary_db.repos.order_cart_repo import OrdersCartRepo
+        
+        cart_repo = OrdersCartRepo(session=self.session, user_role=self.user_role, cur_user_id=self.cur_user_id)
+        
+        cart_toquery = (
+            select(
+                *cart_repo.orders_cols
+            )
+            .join(Distributors, Distributors.id == CartOrders.distributor_id, isouter=True)
+            .join(Customers, Customers.id == CartOrders.customer_id, isouter=True)
+            .join(cart_repo.product_subquery, cart_repo.product_subquery.c.order_id == CartOrders.id, isouter=True)
+            .join(cart_repo.payment_subquery, cart_repo.payment_subquery.c.order_id == CartOrders.id, isouter=True)
+            .where(
+                or_(CartOrders.id == order_id, CartOrders.ui_id == order_id),
+                CartOrders.is_deleted == include_delete
+            )
+        )
+        
+        row = (await self.session.execute(cart_toquery)).mappings().one_or_none()
+        if row is not None:
+            o = cart_repo._map_single_cart_order(row)
+            
+            # Fetch sum of registered cart addon quantities on this parent cart order (both placed standard addons and draft cart addons)
+            cart_addon_sum_query = select(func.coalesce(func.sum(CartOrderAddOns.addon_quantity), 0)).where(CartOrderAddOns.parent_cart_order_id == o.get("id"))
+            total_cart_addon_qty = (await self.session.execute(cart_addon_sum_query)).scalar_one()
+            
+            from ..models.order import CartOrders, CartOrdersProduct
+            draft_sum_query = (
+                select(func.coalesce(func.sum(CartOrdersProduct.quantity), 0))
+                .join(CartOrders, CartOrders.id == CartOrdersProduct.order_id)
+                .where(
+                    CartOrders.logistic_info['last_order_id'].astext == o.get("id"),
+                    CartOrders.logistic_info['purchase_type'].astext == 'EXISTING-ADD-ON',
+                    CartOrders.is_deleted == False
+                )
+            )
+            draft_addon_qty = (await self.session.execute(draft_sum_query)).scalar_one()
+            
+            o["total_addon_quantity"] = total_cart_addon_qty + draft_addon_qty
+            
+            products_list = o.get("products") or []
+            
+            product_names = [p.get("name") or p.get("product_name") or "" for p in products_list]
+            product_names = [name for name in product_names if name]
+            o["product_name"] = ", ".join(product_names) if product_names else "Multiple Products"
+            
+            product_ui_ids = [p.get("product_ui_id") or p.get("ui_id") or "" for p in products_list]
+            product_ui_ids = [ui for ui in product_ui_ids if ui]
+            o["product_ui_id"] = ", ".join(product_ui_ids) if product_ui_ids else "MULT-PROD"
+            
+            first_product_discount = "0"
+            if products_list:
+                first_p = products_list[0]
+                disc_obj = first_p.get("discount")
+                if isinstance(disc_obj, dict):
+                    first_product_discount = str(disc_obj.get("discount") or "0")
+                else:
+                    first_product_discount = str(first_p.get("additional_discount") or "0")
+            o["distributor_discount"] = {"discount": first_product_discount}
+            o["total_price"] = o.get("customer_price") or 0.0
+            o["total_license"] = o.get("quantity") or 0
+            o["customer_email"] = o.get("customer_email") or ""
+            
+            return {'order': o}
+
+        return {'order': None}
         
     
     async def get_by_customer_id(self,customer_id:str,cursor:int,limit:int):
         date_expr=func.date(func.timezone("Asia/Kolkata",Orders.created_at))
-        cursor=0 if cursor==1 else cursor
-        queried_orders=(await self.session.execute(
+        cursor=int(cursor)
+        limit=int(limit)
+        
+        # Standard orders query for customer
+        orders_toquery = (
             select(
                 *self.orders_cols,
-                date_expr.label("order_created_at")   
+                date_expr.label("order_created_at")
             )
             .join(self.subquery, self.subquery.c.order_id == Orders.id, isouter=True)
             .join(Products,Products.id==Orders.product_id,isouter=True)
             .join(Customers,Customers.id==Orders.customer_id,isouter=True)
             .join(Distributors,Distributors.id==Orders.distributor_id,isouter=True)
-            .where(Orders.customer_id==customer_id,Orders.sequence_id>cursor,Orders.is_deleted==False)
-
-            .limit(limit)
-        )).mappings().all()
-
-        orders_infos={}
-        ic(cursor)
-        if cursor==0:
-            invoice_stats_subq = (
-                select(
-                    OrdersPaymentInvoiceInfo.order_id,
-                    func.count().label("total_invoices"),
-
-                    func.count().filter(
-                        OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.INCOMPLETED.value
-                    ).label("pending_invoice"),
-
-                    func.count().filter(
-                        and_(
-                            OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value,
-                            OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.PAID.value,
-                            OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.FULL_PAYMENT_RECEIVED.value
-                        )
-                    ).label("completed_invoices_count"),
-                    func.sum(func.coalesce(OrdersPaymentInvoiceInfo.paid_amount, 0)).filter(
-                        and_(
-                            OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value,
-                            OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.PAID.value,
-                            OrdersPaymentInvoiceInfo.payment_status != PaymentStatus.FULL_PAYMENT_RECEIVED.value
-                        )
-                    ).label("completed_paid_total"),
-                )
-                .group_by(OrdersPaymentInvoiceInfo.order_id)
-                .subquery()
+            .where(
+                Orders.customer_id==customer_id,
+                Orders.is_deleted==False
             )
+        )
+        
+        queried_orders = (await self.session.execute(orders_toquery)).mappings().all()
 
-            customer_amount_with_gst = func.round(customer_final_price * 1.18)
-            expected_invoice_amount = customer_amount_with_gst / func.nullif(invoice_stats_subq.c.total_invoices, 0)
-
-            pending_invoice_amount_raw = func.round(
-                func.coalesce(invoice_stats_subq.c.pending_invoice, 0) * expected_invoice_amount
+        # Cart orders query for customer
+        from ..models.order import CartOrders, CartOrdersProduct, CartOrdersPaymentInvoiceInfo, CartOrdersAdditionalQuantity
+        from infras.primary_db.repos.order_cart_repo import OrdersCartRepo
+        
+        cart_repo = OrdersCartRepo(session=self.session, user_role=self.user_role, cur_user_id=self.cur_user_id)
+        
+        cart_toquery = (
+            select(
+                *cart_repo.orders_cols
             )
-
-            pending_payment_amount_expr = func.round(
-                func.coalesce(invoice_stats_subq.c.completed_invoices_count, 0) * expected_invoice_amount - 
-                func.coalesce(invoice_stats_subq.c.completed_paid_total, 0)
+            .join(Distributors, Distributors.id == CartOrders.distributor_id, isouter=True)
+            .join(Customers, Customers.id == CartOrders.customer_id, isouter=True)
+            .join(cart_repo.product_subquery, cart_repo.product_subquery.c.order_id == CartOrders.id, isouter=True)
+            .join(cart_repo.payment_subquery, cart_repo.payment_subquery.c.order_id == CartOrders.id, isouter=True)
+            .where(
+                CartOrders.customer_id==customer_id,
+                CartOrders.is_deleted==False
             )
+        )
+        
+        cart_orders_results = (await self.session.execute(cart_toquery)).mappings().all()
 
-            orders_infos=(await self.session.execute(
-                select(
-                    func.coalesce(func.sum(profit_loss_price), 0).label("total_revenue"),
-                    func.coalesce(func.sum(distri_final_price), 0).label("distributor_value"),
-                    func.coalesce(func.sum(Orders.quantity), 0).label("total_license"),
-                    func.count(Orders.id).label("total_orders"),
-                    func.coalesce(func.sum(customer_final_price), 0).label("order_value"),
-                    func.count().filter(Orders.activated.is_(False)).label("not_activated"),
-                    func.coalesce(func.sum(invoice_stats_subq.c.pending_invoice), 0).label("pending_invoice"),
-                    func.coalesce(func.sum(vendor_disc_price), 0).label("vendor_value"),
-                    func.coalesce(func.sum(pending_invoice_amount_raw), 0).label("pending_amounts"),
-                    func.coalesce(func.sum(pending_payment_amount_expr), 0).label("tot_pending_amounts"),
-                    func.coalesce(func.sum(invoice_stats_subq.c.completed_invoices_count), 0).label("tot_pending_dues")
-                )
-                .outerjoin(invoice_stats_subq, invoice_stats_subq.c.order_id == Orders.id)
-                .join(Products, Products.id == Orders.product_id, isouter=True)
-                .join(Customers, Customers.id == Orders.customer_id, isouter=True)
-                .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
-                .where(Orders.customer_id==customer_id,Orders.is_deleted==False)
-            )).mappings().one_or_none()
+        # Map normal orders
+        mapped_normal = []
+        for row in queried_orders:
+            o = dict(row)
+            o["products"] = [{
+                "id": o.get("product_id"),
+                "product_id": o.get("product_id"),
+                "name": o.get("product_name"),
+                "price": o.get("product_price"),
+                "quantity": o.get("quantity"),
+                "unit_price": o.get("unit_price"),
+                "additional_price": o.get("additional_price"),
+                "additional_discount": o.get("additional_discount"),
+                "discount_id": o.get("discount_id"),
+                "vendor_commision": o.get("vendor_commision"),
+                "customer_price": o.get("customer_price"),
+                "distributor_price": o.get("distributor_price"),
+                "vendor_total_price": o.get("vendor_total_price"),
+                "profit_loss": o.get("profit_loss"),
+            }]
+            disc_val = o.get("distributor_discount")
+            if isinstance(disc_val, dict):
+                o["distributor_discount"] = disc_val
+            elif isinstance(disc_val, str) and disc_val.strip().startswith("{"):
+                import json
+                try:
+                    o["distributor_discount"] = json.loads(disc_val)
+                except Exception:
+                    o["distributor_discount"] = {"discount": disc_val}
+            else:
+                o["distributor_discount"] = {"discount": str(disc_val or "0")}
+            o["total_price"] = o.get("customer_price") or 0.0
+            o["total_license"] = o.get("quantity") or 0
+            mapped_normal.append(o)
 
-        ic(orders_infos)
-        ic(queried_orders)
+        # Map cart orders
+        mapped_cart = []
+        for row in cart_orders_results:
+            o = cart_repo._map_single_cart_order(row)
+            products_list = o.get("products") or []
+            
+            product_names = [p.get("name") or p.get("product_name") or "" for p in products_list]
+            product_names = [name for name in product_names if name]
+            o["product_name"] = ", ".join(product_names) if product_names else "Multiple Products"
+            
+            product_ui_ids = [p.get("product_ui_id") or p.get("ui_id") or "" for p in products_list]
+            product_ui_ids = [ui for ui in product_ui_ids if ui]
+            o["product_ui_id"] = ", ".join(product_ui_ids) if product_ui_ids else "MULT-PROD"
+            
+            first_product_discount = "0"
+            if products_list:
+                first_p = products_list[0]
+                disc_obj = first_p.get("discount")
+                if isinstance(disc_obj, dict):
+                    first_product_discount = str(disc_obj.get("discount") or "0")
+                else:
+                    first_product_discount = str(first_p.get("additional_discount") or "0")
+            o["distributor_discount"] = {"discount": first_product_discount}
+            o["customer_email"] = o.get("customer_email") or ""
+            mapped_cart.append(o)
+
+        combined_mapped = mapped_normal + mapped_cart
+
+        # Sort by created_at descending
+        def get_created_at(order):
+            c_at = order.get("created_at") or order.get("order_created_at")
+            if c_at is None:
+                return datetime.min
+            if isinstance(c_at, str):
+                try:
+                    dt = datetime.fromisoformat(c_at.replace("Z", "+00:00"))
+                    return dt.replace(tzinfo=None)
+                except Exception:
+                    try:
+                        dt = datetime.strptime(c_at, "%Y-%m-%d")
+                        return dt.replace(tzinfo=None)
+                    except Exception:
+                        return datetime.min
+            if isinstance(c_at, (datetime, date)):
+                if isinstance(c_at, date) and not isinstance(c_at, datetime):
+                    return datetime.combine(c_at, datetime.min.time())
+                return c_at.replace(tzinfo=None)
+            return datetime.min
+
+        combined_mapped.sort(key=get_created_at, reverse=True)
+
+        # Calculate customer-specific stats
+        total_revenue = 0.0
+        distributor_value = 0.0
+        total_license = 0
+        total_orders = len(combined_mapped)
+        order_value = 0.0
+        not_activated = 0
+        
+        pending_invoice = 0
+        vendor_value = 0.0
+        pending_amounts = 0.0
+        tot_pending_amounts = 0.0
+        tot_pending_dues = 0
+
+        for o in combined_mapped:
+            order_total_price = o.get("customer_price") or 0.0
+            order_distributor_price = o.get("distributor_price") or 0.0
+            order_vendor_total_price = o.get("vendor_total_price") or 0.0
+            order_profit_loss = o.get("profit_loss") or 0.0
+            order_license_val = o.get("quantity") or 0
+            
+            total_revenue += order_profit_loss
+            distributor_value += order_distributor_price
+            total_license += order_license_val
+            order_value += order_total_price
+            vendor_value += order_vendor_total_price
+            
+            if not o.get("activated"):
+                not_activated += 1
+                
+            invoices = o.get("status_info") or []
+            for inv in invoices:
+                invoice_status = inv.get("invoice_status")
+                payment_status = inv.get("payment_status")
+                paid_amount = float(inv.get("paid_amount") or 0)
+                
+                cust_total_inc_gst = round(order_total_price * 1.18)
+                count = len(invoices)
+                per_invoice_amt = round(cust_total_inc_gst / count) if count > 0 else 0
+                
+                remaining_bal = max(per_invoice_amt - paid_amount, 0)
+                if payment_status in (PaymentStatus.PAID.value, PaymentStatus.FULL_PAYMENT_RECEIVED.value):
+                    remaining_bal = 0.0
+                
+                if invoice_status == "COMPLETED":
+                    if payment_status != PaymentStatus.PAID.value and payment_status != PaymentStatus.FULL_PAYMENT_RECEIVED.value:
+                        tot_pending_dues += 1
+                        tot_pending_amounts += remaining_bal
+                elif invoice_status == "PENDING" or invoice_status == "INCOMPLETED":
+                    pending_invoice += 1
+                    pending_amounts += per_invoice_amt
+
+        orders_infos = {
+            "total_revenue": total_revenue,
+            "distributor_value": distributor_value,
+            "total_license": total_license,
+            "total_orders": total_orders,
+            "order_value": order_value,
+            "not_activated": not_activated,
+            "pending_invoice": pending_invoice,
+            "vendor_value": vendor_value,
+            "pending_amounts": pending_amounts,
+            "tot_pending_amounts": tot_pending_amounts,
+            "tot_pending_dues": tot_pending_dues
+        }
+
+        # Paginate
+        start_idx = 0 if cursor == 1 else cursor
+        end_idx = start_idx + limit
+        paginated_orders = combined_mapped[start_idx:end_idx]
 
         return {
             **orders_infos,
-            'orders':queried_orders,
-            'total_pages':ceil(orders_infos.get('total_orders',0)/limit),
-            'next_cursor':queried_orders[-1]['sequence_id'] if len(queried_orders)>0 else None
+            'orders': paginated_orders,
+            'total_pages': ceil(len(combined_mapped) / limit) if limit > 0 else 1,
+            'next_cursor': start_idx + len(paginated_orders) if (start_idx + len(paginated_orders) < len(combined_mapped)) else None
         }
     
 
@@ -1689,14 +2109,15 @@ class OrdersRepo(BaseRepoModel):
         }
 
     async def get_pending_invoice_alert(self, days_threshold: int):
+        activation_date = cast(Orders.delivery_info['delivery_date'].astext, Date)
         stmt = (
             select(
                 Orders.id.label("order_id"),
                 Orders.ui_id.label("ui_id"),
                 Customers.name.label("customer_name"),
                 Customers.owner.label("owner_name"),
-                func.date(func.timezone("Asia/Kolkata", Orders.created_at)).label("created_at"),
-                (func.current_date() - func.date(func.timezone("Asia/Kolkata", Orders.created_at))).label("days_since_created"),
+                activation_date.label("created_at"),
+                (func.current_date() - activation_date).label("days_since_created"),
                 OrdersPaymentInvoiceInfo.invoice_status
             )
             .join(Customers, Orders.customer_id == Customers.id)
@@ -1705,10 +2126,10 @@ class OrdersRepo(BaseRepoModel):
                 and_(
                     OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.INCOMPLETED.value,
                     Orders.is_deleted == False,
-                    func.date(func.timezone("Asia/Kolkata", Orders.created_at)) <= (func.current_date() - days_threshold) if days_threshold > 0 else True
+                    activation_date <= (func.current_date() - days_threshold) if days_threshold > 0 else True
                 )
             )
-            .order_by(desc(Orders.created_at))
+            .order_by(desc(activation_date))
         )
         
         results = (await self.session.execute(stmt)).mappings().all()

@@ -24,7 +24,7 @@ def start_db_transaction(func):
         
         if session.in_transaction() or session.in_nested_transaction():
             ic("Transaction already active → Closing session ()")
-            await session.close_all()
+            await session.close()
         
         ic(f"Started transaction from async with session of: {session}")
         async with session.begin():
@@ -46,7 +46,7 @@ def start_db_transaction(func):
         
         if session.in_transaction() or session.in_nested_transaction():
             ic("Transaction already active → Closing Session ()")
-            session.close_all()
+            session.close()
         
         ic(f"Started transaction from sync with session of: {session}")
         with session.begin():
