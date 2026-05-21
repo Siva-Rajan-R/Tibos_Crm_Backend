@@ -137,7 +137,7 @@ class OrdersRepo(BaseRepoModel):
         invoicetoadd_bulk=[]
         for status in invoicetoadd['status_info']:
             if status.get("payment_status") in ("FULL PAYMENT RECEIVED", "PAID"):
-                status["paid_amount"] = status.get("invoice_amount") or 0.0
+                status["paid_amount"] = status.get("paid_amount") if status.get("paid_amount") is not None else (status.get("invoice_amount") or 0.0)
                 status["remaining_amount"] = 0.0
             clean_status = {
                 k: v for k, v in status.items()
@@ -274,7 +274,7 @@ class OrdersRepo(BaseRepoModel):
         await self.session.execute(delete(OrdersPaymentInvoiceInfo).where(OrdersPaymentInvoiceInfo.order_id==data.order_id))
         for status in invoicetoadd['status_info']:
             if status.get("payment_status") in ("FULL PAYMENT RECEIVED", "PAID"):
-                status["paid_amount"] = status.get("invoice_amount") or 0.0
+                status["paid_amount"] = status.get("paid_amount") if status.get("paid_amount") is not None else (status.get("invoice_amount") or 0.0)
                 status["remaining_amount"] = 0.0
             clean_status = {
                 k: v for k, v in status.items()

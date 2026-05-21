@@ -16,6 +16,8 @@ class StatusInfo(TypedDict):
     invoice_number:NotRequired[Union[str,None]]=None
     invoice_date:NotRequired[Union[date,None]]=None
     paid_amount:NotRequired[Union[float,None]]=None
+    invoice_amount:NotRequired[Union[float,None]]=None
+    remaining_amount:NotRequired[Union[float,None]]=None
 
 class LogisticsInfo(TypedDict):
     purchase_type:Union[str,PurchaseTypes]
