@@ -418,7 +418,8 @@ async def send_pending_invoice_alert(ctx, force=False):
                     ).label("owner_name"),
                     func.date(func.timezone("Asia/Kolkata", Orders.created_at)).label("created_date"),
                     (func.current_date() - func.date(func.timezone("Asia/Kolkata", Orders.created_at))).label("days_since_created"),
-                    OrdersPaymentInvoiceInfo.invoice_status.label("invoice_status"),
+                    func.min(OrdersPaymentInvoiceInfo.invoice_status).label("invoice_status"),
+                    func.count(OrdersPaymentInvoiceInfo.id).label("pending_invoice_count")
                 )
                 .join(Customers, Customers.id == Orders.customer_id, isouter=True)
                 .join(OrdersPaymentInvoiceInfo, OrdersPaymentInvoiceInfo.order_id == Orders.id, isouter=True)
@@ -426,6 +427,13 @@ async def send_pending_invoice_alert(ctx, force=False):
                     Orders.is_deleted == False,
                     func.date(func.timezone("Asia/Kolkata", Orders.created_at)) <= cutoff_date,
                     OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.INCOMPLETED.value,
+                )
+                .group_by(
+                    Orders.id,
+                    Orders.ui_id,
+                    Customers.name,
+                    Customers.owner,
+                    func.date(func.timezone("Asia/Kolkata", Orders.created_at))
                 )
                 .order_by(func.date(func.timezone("Asia/Kolkata", Orders.created_at)).asc())
                 .limit(100)
@@ -442,6 +450,7 @@ async def send_pending_invoice_alert(ctx, force=False):
                 "created_date": str(row["created_date"]) if row["created_date"] else "-",
                 "days_since_created": int(row["days_since_created"]) if row["days_since_created"] else 0,
                 "invoice_status": row["invoice_status"] or "-",
+                "pending_invoice_count": row["pending_invoice_count"] or 1,
             })
 
     except Exception as e:
@@ -796,7 +805,8 @@ async def run_test_report(ctx, report_type: str, recipients: list):
                     func.coalesce(func.nullif(func.trim(Customers.owner), ''), 'Others').label("owner_name"),
                     func.date(func.timezone("Asia/Kolkata", Orders.created_at)).label("created_date"),
                     (func.current_date() - func.date(func.timezone("Asia/Kolkata", Orders.created_at))).label("days_since_created"),
-                    OrdersPaymentInvoiceInfo.invoice_status.label("invoice_status"),
+                    func.min(OrdersPaymentInvoiceInfo.invoice_status).label("invoice_status"),
+                    func.count(OrdersPaymentInvoiceInfo.id).label("pending_invoice_count"),
                 )
                 .join(Customers, Customers.id == Orders.customer_id, isouter=True)
                 .join(OrdersPaymentInvoiceInfo, OrdersPaymentInvoiceInfo.order_id == Orders.id, isouter=True)
@@ -804,6 +814,13 @@ async def run_test_report(ctx, report_type: str, recipients: list):
                     Orders.is_deleted == False,
                     func.date(func.timezone("Asia/Kolkata", Orders.created_at)) <= cutoff_date,
                     OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.INCOMPLETED.value,
+                )
+                .group_by(
+                    Orders.id,
+                    Orders.ui_id,
+                    Customers.name,
+                    Customers.owner,
+                    func.date(func.timezone("Asia/Kolkata", Orders.created_at))
                 )
                 .order_by(func.date(func.timezone("Asia/Kolkata", Orders.created_at)).asc())
                 .limit(100)

@@ -15,7 +15,7 @@ from core.decorators.error_handler_dec import catch_errors
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict,ErrorResponseTypDict
 from ..models.ui_id import TablesUiLId
 from core.utils.ui_id_generator import generate_ui_id
-from core.constants import UI_ID_STARTING_DIGIT,LUI_ID_LEAD_PREFIX
+from core.constants import UI_ID_STARTING_DIGIT,LUI_ID_LEAD_PREFIX,LUI_ID_OPPOR_PREFIX
 
 
 class LeadsService(BaseServiceModel):
@@ -64,3 +64,51 @@ class LeadsService(BaseServiceModel):
     @catch_errors
     async def search(self, query: str):
         return await LeadsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).search(query=query)
+
+    @catch_errors
+    async def convert_to_opportunity(self, lead_id: str):
+        from ..repos.opportunity_repo import OpportunitiesRepo
+        from schemas.db_schemas.opportunity import CreateOpportunityDbSchema
+        from core.data_formats.enums.lead_oppr_enums import LeadStatus, OpportunityStatus
+
+        lead_repo = LeadsRepo(session=self.session, user_role=self.user_role, cur_user_id=self.cur_user_id)
+        
+        # Check if lead exists
+        lead = await lead_repo.get_lead_raw(lead_id=lead_id)
+        if not lead:
+            return ErrorResponseTypDict(status_code=404, success=False, msg="Error : Converting Lead", description="Lead not found")
+        
+        # Check if lead is already converted
+        if lead.status == LeadStatus.CONVERTED.value:
+            return ErrorResponseTypDict(status_code=400, success=False, msg="Error : Converting Lead", description="Lead is already converted to an opportunity")
+        
+        # Check if opportunity already exists for this lead
+        oppor_repo = OpportunitiesRepo(session=self.session, user_role=self.user_role, cur_user_id=self.cur_user_id)
+        if await oppor_repo.is_opportunity_exists(lead_id=lead_id):
+            return ErrorResponseTypDict(status_code=400, success=False, msg="Error : Converting Lead", description="An opportunity already exists for this lead")
+        
+        # Create opportunity
+        oppr_id = generate_uuid()
+        lui_id = (await self.session.execute(select(TablesUiLId.oppor_luiid))).scalar_one_or_none()
+        cur_uiid = generate_ui_id(prefix=LUI_ID_OPPOR_PREFIX, last_id=lui_id)
+        
+        oppor_data = CreateOpportunityDbSchema(
+            id=oppr_id,
+            ui_id=cur_uiid,
+            lead_id=lead_id,
+            name=f"{lead.name} - Opportunity",
+            product="",
+            billing_type="ONE_TIME",
+            deal_value=0,
+            description=lead.description or "",
+            status=OpportunityStatus.OPEN.value
+        )
+        
+        add_result = await oppor_repo.add(data=oppor_data)
+        if not add_result or isinstance(add_result, ErrorResponseTypDict):
+            return add_result or ErrorResponseTypDict(status_code=400, success=False, msg="Error : Converting Lead", description="Failed to create opportunity")
+        
+        # Update lead status to CONVERTED
+        await lead_repo.update_status(lead_id=lead_id, status=LeadStatus.CONVERTED.value)
+        
+        return True

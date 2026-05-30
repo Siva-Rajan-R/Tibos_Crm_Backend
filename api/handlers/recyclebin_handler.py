@@ -6,18 +6,16 @@ class HandleRecycleBinRequests:
     def __init__(self,session:AsyncSession):
         self.session=session
 
-    async def get(self):
+    async def get(self, cursor: int = 1, limit: int = 10):
         user_role=UserRoles.SUPER_ADMIN
-        cursor=1
-        limit=10
-        customers=await customer_service.CustomersService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True)
+        customers=await customer_service.CustomersService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True,cursor=cursor,limit=limit)
         contacts=await contact_service.ContactsService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True,cursor=cursor,limit=limit)
-        users=await user_service.UserService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True)
-        products=await product_service.ProductsService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True,cursor=cursor)
-        leads=await lead_service.LeadsService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True,cursor=cursor)
-        opportunities=await opportunity_service.OpportunitiesService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True,cursor=cursor)
-        distributors=await distri_service.DistributorService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True,cursor=cursor)
-        orders=await order_service.OrdersService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True,cursor=cursor,filter=OrderFilterSchema())
+        users=await user_service.UserService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True) if cursor == 1 else {'users': []}
+        products=await product_service.ProductsService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True,cursor=cursor,limit=limit)
+        leads=await lead_service.LeadsService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True,cursor=cursor,limit=limit)
+        opportunities=await opportunity_service.OpportunitiesService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True,cursor=cursor,limit=limit)
+        distributors=await distri_service.DistributorService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True,cursor=cursor,limit=limit)
+        orders=await order_service.OrdersService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True,cursor=cursor,limit=limit,filter=OrderFilterSchema())
         distributor_payments=await distributor_payment_service.DistributorsPaymentsService(session=self.session,user_role=user_role,cur_user_id='').get(include_deleted=True,cursor=cursor,limit=limit)
 
         return [

@@ -117,7 +117,8 @@ PENDING_INVOICE_REPORT_MAPPER = {
     'customer_name': 'Customer Name',
     'owner_name': 'Owner Name',
     'days_since_created': 'Days Since Created',
-    'invoice_status': 'Invoice Status'
+    'invoice_status': 'Invoice Status',
+    'pending_invoice_count': 'Pending Invoices'
 }
 
 ACTIVATION_ALERT_REPORT_MAPPER = {

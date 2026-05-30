@@ -560,6 +560,7 @@ class OrdersCartRepo(BaseRepoModel):
     def _map_single_cart_order(self, row):
         from datetime import date
         o = dict(row)
+        o["is_cart"] = True
         
         if o.get("created_at"):
             if isinstance(o["created_at"], (datetime, date)):

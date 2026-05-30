@@ -3,7 +3,7 @@ import io
 import pandas as pd
 from datetime import datetime, timedelta, date
 from . import HTTPException,BaseRepoModel
-from ..models.order import Orders,OrdersPaymentInvoiceInfo,OrderRenewals,OrderAddOns
+from ..models.order import Orders,OrdersPaymentInvoiceInfo,OrderRenewals,OrderAddOns,CartOrders,CartOrdersPaymentInvoiceInfo
 from core.utils.uuid_generator import generate_uuid
 from ..models.product import Products
 from ..models.customer import Customers
@@ -675,6 +675,7 @@ class OrdersRepo(BaseRepoModel):
         mapped_normal = []
         for row in queried_orders:
             o = dict(row)
+            o["is_cart"] = False
             o["products"] = [{
                 "id": o.get("product_id"),
                 "product_id": o.get("product_id"),
@@ -980,6 +981,7 @@ class OrdersRepo(BaseRepoModel):
 
         if queried_orders is not None:
             o = dict(queried_orders)
+            o["is_cart"] = False
             
             # Fetch sum of registered addon quantities on this parent order (both placed standard addons and draft cart addons)
             addon_sum_query = select(func.coalesce(func.sum(OrderAddOns.addon_quantity), 0)).where(OrderAddOns.parent_order_id == o.get("id"))
@@ -1149,6 +1151,7 @@ class OrdersRepo(BaseRepoModel):
         mapped_normal = []
         for row in queried_orders:
             o = dict(row)
+            o["is_cart"] = False
             o["products"] = [{
                 "id": o.get("product_id"),
                 "product_id": o.get("product_id"),
@@ -1551,6 +1554,49 @@ class OrdersRepo(BaseRepoModel):
         
         return results
         
+    async def _get_filtered_cart_orders(self, from_date, to_date, owner_name=None, date_by=None, distributor_id=None):
+        from infras.primary_db.repos.order_cart_repo import OrdersCartRepo
+        from core.data_formats.enums.order_enums import OrderFilterDateByEnum
+        
+        cart_repo = OrdersCartRepo(session=self.session, user_role=self.user_role, cur_user_id=self.cur_user_id)
+        
+        # --- Date field to filter on ---
+        date_by_val = None
+        if date_by:
+            date_by_val = date_by.value if hasattr(date_by, 'value') else date_by
+
+        if date_by_val == OrderFilterDateByEnum.REQUESTED_DATE.value:
+            date_field = cast(CartOrders.delivery_info["requested_date"].astext, Date)
+        elif date_by_val == OrderFilterDateByEnum.CREATED_DATE.value:
+            date_field = cast(CartOrders.created_at, Date)
+        else:
+            # Default: ACTIVATION_DATE (delivery_date)
+            date_field = cast(CartOrders.delivery_info["delivery_date"].astext, Date)
+            
+        conditions = [CartOrders.is_deleted == False]
+        if from_date:
+            conditions.append(date_field >= from_date)
+        if to_date:
+            conditions.append(date_field <= to_date)
+        if owner_name and owner_name.upper() != 'ALL':
+            conditions.append(Customers.owner == owner_name)
+        if distributor_id and distributor_id.upper() != 'ALL':
+            conditions.append(CartOrders.distributor_id == distributor_id)
+            
+        stmt = (
+            select(
+                *cart_repo.orders_cols
+            )
+            .join(Distributors, Distributors.id == CartOrders.distributor_id, isouter=True)
+            .join(Customers, Customers.id == CartOrders.customer_id, isouter=True)
+            .join(cart_repo.product_subquery, cart_repo.product_subquery.c.order_id == CartOrders.id, isouter=True)
+            .join(cart_repo.payment_subquery, cart_repo.payment_subquery.c.order_id == CartOrders.id, isouter=True)
+            .where(*conditions)
+            .order_by(desc(CartOrders.created_at))
+        )
+        
+        results = (await self.session.execute(stmt)).mappings().all()
+        return [cart_repo._map_single_cart_order(row) for row in results]
 
     async def get_order_tracking_report(self,from_date,to_date,owner_name=None,date_by=None):
         """
@@ -1779,6 +1825,86 @@ class OrdersRepo(BaseRepoModel):
                 "grand_total": float(row["grand_total"] or 0),
             })
 
+        # --- Retrieve and aggregate Cart Orders ---
+        cart_mapped_orders = await self._get_filtered_cart_orders(
+            from_date=from_date,
+            to_date=to_date,
+            owner_name=owner_name,
+            date_by=date_by
+        )
+        
+        cart_owners = {}
+        for o in cart_mapped_orders:
+            owner_name_key = o.get("owner_name") or "Others"
+            if owner_name_key not in cart_owners:
+                cart_owners[owner_name_key] = {
+                    "activation_done_invoice_pending": 0.0,
+                    "payment_pending": 0.0,
+                    "po_received_activation_pending": 0.0,
+                }
+                
+            invoices = o.get("status_info") or []
+            has_completed_invoice = any(inv.get("invoice_status") == "COMPLETED" for inv in invoices)
+            all_invoices_incompleted = all(inv.get("invoice_status") == "INCOMPLETED" for inv in invoices)
+            has_pending_payment = any(inv.get("invoice_status") == "COMPLETED" and inv.get("payment_status") not in ("PAID", "FULL PAYMENT RECEIVED") for inv in invoices)
+            
+            total_price = o.get("total_price") or 0.0
+            gst_price = round(total_price * 1.18)
+            total_paid = sum(float(inv.get("paid_amount") or 0) for inv in invoices)
+            
+            # 1) Activation done, invoice need to raise
+            if o.get("activated") == True and all_invoices_incompleted:
+                cart_owners[owner_name_key]["activation_done_invoice_pending"] += total_price
+                
+            # 2) Payment pending
+            if has_completed_invoice and has_pending_payment:
+                pending_val = max(gst_price - total_paid, 0)
+                cart_owners[owner_name_key]["payment_pending"] += pending_val
+                
+            # 3) PO received, activation need to done
+            if o.get("activated") == False and all_invoices_incompleted:
+                cart_owners[owner_name_key]["po_received_activation_pending"] += total_price
+
+        # --- Merge standard Orders and Cart Orders ---
+        owners_dict = {row["owner_name"]: row for row in owners_data}
+        for owner, cart_vals in cart_owners.items():
+            if owner in owners_dict:
+                owners_dict[owner]["activation_done_invoice_pending"] += cart_vals["activation_done_invoice_pending"]
+                owners_dict[owner]["payment_pending"] += cart_vals["payment_pending"]
+                owners_dict[owner]["po_received_activation_pending"] += cart_vals["po_received_activation_pending"]
+                owners_dict[owner]["grand_total"] = round(
+                    owners_dict[owner]["activation_done_invoice_pending"] +
+                    owners_dict[owner]["payment_pending"] +
+                    owners_dict[owner]["po_received_activation_pending"],
+                    2
+                )
+            else:
+                grand_total_owner = round(
+                    cart_vals["activation_done_invoice_pending"] +
+                    cart_vals["payment_pending"] +
+                    cart_vals["po_received_activation_pending"],
+                    2
+                )
+                owners_dict[owner] = {
+                    "owner_name": owner,
+                    "activation_done_invoice_pending": cart_vals["activation_done_invoice_pending"],
+                    "payment_pending": cart_vals["payment_pending"],
+                    "po_received_activation_pending": cart_vals["po_received_activation_pending"],
+                    "grand_total": grand_total_owner
+                }
+                
+        owners_data = sorted(list(owners_dict.values()), key=lambda x: x["owner_name"])
+        
+        grand_total["activation_done_invoice_pending"] += sum(v["activation_done_invoice_pending"] for v in cart_owners.values())
+        grand_total["payment_pending"] += sum(v["payment_pending"] for v in cart_owners.values())
+        grand_total["po_received_activation_pending"] += sum(v["po_received_activation_pending"] for v in cart_owners.values())
+        grand_total["grand_total"] = round(
+            grand_total["activation_done_invoice_pending"] +
+            grand_total["payment_pending"] +
+            grand_total["po_received_activation_pending"],
+            2
+        )
+
         return {
             "owners": owners_data,
             "grand_total": grand_total
@@ -1976,6 +2102,108 @@ class OrdersRepo(BaseRepoModel):
             "pending_amount": float(gt_row["pending_amount"] or 0) if gt_row else 0,
         }
 
+        # --- Retrieve and process Cart Orders ---
+        cart_mapped_orders = await self._get_filtered_cart_orders(
+            from_date=from_date,
+            to_date=to_date,
+            owner_name=owner_name,
+            date_by=date_by
+        )
+
+        from datetime import date, datetime
+        today = date.today()
+
+        cart_owner_aggs = {}
+        for o in cart_mapped_orders:
+            owner = o.get("owner_name") or "Others"
+            invoices = o.get("status_info") or []
+            
+            # 1. Total invoices and matching completed pending invoices
+            total_invoices_count = len(invoices)
+            matching_completed_pending_invoices = []
+            for inv in invoices:
+                if inv.get("invoice_status") == "COMPLETED" and inv.get("payment_status") not in ("PAID", "FULL PAYMENT RECEIVED"):
+                    # Apply min_days_pending filter if applicable
+                    inv_date_str = inv.get("invoice_date")
+                    days_p = 0
+                    if inv_date_str:
+                        if isinstance(inv_date_str, (datetime, date)):
+                            inv_date = inv_date_str if isinstance(inv_date_str, date) else inv_date_str.date()
+                        else:
+                            try:
+                                inv_date = datetime.strptime(str(inv_date_str)[:10], "%Y-%m-%d").date()
+                            except Exception:
+                                inv_date = None
+                        if inv_date:
+                            days_p = max((today - inv_date).days, 0)
+                    if min_days_pending is not None and min_days_pending > 0 and days_p < min_days_pending:
+                        continue
+                    matching_completed_pending_invoices.append(inv)
+            
+            if not matching_completed_pending_invoices:
+                continue
+                
+            matching_count = len(matching_completed_pending_invoices)
+            total_price_inc_gst = round(o.get("total_price", 0.0) * 1.18)
+            
+            # Invoice values:
+            order_invoice_count = matching_count
+            order_invoice_amount = 0.0
+            order_pending_amount = 0.0
+            
+            for inv in matching_completed_pending_invoices:
+                # split values
+                invoice_total_value = total_price_inc_gst / matching_count if matching_count > 0 else 0.0
+                split_expected_amount = total_price_inc_gst / total_invoices_count if total_invoices_count > 0 else 0.0
+                invoice_pending_value = max(split_expected_amount - float(inv.get("paid_amount") or 0), 0.0)
+                
+                order_invoice_amount += invoice_total_value
+                order_pending_amount += invoice_pending_value
+                
+            if owner not in cart_owner_aggs:
+                cart_owner_aggs[owner] = {
+                    "total_invoice_count": 0,
+                    "total_invoice_amount": 0.0,
+                    "total_pending_amount": 0.0
+                }
+            cart_owner_aggs[owner]["total_invoice_count"] += order_invoice_count
+            cart_owner_aggs[owner]["total_invoice_amount"] += order_invoice_amount
+            cart_owner_aggs[owner]["total_pending_amount"] += order_pending_amount
+            
+            # Add to owners_data list
+            owners_data.append({
+                "owner_name": owner,
+                "customer_name": o.get("customer_name") or "",
+                "order_id": o.get("ui_id") or "",
+                "invoice_count": order_invoice_count,
+                "invoice_amount": round(order_invoice_amount, 2),
+                "pending_amount": round(order_pending_amount, 2),
+            })
+
+        # Update owner_summaries
+        owner_sum_dict = {s["owner_name"]: s for s in owner_summaries}
+        for owner, cart_vals in cart_owner_aggs.items():
+            if owner in owner_sum_dict:
+                owner_sum_dict[owner]["total_invoice_count"] += cart_vals["total_invoice_count"]
+                owner_sum_dict[owner]["total_invoice_amount"] = round(owner_sum_dict[owner]["total_invoice_amount"] + cart_vals["total_invoice_amount"], 2)
+                owner_sum_dict[owner]["total_pending_amount"] = round(owner_sum_dict[owner]["total_pending_amount"] + cart_vals["total_pending_amount"], 2)
+            else:
+                owner_sum_dict[owner] = {
+                    "owner_name": owner,
+                    "total_invoice_count": cart_vals["total_invoice_count"],
+                    "total_invoice_amount": round(cart_vals["total_invoice_amount"], 2),
+                    "total_pending_amount": round(cart_vals["total_pending_amount"], 2),
+                }
+        owner_summaries = sorted(list(owner_sum_dict.values()), key=lambda x: x["owner_name"])
+
+        # Update grand_total
+        grand_total["invoice_count"] += sum(v["total_invoice_count"] for v in cart_owner_aggs.values())
+        grand_total["invoice_amount"] = round(grand_total["invoice_amount"] + sum(v["total_invoice_amount"] for v in cart_owner_aggs.values()), 2)
+        grand_total["pending_amount"] = round(grand_total["pending_amount"] + sum(v["total_pending_amount"] for v in cart_owner_aggs.values()), 2)
+
+        # Sort owners_data by owner_name, customer_name, and order_id
+        owners_data = sorted(owners_data, key=lambda x: (x["owner_name"], x["customer_name"], x["order_id"]))
+
         return {
             "owners": owners_data,
             "owner_summaries": owner_summaries,
@@ -2028,6 +2256,72 @@ class OrdersRepo(BaseRepoModel):
 
         rows = (await self.session.execute(report_stmt)).mappings().all()
 
+        # --- Group and combine standard Orders and Cart Orders ---
+        from datetime import date, datetime
+        monthly_totals = {}
+        
+        # 1. Add standard rows
+        for row in rows:
+            month_str = row["order_month"]
+            month_sort = row["order_month_sort"]
+            if hasattr(month_sort, 'date'):
+                month_sort = month_sort.date()
+            if isinstance(month_sort, str):
+                month_sort = datetime.strptime(month_sort[:10], "%Y-%m-%d").date()
+                
+            monthly_totals[month_sort] = {
+                "order_month": month_str,
+                "order_month_sort": month_sort,
+                "total_value": float(row["total_value"] or 0)
+            }
+
+        # 2. Retrieve and group Cart Orders
+        cart_mapped_orders = await self._get_filtered_cart_orders(
+            from_date=from_date,
+            to_date=to_date,
+            owner_name=None,
+            date_by=date_by,
+            distributor_id=distributor_id
+        )
+
+        date_by_val = date_by.value if hasattr(date_by, 'value') else date_by
+
+        for o in cart_mapped_orders:
+            o_date = None
+            if date_by_val == OrderFilterDateByEnum.ACTIVATION_DATE.value:
+                o_date = o.get("delivery_info", {}).get("delivery_date")
+            elif date_by_val == OrderFilterDateByEnum.REQUESTED_DATE.value:
+                o_date = o.get("delivery_info", {}).get("requested_date")
+            else:
+                o_date = o.get("created_at")
+
+            parsed_date = None
+            if o_date:
+                if isinstance(o_date, (datetime, date)):
+                    parsed_date = o_date if isinstance(o_date, date) else o_date.date()
+                else:
+                    try:
+                        parsed_date = datetime.strptime(str(o_date)[:10], "%Y-%m-%d").date()
+                    except Exception:
+                        pass
+            if not parsed_date:
+                parsed_date = date.today()
+                
+            month_sort = date(parsed_date.year, parsed_date.month, 1)
+            month_str = month_sort.strftime("%b-%y")
+            
+            dist_val = float(o.get("distributor_price") or 0.0)
+            
+            if month_sort not in monthly_totals:
+                monthly_totals[month_sort] = {
+                    "order_month": month_str,
+                    "order_month_sort": month_sort,
+                    "total_value": 0.0
+                }
+            monthly_totals[month_sort]["total_value"] += dist_val
+
+        sorted_monthly_list = sorted(monthly_totals.values(), key=lambda x: x["order_month_sort"], reverse=True)
+
         result_rows = []
         all_columns = set()
 
@@ -2042,14 +2336,14 @@ class OrdersRepo(BaseRepoModel):
 
         current_month_str = ref_date_obj.strftime("%b-%y").lower()
 
-        for row in rows:
+        for row in sorted_monthly_list:
             order_month_str = row["order_month"]
             total_value = float(row["total_value"] or 0)
             split_value = round(total_value / 12, 2) if total_value else 0
             
             # Base month object (the actual month of the order)
             base_date = row["order_month_sort"]
-            if hasattr(base_date, 'replace'):
+            if isinstance(base_date, datetime):
                 base_date = base_date.replace(tzinfo=None)
             
             # Ensure base_date is a date or datetime
@@ -2118,7 +2412,8 @@ class OrdersRepo(BaseRepoModel):
                 Customers.owner.label("owner_name"),
                 activation_date.label("created_at"),
                 (func.current_date() - activation_date).label("days_since_created"),
-                OrdersPaymentInvoiceInfo.invoice_status
+                func.min(OrdersPaymentInvoiceInfo.invoice_status).label("invoice_status"),
+                func.count(OrdersPaymentInvoiceInfo.id).label("pending_invoice_count")
             )
             .join(Customers, Orders.customer_id == Customers.id)
             .join(OrdersPaymentInvoiceInfo, Orders.id == OrdersPaymentInvoiceInfo.order_id)
@@ -2129,11 +2424,87 @@ class OrdersRepo(BaseRepoModel):
                     activation_date <= (func.current_date() - days_threshold) if days_threshold > 0 else True
                 )
             )
+            .group_by(
+                Orders.id,
+                Orders.ui_id,
+                Customers.name,
+                Customers.owner,
+                activation_date
+            )
             .order_by(desc(activation_date))
         )
         
         results = (await self.session.execute(stmt)).mappings().all()
-        return [dict(r) for r in results]
+        
+        # --- Retrieve and process Cart Orders ---
+        cart_mapped_orders = await self._get_filtered_cart_orders(
+            from_date=None,
+            to_date=None,
+            owner_name=None,
+            date_by=None
+        )
+
+        from datetime import date, datetime
+        today = date.today()
+        cart_alerts = []
+
+        for o in cart_mapped_orders:
+            o_del_date_str = o.get("delivery_info", {}).get("delivery_date")
+            o_del_date = None
+            if o_del_date_str:
+                if isinstance(o_del_date_str, (datetime, date)):
+                    o_del_date = o_del_date_str if isinstance(o_del_date_str, date) else o_del_date_str.date()
+                else:
+                    try:
+                        o_del_date = datetime.strptime(str(o_del_date_str)[:10], "%Y-%m-%d").date()
+                    except Exception:
+                        pass
+            
+            if not o_del_date:
+                continue
+                
+            days_since = (today - o_del_date).days
+            if days_threshold > 0 and days_since < days_threshold:
+                continue
+                
+            invoices = o.get("status_info") or []
+            pending_invoice_count = sum(1 for inv in invoices if inv.get("invoice_status") == "INCOMPLETED")
+            
+            if pending_invoice_count > 0:
+                cart_alerts.append({
+                    "order_id": o.get("id"),
+                    "ui_id": o.get("ui_id"),
+                    "customer_name": o.get("customer_name") or "",
+                    "owner_name": o.get("owner_name") or "Others",
+                    "created_at": o_del_date,
+                    "days_since_created": days_since,
+                    "invoice_status": "INCOMPLETED",
+                    "pending_invoice_count": pending_invoice_count
+                })
+
+        # --- Merge and Sort ---
+        final_results = []
+        for r in results:
+            r_dict = dict(r)
+            c_at = r_dict.get("created_at")
+            if c_at and not isinstance(c_at, date):
+                if isinstance(c_at, datetime):
+                    r_dict["created_at"] = c_at.date()
+                else:
+                    try:
+                        r_dict["created_at"] = datetime.strptime(str(c_at)[:10], "%Y-%m-%d").date()
+                    except Exception:
+                        pass
+            final_results.append(r_dict)
+            
+        final_results.extend(cart_alerts)
+        final_results = sorted(
+            final_results,
+            key=lambda x: x["created_at"] if x["created_at"] is not None else date.min,
+            reverse=True
+        )
+
+        return final_results
 
     async def get_activation_date_alert(self, days_before: Optional[int] = 2, days_after: Optional[int] = 2):
         async def _get_alert_data(start_date_expr, end_date_expr):
@@ -2174,7 +2545,70 @@ class OrdersRepo(BaseRepoModel):
             (func.current_date() - max(1, days_after))
         )
 
-        return {"upcoming": upcoming, "overdue": overdue}
+        # --- Retrieve and process Cart Orders ---
+        cart_mapped_orders = await self._get_filtered_cart_orders(
+            from_date=None,
+            to_date=None,
+            owner_name=None,
+            date_by=None
+        )
+
+        from datetime import date, datetime, timedelta
+        today = date.today()
+        
+        cart_upcoming = []
+        cart_overdue = []
+        
+        for o in cart_mapped_orders:
+            if o.get("activated") == True:
+                continue
+                
+            o_del_date_str = o.get("delivery_info", {}).get("delivery_date")
+            o_del_date = None
+            if o_del_date_str:
+                if isinstance(o_del_date_str, (datetime, date)):
+                    o_del_date = o_del_date_str if isinstance(o_del_date_str, date) else o_del_date_str.date()
+                else:
+                    try:
+                        o_del_date = datetime.strptime(str(o_del_date_str)[:10], "%Y-%m-%d").date()
+                    except Exception:
+                        pass
+            
+            if not o_del_date:
+                continue
+                
+            days_diff = (o_del_date - today).days
+            
+            cart_alert = {
+                "order_id": o.get("id"),
+                "ui_id": o.get("ui_id"),
+                "customer_name": o.get("customer_name") or "",
+                "owner_name": o.get("owner_name") or "Others",
+                "activation_date": o_del_date.strftime("%Y-%m-%d"),
+                "days_diff": days_diff
+            }
+            
+            # Categorize
+            # Upcoming
+            is_upcoming = o_del_date >= today
+            if days_before is not None and days_before > 0:
+                is_upcoming = is_upcoming and (o_del_date <= today + timedelta(days=days_before))
+            if is_upcoming:
+                cart_upcoming.append(cart_alert)
+                
+            # Overdue
+            is_overdue = o_del_date <= today - timedelta(days=max(1, days_after if days_after is not None else 2))
+            if is_overdue:
+                cart_overdue.append(cart_alert)
+
+        # --- Merge and Sort Chronologically ---
+        combined_upcoming = [dict(u) for u in upcoming] + cart_upcoming
+        combined_upcoming = sorted(combined_upcoming, key=lambda x: x["activation_date"])
+
+        combined_overdue = [dict(o_d) for o_d in overdue] + cart_overdue
+        combined_overdue = sorted(combined_overdue, key=lambda x: x["activation_date"])
+
+        return {"upcoming": combined_upcoming, "overdue": combined_overdue}
 
 
 

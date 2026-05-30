@@ -171,3 +171,27 @@ class HandleLeadsRequest:
     @catch_errors
     async def search(self, query: str):
         return await LeadsService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).search(query=query)
+
+    @catch_errors
+    async def convert_to_opportunity(self, lead_id: str):
+        res = await LeadsService(session=self.session, user_role=self.user_role, cur_user_id=self.cur_user_id).convert_to_opportunity(lead_id=lead_id)
+        if not res or isinstance(res, ErrorResponseTypDict):
+            detail = ErrorResponseTypDict(
+                status_code=400,
+                msg="Error : Converting Lead to Opportunity",
+                description="A Unknown Error, Please Try Again Later!",
+                success=False
+            ) if not isinstance(res, ErrorResponseTypDict) else res
+            
+            raise HTTPException(
+                status_code=detail.status_code,
+                detail=detail.model_dump(mode='json')
+            )
+        
+        return SuccessResponseTypDict(
+            detail=BaseResponseTypDict(
+                status_code=200,
+                success=True,
+                msg="Lead converted to opportunity successfully"
+            )
+        )

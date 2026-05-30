@@ -153,10 +153,9 @@ class LeadsRepo(BaseRepoModel):
             )
         ).mappings().all()
 
-        if cursor==0:
-            total = (
-                await self.session.execute(select(func.count(Leads.id)))
-            ).scalar_one()
+        total = (
+            await self.session.execute(select(func.count(Leads.id)))
+        ).scalar_one()
 
         return {
             "leads": leads,
@@ -216,3 +215,26 @@ class LeadsRepo(BaseRepoModel):
         leads = result.mappings().all()
 
         return {"leads": leads}
+
+    async def get_lead_raw(self, lead_id: str):
+        """Fetch a full lead row for conversion use"""
+        lead = (
+            await self.session.execute(
+                select(Leads).where(Leads.id == lead_id, Leads.is_deleted == False)
+            )
+        ).scalar_one_or_none()
+        return lead
+
+    @start_db_transaction
+    async def update_status(self, lead_id: str, status: str):
+        stmt = (
+            update(Leads)
+            .where(Leads.id == lead_id)
+            .values(status=status)
+            .returning(Leads.id)
+        )
+        is_updated = (await self.session.execute(stmt)).scalar_one_or_none()
+        return is_updated if is_updated else ErrorResponseTypDict(
+            status_code=400, success=False, msg="Error : Updating Lead Status",
+            description="Unable to update lead status"
+        )

@@ -5,9 +5,11 @@ class LeadStatus(Enum):
     NEW = "NEW"
     CONTACTED = "CONTACTED"
     QUALIFIED = "QUALIFIED"
+    CONVERTED = "CONVERTED"
     LOST = "LOST"
 
 class OpportunityStatus(Enum):
+    OPEN = "OPEN"
     WON = "WON"
     LOST = "LOST"
 

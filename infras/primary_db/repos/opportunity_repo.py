@@ -163,12 +163,11 @@ class OpportunitiesRepo(BaseRepoModel):
 
         opportunities = result.mappings().all()
 
-        if cursor==0:
-            total = (
-                await self.session.execute(
-                    select(func.count(Opportunities.id))
-                )
-            ).scalar_one()
+        total = (
+            await self.session.execute(
+                select(func.count(Opportunities.id))
+            )
+        ).scalar_one()
 
         return {
             "opportunities": opportunities,
@@ -272,3 +271,43 @@ class OpportunitiesRepo(BaseRepoModel):
         return {
             "opportunity":opportunities
         }
+
+    async def get_opportunity_with_lead(self, opportunity_id: str):
+        """Fetch opportunity + joined lead data for conversion to customer"""
+        result = await self.session.execute(
+            select(
+                Opportunities.id.label("opportunity_id"),
+                Opportunities.name.label("opportunity_name"),
+                Opportunities.product.label("opportunity_product"),
+                Opportunities.deal_value.label("opportunity_deal_value"),
+                Opportunities.billing_type.label("opportunity_billing_type"),
+                Opportunities.status.label("opportunity_status"),
+                Opportunities.description.label("opportunity_description"),
+                Leads.id.label("lead_id"),
+                Leads.name.label("lead_name"),
+                Leads.phone.label("lead_phone"),
+                Leads.email.label("lead_email"),
+                Leads.source.label("lead_source"),
+                Leads.assigned_to.label("lead_assigned_to"),
+            )
+            .join(Leads, Leads.id == Opportunities.lead_id)
+            .where(
+                Opportunities.id == opportunity_id,
+                Opportunities.is_deleted == False
+            )
+        )
+        return result.mappings().one_or_none()
+
+    @start_db_transaction
+    async def update_status(self, opportunity_id: str, status: str):
+        stmt = (
+            update(Opportunities)
+            .where(Opportunities.id == opportunity_id)
+            .values(status=status)
+            .returning(Opportunities.id)
+        )
+        is_updated = (await self.session.execute(stmt)).scalar_one_or_none()
+        return is_updated if is_updated else ErrorResponseTypDict(
+            status_code=400, success=False, msg="Error : Updating Opportunity Status",
+            description="Unable to update opportunity status"
+        )

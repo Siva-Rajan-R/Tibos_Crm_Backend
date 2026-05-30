@@ -19,7 +19,8 @@ async def add_lead(
 ):
     return await HandleLeadsRequest(
         session=session,
-        user_role=user["role"]
+        user_role=user["role"],
+        cur_user_id=user['id']
     ).add(
         data=data
     )
@@ -93,6 +94,18 @@ async def get_leads(
         user_role=user["role"],
         cur_user_id=user['id']
     ).search(query=q)
+
+@router.post("/{lead_id}/convert-to-opportunity")
+async def convert_lead_to_opportunity(
+    lead_id: str,
+    user: dict = Depends(verify_user),
+    session: AsyncSession = Depends(get_pg_db_session)
+):
+    return await HandleLeadsRequest(
+        session=session,
+        user_role=user["role"],
+        cur_user_id=user['id']
+    ).convert_to_opportunity(lead_id=lead_id)
 
 @router.get("/{lead_id}")
 async def get_lead_by_id(

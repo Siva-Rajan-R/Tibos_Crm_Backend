@@ -42,8 +42,15 @@ class OpportunitiesService(BaseServiceModel):
         
         oppr_id:str=generate_uuid()
         lui_id:str=(await self.session.execute(select(TablesUiLId.oppor_luiid))).scalar_one_or_none()
-        cur_uiid=generate_ui_id(prefix=LUI_ID_OPPOR_PREFIX,last_id=lui_id,lui_id=lui_id)
-        return await OpportunitiesRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(data=CreateOpportunityDbSchema(**data.model_dump(mode='json'),id=oppr_id,ui_id=cur_uiid))
+        cur_uiid=generate_ui_id(prefix=LUI_ID_OPPOR_PREFIX,last_id=lui_id)
+        
+        res = await OpportunitiesRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(data=CreateOpportunityDbSchema(**data.model_dump(mode='json'),id=oppr_id,ui_id=cur_uiid))
+        
+        if res and not isinstance(res, ErrorResponseTypDict):
+            from core.data_formats.enums.lead_oppr_enums import LeadStatus
+            await LeadsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update_status(lead_id=data.lead_id, status=LeadStatus.CONVERTED.value)
+            
+        return res
 
 
     @catch_errors
@@ -77,3 +84,56 @@ class OpportunitiesService(BaseServiceModel):
     @catch_errors
     async def get_by_id(self, opportunity_id:str):
         return await OpportunitiesRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(opportunity_id=opportunity_id)
+
+    @catch_errors
+    async def convert_to_customer(self, opportunity_id: str):
+        from ..repos.customer_repo import CustomersRepo
+        from ..models.customer import Customers
+        from schemas.db_schemas.customer import AddCustomerDbSchema
+        from core.data_formats.enums.lead_oppr_enums import OpportunityStatus
+        from core.constants import LUI_ID_CUSTOMER_PREFIX
+
+        oppor_repo = OpportunitiesRepo(session=self.session, user_role=self.user_role, cur_user_id=self.cur_user_id)
+        
+        # Fetch opportunity with lead data
+        opp_data = await oppor_repo.get_opportunity_with_lead(opportunity_id=opportunity_id)
+        if not opp_data:
+            return ErrorResponseTypDict(status_code=404, success=False, msg="Error : Converting Opportunity", description="Opportunity not found")
+        
+        # Check if already won
+        if opp_data['opportunity_status'] == OpportunityStatus.WON.value:
+            return ErrorResponseTypDict(status_code=400, success=False, msg="Error : Converting Opportunity", description="Opportunity is already converted (WON)")
+        
+        # Create customer from lead data
+        customer_repo = CustomersRepo(session=self.session, user_role=self.user_role, cur_user_id=self.cur_user_id)
+        customer_id = generate_uuid()
+        lui_id = (await self.session.execute(select(TablesUiLId.customer_luiid))).scalar_one_or_none()
+        cur_uiid = generate_ui_id(prefix=LUI_ID_CUSTOMER_PREFIX, last_id=lui_id)
+        
+        customer_data = AddCustomerDbSchema(
+            id=customer_id,
+            ui_id=cur_uiid,
+            lui_id=lui_id,
+            name=opp_data['lead_name'],
+            mobile_number=opp_data['lead_phone'],
+            email=opp_data['lead_email'] or '',
+            website_url=None,
+            no_of_employee=1,
+            gst_number=None,
+            industry="General",
+            sector="General",
+            address={"address": "", "pincode": "", "city": "", "state": ""},
+            owner=opp_data.get('lead_assigned_to', '') or '',
+            tenant_id='',
+            secondary_domain=None,
+            is_active=True
+        )
+        
+        add_result = await customer_repo.add(data=customer_data)
+        if not add_result or isinstance(add_result, ErrorResponseTypDict):
+            return add_result or ErrorResponseTypDict(status_code=400, success=False, msg="Error : Converting Opportunity", description="Failed to create customer")
+        
+        # Update opportunity status to WON
+        await oppor_repo.update_status(opportunity_id=opportunity_id, status=OpportunityStatus.WON.value)
+        
+        return {"customer_id": customer_id}

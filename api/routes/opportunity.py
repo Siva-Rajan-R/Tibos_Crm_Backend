@@ -109,6 +109,18 @@ async def get_opportunity_by_lead(
         cur_user_id=user['id']
     ).get_by_lead(lead_id=lead_id)
 
+@router.post("/{opportunity_id}/convert-to-customer")
+async def convert_opportunity_to_customer(
+    opportunity_id: str,
+    user: dict = Depends(verify_user),
+    session: AsyncSession = Depends(get_pg_db_session)
+):
+    return await HandleOpportunitiesRequest(
+        session=session,
+        user_role=user["role"],
+        cur_user_id=user['id']
+    ).convert_to_customer(opportunity_id=opportunity_id)
+
 @router.get("/{opportunity_id}")
 async def get_opportunity_byid(opportunity_id:str,session:AsyncSession=Depends(get_pg_db_session),user:dict=Depends(verify_user)):
     return await HandleOpportunitiesRequest(

@@ -155,3 +155,28 @@ class HandleOpportunitiesRequest:
     @catch_errors
     async def get_by_id(self, opportunity_id:str):
         return await OpportunitiesService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(opportunity_id=opportunity_id)
+
+    @catch_errors
+    async def convert_to_customer(self, opportunity_id: str):
+        res = await OpportunitiesService(session=self.session, user_role=self.user_role, cur_user_id=self.cur_user_id).convert_to_customer(opportunity_id=opportunity_id)
+        if not res or isinstance(res, ErrorResponseTypDict):
+            detail = ErrorResponseTypDict(
+                status_code=400,
+                msg="Error : Converting Opportunity to Customer",
+                description="A Unknown Error, Please Try Again Later!",
+                success=False
+            ) if not isinstance(res, ErrorResponseTypDict) else res
+            
+            raise HTTPException(
+                status_code=detail.status_code,
+                detail=detail.model_dump(mode='json')
+            )
+        
+        return SuccessResponseTypDict(
+            detail=BaseResponseTypDict(
+                status_code=200,
+                success=True,
+                msg="Opportunity converted to customer successfully"
+            ),
+            data={"customer_id": res.get("customer_id")} if isinstance(res, dict) else None
+        )

@@ -24,6 +24,10 @@ async def get_all_dd(user:dict=Depends(verify_user),session:AsyncSession=Depends
         {'name':'indian_states','values':list(IndianStatesEnum._value2member_map_.values())},
         {'name':'order_revenue_filters','values':list(OrderFilterRevenueEnum._value2member_map_.values())},
         {'name':'order_date_filters','values':list(OrderFilterDateByEnum._value2member_map_.values())},
+        {'name':'lead_source','values':list(LeadSource._value2member_map_.values())},
+        {'name':'lead_status','values':list(LeadStatus._value2member_map_.values())},
+        {'name':'opportunity_status','values':list(OpportunityStatus._value2member_map_.values())},
+        {'name':'billing_type','values':list(BillingType._value2member_map_.values())},
 
         *(await dd_obj.get())
     ]

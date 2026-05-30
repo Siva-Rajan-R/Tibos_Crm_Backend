@@ -447,7 +447,7 @@ def get_pending_invoice_alert_html(flagged_orders: list, days_threshold: int, ge
             <td>{order.get('owner_name', '-')}</td>
             <td style="color:#64748b;">{order.get('created_date', '-')}</td>
             <td><span class="badge {badge_cls}">{days} days</span></td>
-            <td><span class="badge" style="background:#f1f5f9; color:#475569;">{order.get('invoice_status', '-')}</span></td>
+            <td><span class="badge" style="background:#f1f5f9; color:#475569;">{order.get('pending_invoice_count', 1)} Pending</span></td>
         </tr>
         """
 
