@@ -19,6 +19,7 @@ from models.response_models.req_res_models import SuccessResponseTypDict,BaseRes
 from ..models.ui_id import TablesUiLId
 from core.utils.ui_id_generator import generate_ui_id
 from core.constants import UI_ID_STARTING_DIGIT,LUI_ID_USER_PREFIX
+from .activity_log_service import ActivityLogService
 
 
 DEFAULT_SUPERADMIN_INFO=json.loads(os.getenv('DEFAULT_SUPERADMIN_INFO'))
@@ -67,7 +68,14 @@ class UserService(BaseServiceModel):
         cur_uiid=generate_ui_id(prefix=LUI_ID_USER_PREFIX,last_id=lui_id)
         pwd=token_urlsafe(16)
         hashed_pwd=hash_data(data=pwd)
-        await UserRepo(session=self.session,user_role=self.user_role,cur_user_id='').add(data=AddUserDbSchema(**data.model_dump(mode='json'),id=user_id,password=hashed_pwd,ui_id=cur_uiid,lui_id=lui_id))
+        result = await UserRepo(session=self.session,user_role=self.user_role,cur_user_id='').add(data=AddUserDbSchema(**data.model_dump(mode='json'),id=user_id,password=hashed_pwd,ui_id=cur_uiid,lui_id=lui_id))
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
+                action="CREATE_MANUAL",
+                entity_type="USER",
+                entity_id=user_id,
+                details={"name": data.name, "email": data.email, "role": data.role.value if hasattr(data.role, 'value') else str(data.role)}
+            )
         return {'password':pwd}
         
     
@@ -78,30 +86,77 @@ class UserService(BaseServiceModel):
         if not data_toupdate or len(data_toupdate)<1:
             return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating User",description="No valid fields to update provided")
         
-        return await UserRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateUserDbSchema(**data_toupdate))
+        result = await UserRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateUserDbSchema(**data_toupdate))
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
+                action="UPDATE",
+                entity_type="USER",
+                entity_id=data.id,
+                details={"updated_fields": list(data_toupdate.keys())}
+            )
+        return result
         
 
     @catch_errors
     async def update_role(self,user_toupdate_id:str,role_toupdate:UserRoles):    
-        return await UserRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update_role(user_toupdate_id=user_toupdate_id,role_toupdate=role_toupdate)
+        result = await UserRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update_role(user_toupdate_id=user_toupdate_id,role_toupdate=role_toupdate)
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
+                action="UPDATE_ROLE",
+                entity_type="USER",
+                entity_id=user_toupdate_id,
+                details={"new_role": role_toupdate.value if hasattr(role_toupdate, 'value') else str(role_toupdate)}
+            )
+        return result
     
     @catch_errors
     async def update_twofactor(self,user_toupdate_id:str,tf_secret:str):    
-        return await UserRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update_twofactor(user_toupdate_id=user_toupdate_id,tf_secret=tf_secret)
+        result = await UserRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update_twofactor(user_toupdate_id=user_toupdate_id,tf_secret=tf_secret)
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
+                action="UPDATE_TWO_FACTOR",
+                entity_type="USER",
+                entity_id=user_toupdate_id,
+                details={"action": "two_factor_updated"}
+            )
+        return result
 
     @catch_errors
     async def update_password(self,user_toupdate_id:str,new_password:str):
         hashed_pwd=hash_data(data=new_password)
-        return await UserRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update_password(user_toupdate_id=user_toupdate_id,new_hashed_password=hashed_pwd)
+        result = await UserRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update_password(user_toupdate_id=user_toupdate_id,new_hashed_password=hashed_pwd)
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
+                action="UPDATE_PASSWORD",
+                entity_type="USER",
+                entity_id=user_toupdate_id,
+                details={"action": "password_updated"}
+            )
+        return result
 
     @catch_errors
     async def delete(self,userid_toremove:str,soft_delete:bool=True):      
-        return await UserRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete(userid_toremove=userid_toremove,soft_delete=soft_delete)
+        result = await UserRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete(userid_toremove=userid_toremove,soft_delete=soft_delete)
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
+                action="DELETE",
+                entity_type="USER",
+                entity_id=userid_toremove,
+                details={"soft_delete": soft_delete}
+            )
+        return result
 
 
     @catch_errors  
     async def recover(self,userid_torecover:str):
-        return await UserRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).recover(userid_torecover=userid_torecover)
+        result = await UserRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).recover(userid_torecover=userid_torecover)
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
+                action="RECOVER",
+                entity_type="USER",
+                entity_id=userid_torecover
+            )
+        return result
 
     @catch_errors
     async def get(self,include_deleted:Optional[bool]=False):   

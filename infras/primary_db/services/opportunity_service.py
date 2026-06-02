@@ -3,6 +3,7 @@ from ..models.opportunity import Opportunities
 from ..repos.opportunity_repo import OpportunitiesRepo
 from ..repos.lead_repo import LeadsRepo
 from ..models.leads import Leads
+from .activity_log_service import ActivityLogService
 from sqlalchemy import select, delete, update,func,or_,String
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
@@ -49,6 +50,12 @@ class OpportunitiesService(BaseServiceModel):
         if res and not isinstance(res, ErrorResponseTypDict):
             from core.data_formats.enums.lead_oppr_enums import LeadStatus
             await LeadsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update_status(lead_id=data.lead_id, status=LeadStatus.CONVERTED.value)
+            await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
+                action="CREATE_MANUAL",
+                entity_type="OPPORTUNITY",
+                entity_id=oppr_id,
+                details={"name": data.name, "lead_id": data.lead_id}
+            )
             
         return res
 
@@ -59,15 +66,38 @@ class OpportunitiesService(BaseServiceModel):
         if not data_toupdate or len(data_toupdate)<1:
             return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Opportunity",description="No valid fields to update provided")
         
-        return await OpportunitiesRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateOpportunityDbSchema(**data_toupdate))
+        result = await OpportunitiesRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateOpportunityDbSchema(**data_toupdate))
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
+                action="UPDATE",
+                entity_type="OPPORTUNITY",
+                entity_id=data.opportunity_id,
+                details={"updated_fields": list(data_toupdate.keys())}
+            )
+        return result
 
     @catch_errors
     async def delete(self, opportunity_id: str,soft_delete: bool = True):
-        return await OpportunitiesRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete(opportunity_id=opportunity_id,soft_delete=soft_delete)
+        result = await OpportunitiesRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete(opportunity_id=opportunity_id,soft_delete=soft_delete)
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
+                action="DELETE",
+                entity_type="OPPORTUNITY",
+                entity_id=opportunity_id,
+                details={"soft_delete": soft_delete}
+            )
+        return result
 
     @catch_errors  
     async def recover(self, opportunity_id: str):
-        return await OpportunitiesRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).recover(opportunity_id=opportunity_id)
+        result = await OpportunitiesRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).recover(opportunity_id=opportunity_id)
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
+                action="RECOVER",
+                entity_type="OPPORTUNITY",
+                entity_id=opportunity_id
+            )
+        return result
     
     @catch_errors
     async def get(self, cursor: int = 1, limit: int = 10, query: str = "",include_deleted:Optional[bool]=False):
@@ -136,4 +166,10 @@ class OpportunitiesService(BaseServiceModel):
         # Update opportunity status to WON
         await oppor_repo.update_status(opportunity_id=opportunity_id, status=OpportunityStatus.WON.value)
         
+        await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
+            action="CONVERTED_TO_CUSTOMER",
+            entity_type="OPPORTUNITY",
+            entity_id=opportunity_id,
+            details={"customer_id": customer_id}
+        )
         return {"customer_id": customer_id}

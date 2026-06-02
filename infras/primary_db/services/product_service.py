@@ -2,6 +2,7 @@ from . import BaseServiceModel
 from ..models.product import Products
 from ..models.order import Orders
 from core.utils.uuid_generator import generate_uuid
+from .activity_log_service import ActivityLogService
 from sqlalchemy import select,delete,update,or_,cast,String,func,Float
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
@@ -44,7 +45,15 @@ class ProductsService(BaseServiceModel):
 
         # await ProductSearch().create_document(data=search_fields)
 
-        return await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(data=AddProductDbSchema(**data.model_dump(mode='json'),id=prod_id,ui_id=cur_uiid))
+        result = await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(data=AddProductDbSchema(**data.model_dump(mode='json'),id=prod_id,ui_id=cur_uiid))
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
+                action="CREATE_MANUAL",
+                entity_type="PRODUCT",
+                entity_id=prod_id,
+                details={"name": data.name, "part_number": data.part_number}
+            )
+        return result
 
     @catch_errors
     async def add_bulk(self,datas:List[dict]):
@@ -78,7 +87,16 @@ class ProductsService(BaseServiceModel):
             
         ic(datas_toadd,skipped_items)
         # await ProductSearch().create_bulk_doc(datas=searchable_datas)
-        return await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add_bulk(datas=datas_toadd,lui_id=lui_id)
+        result = await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add_bulk(datas=datas_toadd,lui_id=lui_id)
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            added_ids = [d.id for d in datas_toadd]
+            if added_ids:
+                await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_bulk_actions(
+                    action="CREATE_EXCEL",
+                    entity_type="PRODUCT",
+                    entity_ids=added_ids
+                )
+        return result
 
     @catch_errors   
     async def update(self,data:UpdateProductDbSchema):
@@ -94,7 +112,15 @@ class ProductsService(BaseServiceModel):
         ).model_dump(mode="json")
 
         # await ProductSearch().update_document(data=search_fields,id=data.product_id)
-        return await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateProductDbSchema(**data_toupdate))
+        result = await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateProductDbSchema(**data_toupdate))
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
+                action="UPDATE",
+                entity_type="PRODUCT",
+                entity_id=data.product_id,
+                details={"updated_fields": list(data_toupdate.keys())}
+            )
+        return result
 
     @catch_errors
     async def recover(self,product_torecover:str):
@@ -111,12 +137,27 @@ class ProductsService(BaseServiceModel):
 
         # await ProductSearch().create_document(data=search_fields)
 
-        return await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).recover(product_torecover=product_torecover)
+        result = await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).recover(product_torecover=product_torecover)
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
+                action="RECOVER",
+                entity_type="PRODUCT",
+                entity_id=product_torecover
+            )
+        return result
 
     @catch_errors
     async def delete(self,product_id:str,soft_delete:bool=True):
         # await ProductSearch().delete_document(id=product_id)
-        return await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete(product_id=product_id,soft_delete=soft_delete)
+        result = await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete(product_id=product_id,soft_delete=soft_delete)
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
+                action="DELETE",
+                entity_type="PRODUCT",
+                entity_id=product_id,
+                details={"soft_delete": soft_delete}
+            )
+        return result
 
     @catch_errors   
     async def get(self,cursor:int=1,limit:int=10,query:str='',include_deleted:Optional[bool]=False):

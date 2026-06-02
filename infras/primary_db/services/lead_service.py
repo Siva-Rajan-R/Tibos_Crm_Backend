@@ -2,6 +2,7 @@ from . import BaseServiceModel
 from ..models.leads import Leads
 from core.utils.uuid_generator import generate_uuid
 from ..repos.lead_repo import LeadsRepo
+from .activity_log_service import ActivityLogService
 from sqlalchemy import select, delete, update, or_, func,String
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
@@ -35,7 +36,15 @@ class LeadsService(BaseServiceModel):
         lead_id:str=generate_uuid()
         lui_id:str=(await self.session.execute(select(TablesUiLId.lead_luiid))).scalar_one_or_none()
         cur_uiid=generate_ui_id(prefix=LUI_ID_LEAD_PREFIX,last_id=lui_id)
-        return await lead_obj.add(data=AddLeadDbSchema(**data.model_dump(),id=lead_id,ui_id=cur_uiid,lui_id=lui_id))
+        result = await lead_obj.add(data=AddLeadDbSchema(**data.model_dump(),id=lead_id,ui_id=cur_uiid,lui_id=lui_id))
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
+                action="CREATE_MANUAL",
+                entity_type="LEAD",
+                entity_id=lead_id,
+                details={"name": data.name, "email": data.email}
+            )
+        return result
     
     @catch_errors
     async def update(self,data:UpdateLeadSchema):
@@ -43,15 +52,38 @@ class LeadsService(BaseServiceModel):
         if not data_toupdate or len(data_toupdate)<1:
             return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Lead",description="No valid fields to update provided")
         
-        return await LeadsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateLeadDbSchema(**data_toupdate))
+        result = await LeadsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateLeadDbSchema(**data_toupdate))
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
+                action="UPDATE",
+                entity_type="LEAD",
+                entity_id=data.lead_id,
+                details={"updated_fields": list(data_toupdate.keys())}
+            )
+        return result
 
     @catch_errors
     async def delete(self, lead_id: str, soft_delete: bool = True):
-        return await LeadsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete(lead_id=lead_id, soft_delete=soft_delete)
+        result = await LeadsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete(lead_id=lead_id, soft_delete=soft_delete)
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
+                action="DELETE",
+                entity_type="LEAD",
+                entity_id=lead_id,
+                details={"soft_delete": soft_delete}
+            )
+        return result
     
     @catch_errors  
     async def recover(self, lead_id: str):
-        return await LeadsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).recover(lead_id=lead_id)
+        result = await LeadsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).recover(lead_id=lead_id)
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
+                action="RECOVER",
+                entity_type="LEAD",
+                entity_id=lead_id
+            )
+        return result
 
     @catch_errors
     async def get(self, cursor: int = 1, limit: int = 10, query: str = "",include_deleted:Optional[bool]=False):
@@ -111,4 +143,10 @@ class LeadsService(BaseServiceModel):
         # Update lead status to CONVERTED
         await lead_repo.update_status(lead_id=lead_id, status=LeadStatus.CONVERTED.value)
         
+        await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
+            action="CONVERTED_TO_OPPORTUNITY",
+            entity_type="LEAD",
+            entity_id=lead_id,
+            details={"opportunity_id": oppr_id}
+        )
         return True

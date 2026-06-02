@@ -1,8 +1,9 @@
-from typing import TypedDict,Optional,Union
+from typing import TypedDict,Optional,Union,NotRequired
 from core.data_formats.enums.order_enums import DistributorType
 from datetime import date
 
 class DistributorDiscountsTypDict(TypedDict):
+    id: NotRequired[str]
     discount:str
     minimum_thershold:float
     rebate_type:str

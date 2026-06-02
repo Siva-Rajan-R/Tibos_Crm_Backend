@@ -2,6 +2,7 @@ from . import BaseServiceModel
 from ..models.contact import Contacts
 from .customer_service import CustomersService
 from ..models.order import Orders
+from .activity_log_service import ActivityLogService
 from ..models.customer import Customers
 from ..repos.customer_repo import CustomersRepo
 from ..repos.user_repo import UserRepo
@@ -55,7 +56,15 @@ class ContactsService(BaseServiceModel):
         ).model_dump(mode='json')
 
         # await ContactSearch().create_document(data=search_fields)
-        return await contact_obj.add(data=AddContactDbSchema(**data.model_dump(mode='json'),id=contact_id,ui_id=cur_uiid,lui_id=lui_id))
+        result = await contact_obj.add(data=AddContactDbSchema(**data.model_dump(mode='json'),id=contact_id,ui_id=cur_uiid,lui_id=lui_id))
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
+                action="CREATE_MANUAL",
+                entity_type="CONTACT",
+                entity_id=contact_id,
+                details={"name": data.name, "customer_id": data.customer_id}
+            )
+        return result
 
     async def add_bulk(self,datas:List[dict]):
         skipped_items=[]
@@ -105,7 +114,16 @@ class ContactsService(BaseServiceModel):
                 await send_email(client_ip="",reciver_emails=[user_email],subject="Skiped datas report",body=f"Skipped Items Count ({len(skipped_items)}), Added Items Count ({len(datas_toadd)}), During bulk upload these are the datas are skipped -> {url}",is_html=False,sender_email_id="crm@tibos.in")
 
         # await ContactSearch().create_bulk_doc(datas=searchable_datas)
-        return await contact_obj.add_bulk(datas=datas_toadd,lui_id=lui_id)
+        result = await contact_obj.add_bulk(datas=datas_toadd,lui_id=lui_id)
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            added_ids = [d.id for d in datas_toadd]
+            if added_ids:
+                await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_bulk_actions(
+                    action="CREATE_EXCEL",
+                    entity_type="CONTACT",
+                    entity_ids=added_ids
+                )
+        return result
        
     @catch_errors  
     async def update(self,data:UpdateContactSchema):
@@ -120,12 +138,28 @@ class ContactsService(BaseServiceModel):
         ).model_dump(mode='json')
         # await ContactSearch().update_document(data=search_fields,id=data.contact_id)
 
-        return await ContactsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateContactDbSchema(**data_toupdate))
+        result = await ContactsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateContactDbSchema(**data_toupdate))
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
+                action="UPDATE",
+                entity_type="CONTACT",
+                entity_id=data.contact_id,
+                details={"updated_fields": list(data_toupdate.keys())}
+            )
+        return result
         
     async def delete(self,customer_id:str,contact_id:str,soft_delete:bool=True):
         # await ContactSearch().delete_document(id=contact_id)
 
-        return await ContactsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete(customer_id=customer_id,contact_id=contact_id,soft_delete=soft_delete)
+        result = await ContactsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete(customer_id=customer_id,contact_id=contact_id,soft_delete=soft_delete)
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
+                action="DELETE",
+                entity_type="CONTACT",
+                entity_id=contact_id,
+                details={"soft_delete": soft_delete}
+            )
+        return result
       
     async def recover(self,customer_id:str,contact_id:str):
         contact=await self.get_by_id(contact_id=contact_id,include_delete=True)
@@ -139,7 +173,14 @@ class ContactsService(BaseServiceModel):
             customer_id=contact_info['customer_id']
         ).model_dump(mode='json')
         # await ContactSearch().create_document(data=search_fileds)
-        return await ContactsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).recover(customer_id=customer_id,contact_id=contact_id)
+        result = await ContactsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).recover(customer_id=customer_id,contact_id=contact_id)
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
+                action="RECOVER",
+                entity_type="CONTACT",
+                entity_id=contact_id
+            )
+        return result
 
     @catch_errors  
     async def get(self,cursor:int,limit:int,query:str='',include_deleted:Optional[bool]=False):

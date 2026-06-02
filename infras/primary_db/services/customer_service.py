@@ -4,6 +4,7 @@ from ..repos.customer_repo import CustomersRepo
 from ..repos.user_repo import UserRepo
 from core.utils.uuid_generator import generate_uuid
 from ..models.order import Orders
+from .activity_log_service import ActivityLogService
 from sqlalchemy import select,delete,update,or_,func,String
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
@@ -61,7 +62,15 @@ class CustomersService(BaseServiceModel):
             industry=data.industry
         )
         # search=await CustomerSearch().create_document(data=search_add.model_dump(mode='json'))
-        return await customer_obj.add(data=AddCustomerDbSchema(**data_toadd,id=customer_id,ui_id=cur_uiid,lui_id=lui_id))
+        result = await customer_obj.add(data=AddCustomerDbSchema(**data_toadd,id=customer_id,ui_id=cur_uiid,lui_id=lui_id))
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
+                action="CREATE_MANUAL",
+                entity_type="ACCOUNT",
+                entity_id=customer_id,
+                details={"name": data.name}
+            )
+        return result
     
     async def add_bulk(self,datas:List[dict]):
         skipped_items=[]
@@ -116,7 +125,16 @@ class CustomersService(BaseServiceModel):
             formated_address={}  
         ic(skipped_items,datas_toadd,duplicate_items)
         # await CustomerSearch().create_bulk_doc(datas=searched_datas)
-        return await customer_obj.add_bulk(datas=datas_toadd,lui_id=lui_id)
+        result = await customer_obj.add_bulk(datas=datas_toadd,lui_id=lui_id)
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            added_ids = [d.id for d in datas_toadd]
+            if added_ids:
+                await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_bulk_actions(
+                    action="CREATE_EXCEL",
+                    entity_type="ACCOUNT",
+                    entity_ids=added_ids
+                )
+        return result
         
     async def update(self,data:UpdateCustomerSchema):
         data_toupdate=data.model_dump(mode='json',exclude_none=True,exclude_unset=True)
@@ -138,12 +156,28 @@ class CustomersService(BaseServiceModel):
         ).model_dump(mode='json',exclude_none=True,exclude_unset=True)
 
         # await CustomerSearch().update_document(data=search_data,id=data.customer_id)
-        return await CustomersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateCustomerDbSchema(**data_toupdate))
+        result = await CustomersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateCustomerDbSchema(**data_toupdate))
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
+                action="UPDATE",
+                entity_type="ACCOUNT",
+                entity_id=data.customer_id,
+                details={"updated_fields": list(data_toupdate.keys())}
+            )
+        return result
         
     @catch_errors
     async def delete(self,customer_id:str,soft_delete:bool=True):
         # await CustomerSearch().delete_document(id=customer_id)
-        return await CustomersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete(customer_id=customer_id,soft_delete=soft_delete)
+        result = await CustomersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete(customer_id=customer_id,soft_delete=soft_delete)
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
+                action="DELETE",
+                entity_type="ACCOUNT",
+                entity_id=customer_id,
+                details={"soft_delete": soft_delete}
+            )
+        return result
     
     @catch_errors
     async def recover(self,customer_id:str):
@@ -163,7 +197,14 @@ class CustomersService(BaseServiceModel):
         ).model_dump(mode='json')
         
         # await CustomerSearch().create_document(data=search_data)
-        return await CustomersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).recover(customer_id=customer_id)
+        result = await CustomersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).recover(customer_id=customer_id)
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
+                action="RECOVER",
+                entity_type="CUSTOMER",
+                entity_id=customer_id
+            )
+        return result
 
     @catch_errors
     async def get(self,active:bool=False,cursor:int=1,limit:int=10,query:str='',include_deleted:Optional[bool]=False):

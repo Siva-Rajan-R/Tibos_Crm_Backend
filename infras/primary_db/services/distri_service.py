@@ -3,6 +3,7 @@ from ..repos.product_repo import ProductsRepo
 from ..models.distributor import Distributors
 from ..repos.distri_repo import DistributorsRepo
 from ..repos.order_repo import OrdersRepo
+from .activity_log_service import ActivityLogService
 from core.utils.uuid_generator import generate_uuid
 from ..models.order import Orders
 from sqlalchemy import select,delete,update,or_,func,String
@@ -73,7 +74,17 @@ class DistributorService(BaseServiceModel):
         ).model_dump(mode="json")
 
         # await DistributorSearch().create_document(data=search_fields)
-        return await distri_obj.add(data=CreateDistriDbSchema(**data_toadd,id=distri_id,lui_id=lui_id,ui_id=cur_uiid))
+        result = await distri_obj.add(data=CreateDistriDbSchema(**data_toadd,id=distri_id,lui_id=lui_id,ui_id=cur_uiid))
+        
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
+                action="CREATE_MANUAL",
+                entity_type="DISTRIBUTOR",
+                entity_id=distri_id,
+                details={"name": data.name}
+            )
+
+        return result
 
     @catch_errors
     async def add_bulk(self,datas:List[dict]):
@@ -132,7 +143,18 @@ class DistributorService(BaseServiceModel):
                 await send_email(client_ip="",reciver_emails=[user_email],subject="Skiped datas report",body=f"Skipped Items Count ({len(skipped_items)}), Added Items Count ({len(datas_toadd)}), During bulk upload these are the datas are skipped -> {url}",is_html=False,sender_email_id="crm@tibos.in")
 
         # await DistributorSearch().create_bulk_doc(datas=searchable_datas)
-        return await distri_obj.add_bulk(datas=datas_toadd,lui_id=lui_id)
+        result = await distri_obj.add_bulk(datas=datas_toadd,lui_id=lui_id)
+
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            added_ids = [d.id for d in datas_toadd]
+            if added_ids:
+                await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_bulk_actions(
+                    action="CREATE_EXCEL",
+                    entity_type="DISTRIBUTOR",
+                    entity_ids=added_ids
+                )
+
+        return result
         
   
     async def update(self,data:UpdateDistriSchema):
@@ -142,15 +164,19 @@ class DistributorService(BaseServiceModel):
             if discount is None:
                 break
             filterd_set.add(f"{i.get('rebate_type')}-{discount}")
+
+        ic(filterd_set)
             
         if len(filterd_set)!=len(data.discounts):
             return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating Distributor",description="Multiple same discount format was found")
         
         final_discounts={}
         for discount in data.discounts:
-            discount_id:str=generate_uuid()
             if 'id' not in discount:
+                discount_id:str=generate_uuid()
                 final_discounts[discount_id]={**discount,'id':discount_id}
+            else:
+                final_discounts[discount['id']]=discount
 
         data_toupdate=data.model_dump(mode='json',exclude_none=True,exclude_unset=True)
         distri_obj=DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id)
@@ -168,7 +194,17 @@ class DistributorService(BaseServiceModel):
         ).model_dump(mode="json")
 
         # await DistributorSearch().update_document(data=search_fields,id=data.id)
-        return await distri_obj.update(data=UpdateDistriDbSchema(**data_toupdate))
+        result = await distri_obj.update(data=UpdateDistriDbSchema(**data_toupdate))
+
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
+                action="UPDATE",
+                entity_type="DISTRIBUTOR",
+                entity_id=data.id,
+                details={"updated_fields": list(data_toupdate.keys())}
+            )
+
+        return result
         
     @catch_errors
     async def delete(self,distributor_id:str,soft_delete:bool=True):
@@ -176,7 +212,17 @@ class DistributorService(BaseServiceModel):
         if have_order or len(have_order)>0:
             return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Deleting Distributor",description="Distributor has associated orders and cannot be deleted")
         # await DistributorSearch().delete_document(id=distributor_id)
-        return await DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete(distri_id=distributor_id,soft_delete=soft_delete)
+        result = await DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete(distri_id=distributor_id,soft_delete=soft_delete)
+
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
+                action="DELETE",
+                entity_type="DISTRIBUTOR",
+                entity_id=distributor_id,
+                details={"soft_delete": soft_delete}
+            )
+
+        return result
     
     @catch_errors
     async def recover(self,distributor_id:str):
@@ -189,7 +235,14 @@ class DistributorService(BaseServiceModel):
         ).model_dump(mode="json")
 
         # await DistributorSearch().create_document(data=search_fields)
-        return await DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).recover(distri_id=distributor_id)
+        result = await DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).recover(distri_id=distributor_id)
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
+                action="RECOVER",
+                entity_type="DISTRIBUTOR",
+                entity_id=distributor_id
+            )
+        return result
      
     @catch_errors
     async def get(self,cursor:int=1,limit:int=10,query:str='',include_deleted:Optional[bool]=False):

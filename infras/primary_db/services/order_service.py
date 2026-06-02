@@ -8,6 +8,7 @@ from ..repos.customer_repo import CustomersRepo
 from ..repos.distri_repo import DistributorsRepo
 from core.utils.uuid_generator import generate_uuid
 from ..repos.order_repo import OrdersRepo
+from .activity_log_service import ActivityLogService
 from sqlalchemy import select,delete,update,or_,func,String
 from sqlalchemy.ext.asyncio import AsyncSession
 from icecream import ic
@@ -130,7 +131,15 @@ class OrdersService(BaseServiceModel):
         ).model_dump(mode="json")
 
         # await OrderSearch().create_document(data=search_fields)
-        return await order_obj.add(data=AddOrderDbSchema(**data_toadd,id=order_id,ui_id=cur_uiid))
+        result = await order_obj.add(data=AddOrderDbSchema(**data_toadd,id=order_id,ui_id=cur_uiid))
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
+                action="CREATE_MANUAL",
+                entity_type="ORDER",
+                entity_id=order_id,
+                details={"customer_id": data.customer_id, "product_id": data.product_id}
+            )
+        return result
     
     # @catch_errors
     async def add_bulk(self,datas:List[dict]):
@@ -415,7 +424,16 @@ class OrdersService(BaseServiceModel):
                 await send_email(client_ip="",reciver_emails=[user_email],subject="Skiped datas report",body=f"Skipped Items Count ({len(skipped_items)}), Added Items Count ({len(datas_toadd)}), During bulk upload these are the datas are skipped -> {url}",is_html=False,sender_email_id="crm@tibos.in")
 
         # await OrderSearch().create_bulk_doc(searchable_data)
-        return await orders_obj.add_bulk(datas=datas_toadd,lui_id=lui_id,status_datas=status_infotoadd)
+        result = await orders_obj.add_bulk(datas=datas_toadd,lui_id=lui_id,status_datas=status_infotoadd)
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            added_ids = [d.id for d in datas_toadd]
+            if added_ids:
+                await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_bulk_actions(
+                    action="CREATE_EXCEL",
+                    entity_type="ORDER",
+                    entity_ids=added_ids
+                )
+        return result
     
 
     @catch_errors
@@ -464,20 +482,44 @@ class OrdersService(BaseServiceModel):
 
         # await OrderSearch().update_document(data=search_fields,id=data.order_id)
 
-        return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateOrderDbSchema(**data_toupdate))
+        result = await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateOrderDbSchema(**data_toupdate))
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
+                action="UPDATE",
+                entity_type="ORDER",
+                entity_id=data.order_id,
+                details={"updated_fields": list(data_toupdate.keys())}
+            )
+        return result
 
 
     @catch_errors    
     async def delete(self,order_id:str,customer_id:str,soft_delete:bool=True):
         # await OrderSearch().delete_document(id=order_id)
-        return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete(order_id=order_id,customer_id=customer_id,soft_delete=soft_delete)
+        result = await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete(order_id=order_id,customer_id=customer_id,soft_delete=soft_delete)
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
+                action="DELETE",
+                entity_type="ORDER",
+                entity_id=order_id,
+                details={"soft_delete": soft_delete}
+            )
+        return result
     
 
     @catch_errors    
     async def delete_bulk(self,data:OrderBulkDeleteSchema,soft_delete:bool=True):
         data=OrderBulkDeleteDbSchema(order_ids=data.order_ids)
         # await OrderSearch().delete_bulk_doc(ids=data.order_ids)
-        return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete_bulk(data=data,soft_delete=soft_delete)
+        result = await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).delete_bulk(data=data,soft_delete=soft_delete)
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            if data.order_ids:
+                await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_bulk_actions(
+                    action="DELETE",
+                    entity_type="ORDER",
+                    entity_ids=data.order_ids
+                )
+        return result
 
 
     async def recover(self,order_id:str,customer_id:str):
@@ -489,11 +531,11 @@ class OrdersService(BaseServiceModel):
             ui_id=order_info['ui_id'],          
             distributor_id=order_info['distributor_id'],
             customer_id=order_info['customer_id'],
-            product_id=order_info['product_id'],
+            product_id=order_info.get('product_id', ''),
             distributor_name=order_info['distributor_name'],
             distributor_ui_id=order_info['distributor_ui_id'],
             product_name=order_info['product_name'],
-            product_type=order_info['product_type'],
+            product_type=order_info.get('product_type', ''),
             product_ui_id=order_info['product_ui_id'],
             customer_email=order_info['customer_email'],
             customer_name=order_info['customer_name'],
@@ -501,7 +543,14 @@ class OrdersService(BaseServiceModel):
         ).model_dump(mode="json")
 
         # await OrderSearch().create_document(data=search_fields)
-        return await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).recover(order_id=order_id,customer_id=customer_id)
+        result = await OrdersRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).recover(order_id=order_id,customer_id=customer_id)
+        if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
+                action="RECOVER",
+                entity_type="ORDER",
+                entity_id=order_id
+            )
+        return result
 
     @catch_errors
     async def get(self,filter:OrderFilterSchema,cursor:int=1,limit:int=10,query:str='',include_deleted:Optional[bool]=False,active:bool=False):
