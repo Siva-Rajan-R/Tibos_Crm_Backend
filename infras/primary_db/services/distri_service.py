@@ -194,14 +194,35 @@ class DistributorService(BaseServiceModel):
         ).model_dump(mode="json")
 
         # await DistributorSearch().update_document(data=search_fields,id=data.id)
+        from sqlalchemy import select
+        from ..models.distributor import Distributors
+        from fastapi.encoders import jsonable_encoder
+        old_record = (await self.session.execute(select(Distributors).where(Distributors.id == data.id))).scalar_one_or_none()
+        old_values = {}
+        new_values = {}
+        if old_record:
+            for key, new_val in data_toupdate.items():
+                if not hasattr(old_record, key):
+                    continue
+                old_val_raw = getattr(old_record, key)
+                old_val = jsonable_encoder(old_val_raw)
+                if old_val != new_val:
+                    old_values[key] = old_val if old_val is not None else None
+                    new_values[key] = new_val if new_val is not None else None
+
         result = await distri_obj.update(data=UpdateDistriDbSchema(**data_toupdate))
 
         if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            details = {"updated_fields": list(data_toupdate.keys())}
+            if old_values or new_values:
+                details["old_values"] = old_values
+                details["new_values"] = new_values
+
             await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
                 action="UPDATE",
                 entity_type="DISTRIBUTOR",
                 entity_id=data.id,
-                details={"updated_fields": list(data_toupdate.keys())}
+                details=details
             )
 
         return result

@@ -64,7 +64,7 @@ async def delete_customer(customer_id:str,user:dict=Depends(verify_user),soft_de
 
 
 @router.post('/export')
-async def export(data:ExportFields,bgt:BackgroundTasks,user:dict=Depends(verify_user)):
+async def export(data:ExportFields,bgt:BackgroundTasks,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
 
     if user['role']!=UserRoles.SUPER_ADMIN.value:
         raise HTTPException(
@@ -91,6 +91,13 @@ async def export(data:ExportFields,bgt:BackgroundTasks,user:dict=Depends(verify_
         sheet_name="Accounts",
         file_name='TibosCrmAccountsExport.xlsx',
         report_name="Tibos CRM Accounts Report"
+    )
+
+    from infras.primary_db.services.activity_log_service import ActivityLogService
+    await ActivityLogService(session, user['role'], user['id']).log_action(
+        action="EXPORT",
+        entity_type="ACCOUNT",
+        details={"fields_exported": data.fields}
     )
 
     return SuccessResponseTypDict(

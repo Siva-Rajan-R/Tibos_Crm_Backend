@@ -119,7 +119,7 @@ async def recover_order(data:RecoverOrderSchema,user:dict=Depends(verify_user),s
     )
 
 @router.post('/export')
-async def export(data:ExportFields,bgt:BackgroundTasks,user:dict=Depends(verify_user)):
+async def export(data:ExportFields,bgt:BackgroundTasks,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     ic(data.filters)
     ic("Hello Hii")
     if user['role']!=UserRoles.SUPER_ADMIN.value:
@@ -147,6 +147,13 @@ async def export(data:ExportFields,bgt:BackgroundTasks,user:dict=Depends(verify_
         sheet_name="Orders",
         file_name='TibosCrmOrdersExport.xlsx',
         report_name="Tibos CRM Orders Report"
+    )
+
+    from infras.primary_db.services.activity_log_service import ActivityLogService
+    await ActivityLogService(session, user['role'], user['id']).log_action(
+        action="EXPORT",
+        entity_type="ORDER",
+        details={"fields_exported": data.fields}
     )
 
     return SuccessResponseTypDict(
@@ -242,7 +249,7 @@ async def get_order_tracking_report(data:OrderTrackingReportSchema,user:dict=Dep
 
 
 @router.post('/report/tracking/export')
-async def export_tracking_report(data:OrderTrackingReportSchema,user:dict=Depends(verify_user)):
+async def export_tracking_report(data:OrderTrackingReportSchema,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
 
     if user['role']!=UserRoles.SUPER_ADMIN.value:
         raise HTTPException(
@@ -273,6 +280,13 @@ async def export_tracking_report(data:OrderTrackingReportSchema,user:dict=Depend
         sheet_name="Order Tracking Report",
         file_name='TibosCrmOrderTrackingReport.xlsx',
         report_name="Order Tracking Report"
+    )
+
+    from infras.primary_db.services.activity_log_service import ActivityLogService
+    await ActivityLogService(session, user['role'], user['id']).log_action(
+        action="EXPORT",
+        entity_type="ORDER_TRACKING_REPORT",
+        details={}
     )
 
     return SuccessResponseTypDict(
@@ -312,7 +326,7 @@ async def get_payment_pending_report(data:PaymentPendingReportSchema,user:dict=D
 
 
 @router.post('/report/payment-pending/export')
-async def export_payment_pending_report(data:PaymentPendingReportSchema,user:dict=Depends(verify_user)):
+async def export_payment_pending_report(data:PaymentPendingReportSchema,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
 
     if user['role']!=UserRoles.SUPER_ADMIN.value:
         raise HTTPException(
@@ -344,6 +358,13 @@ async def export_payment_pending_report(data:PaymentPendingReportSchema,user:dic
         sheet_name="Payment Pending Report",
         file_name='TibosCrmPaymentPendingReport.xlsx',
         report_name="Payment Pending Report"
+    )
+
+    from infras.primary_db.services.activity_log_service import ActivityLogService
+    await ActivityLogService(session, user['role'], user['id']).log_action(
+        action="EXPORT",
+        entity_type="ORDER_PAYMENT_PENDING_REPORT",
+        details={}
     )
 
     return SuccessResponseTypDict(
@@ -383,7 +404,7 @@ async def get_distributor_projection_report(data:DistributorProjectionReportSche
     ).get_distributor_projection_report(data=data)
 
 @router.post('/report/distributor-projection/export')
-async def export_distributor_projection_report(data:DistributorProjectionReportSchema,user:dict=Depends(verify_user)):
+async def export_distributor_projection_report(data:DistributorProjectionReportSchema,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     if user['role']!=UserRoles.SUPER_ADMIN.value:
         raise HTTPException(
             status_code=401,
@@ -413,6 +434,13 @@ async def export_distributor_projection_report(data:DistributorProjectionReportS
         sheet_name="Distributor Projection",
         file_name='TibosCrmDistributorProjectionReport.xlsx',
         report_name="Distributor Projection Report"
+    )
+
+    from infras.primary_db.services.activity_log_service import ActivityLogService
+    await ActivityLogService(session, user['role'], user['id']).log_action(
+        action="EXPORT",
+        entity_type="ORDER_DISTRIBUTOR_PROJECTION_REPORT",
+        details={}
     )
 
     return SuccessResponseTypDict(
@@ -457,7 +485,7 @@ async def get_activation_date_alert(days_before: Optional[int] = Query(None), da
     ).get_activation_date_alert(days_before=days_before, days_after=days_after)
 
 @router.post('/report/pending-invoices/export')
-async def export_pending_invoice_report(days_threshold: Optional[int] = Query(0), user:dict=Depends(verify_user)):
+async def export_pending_invoice_report(days_threshold: Optional[int] = Query(0), user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     if user['role']!=UserRoles.SUPER_ADMIN.value:
         raise HTTPException(status_code=401, detail="Insufficient Permission")
     
@@ -477,6 +505,14 @@ async def export_pending_invoice_report(days_threshold: Optional[int] = Query(0)
         file_name='TibosCrmPendingInvoices.xlsx',
         report_name="Pending Invoices Report"
     )
+
+    from infras.primary_db.services.activity_log_service import ActivityLogService
+    await ActivityLogService(session, user['role'], user['id']).log_action(
+        action="EXPORT",
+        entity_type="ORDER_PENDING_INVOICES_REPORT",
+        details={}
+    )
+
     return SuccessResponseTypDict(detail=BaseResponseTypDict(msg="Export started", status_code=200, success=True))
 
 @router.get('/report/pending-invoices/export/fields')
@@ -486,7 +522,7 @@ async def get_pending_invoice_export_fields(user:dict=Depends(verify_user)):
     return SuccessResponseTypDict(detail=BaseResponseTypDict(msg="Success", status_code=200, success=True), data=list(PENDING_INVOICE_REPORT_MAPPER.values()))
 
 @router.post('/report/activation-alerts/export')
-async def export_activation_alerts_report(days_before: int = 2, days_after: int = 2, user:dict=Depends(verify_user)):
+async def export_activation_alerts_report(days_before: int = 2, days_after: int = 2, user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     if user['role']!=UserRoles.SUPER_ADMIN.value:
         raise HTTPException(status_code=401, detail="Insufficient Permission")
     
@@ -506,6 +542,14 @@ async def export_activation_alerts_report(days_before: int = 2, days_after: int 
         file_name='TibosCrmActivationAlerts.xlsx',
         report_name="Activation Alerts Report"
     )
+
+    from infras.primary_db.services.activity_log_service import ActivityLogService
+    await ActivityLogService(session, user['role'], user['id']).log_action(
+        action="EXPORT",
+        entity_type="ORDER_ACTIVATION_ALERTS_REPORT",
+        details={}
+    )
+
     return SuccessResponseTypDict(detail=BaseResponseTypDict(msg="Export started", status_code=200, success=True))
 
 @router.get('/report/activation-alerts/export/fields')

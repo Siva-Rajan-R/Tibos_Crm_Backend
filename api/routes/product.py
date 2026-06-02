@@ -78,7 +78,7 @@ async def recover_product(data:RecoverProductSchema,user:dict=Depends(verify_use
     )
 
 @router.post('/export')
-async def export(data:ExportFields,bgt:BackgroundTasks,user:dict=Depends(verify_user)):
+async def export(data:ExportFields,bgt:BackgroundTasks,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     if user['role']!=UserRoles.SUPER_ADMIN.value:
         raise HTTPException(
             status_code=401,
@@ -94,8 +94,8 @@ async def export(data:ExportFields,bgt:BackgroundTasks,user:dict=Depends(verify_
     
     await enqueue_excel_report_job(
         user_id=user['id'],
-        kwargs={},
         emails_tosend=[user_email],
+        kwargs={},
         custom_fields=data.fields,
         mapper=PRODUCTS_MAPPER,
         data_cls=ProductsRepo,
@@ -105,6 +105,14 @@ async def export(data:ExportFields,bgt:BackgroundTasks,user:dict=Depends(verify_
         file_name='TibosCrmProductsExport.xlsx',
         report_name="Tibos CRM Products Report"
     )
+
+    from infras.primary_db.services.activity_log_service import ActivityLogService
+    await ActivityLogService(session, user['role'], user['id']).log_action(
+        action="EXPORT",
+        entity_type="PRODUCT",
+        details={"fields_exported": data.fields}
+    )
+
     return SuccessResponseTypDict(
         detail=BaseResponseTypDict(
             msg="Excel sheet generation started, It will be sended to ur email",

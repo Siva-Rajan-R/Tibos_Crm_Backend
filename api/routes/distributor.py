@@ -51,7 +51,7 @@ async def update_distributor(data:UpdateDistriSchema,user:dict=Depends(verify_us
     )
 
 @router.post('/export')
-async def export(data:ExportFields,bgt:BackgroundTasks,user:dict=Depends(verify_user)):
+async def export(data:ExportFields,bgt:BackgroundTasks,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     if user['role']!=UserRoles.SUPER_ADMIN.value:
         raise HTTPException(
             status_code=401,
@@ -77,6 +77,13 @@ async def export(data:ExportFields,bgt:BackgroundTasks,user:dict=Depends(verify_
         sheet_name="Distributors",
         file_name='TibosCrmDistributorsExport.xlsx',
         report_name="Tibos CRM Distributors Report"
+    )
+
+    from infras.primary_db.services.activity_log_service import ActivityLogService
+    await ActivityLogService(session, user['role'], user['id']).log_action(
+        action="EXPORT",
+        entity_type="DISTRIBUTOR",
+        details={"fields_exported": data.fields}
     )
 
     return SuccessResponseTypDict(

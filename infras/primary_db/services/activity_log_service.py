@@ -46,6 +46,6 @@ class ActivityLogService:
         return True
 
     @catch_errors
-    async def get(self, cursor: int = 1, limit: int = 10, query: str = ""):
+    async def get(self, cursor: int = 1, limit: int = 10, query: str = "", from_date: Optional[str] = None, to_date: Optional[str] = None):
         repo = ActivityLogRepo(session=self.session, user_role=self.user_role, cur_user_id=self.cur_user_id)
-        return await repo.get(cursor=cursor, limit=limit, query=query)
+        return await repo.get(cursor=cursor, limit=limit, query=query, from_date=from_date, to_date=to_date)

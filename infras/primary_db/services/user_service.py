@@ -86,13 +86,34 @@ class UserService(BaseServiceModel):
         if not data_toupdate or len(data_toupdate)<1:
             return ErrorResponseTypDict(status_code=400,success=False,msg="Error : Updating User",description="No valid fields to update provided")
         
+        from sqlalchemy import select
+        from ..models.user import Users
+        from fastapi.encoders import jsonable_encoder
+        old_record = (await self.session.execute(select(Users).where(Users.id == data.id))).scalar_one_or_none()
+        old_values = {}
+        new_values = {}
+        if old_record:
+            for key, new_val in data_toupdate.items():
+                if not hasattr(old_record, key):
+                    continue
+                old_val_raw = getattr(old_record, key)
+                old_val = jsonable_encoder(old_val_raw)
+                if old_val != new_val:
+                    old_values[key] = old_val if old_val is not None else None
+                    new_values[key] = new_val if new_val is not None else None
+
         result = await UserRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateUserDbSchema(**data_toupdate))
         if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
+            details = {"updated_fields": list(data_toupdate.keys())}
+            if old_values or new_values:
+                details["old_values"] = old_values
+                details["new_values"] = new_values
+
             await ActivityLogService(self.session, self.user_role, self.cur_user_id).log_action(
                 action="UPDATE",
                 entity_type="USER",
                 entity_id=data.id,
-                details={"updated_fields": list(data_toupdate.keys())}
+                details=details
             )
         return result
         

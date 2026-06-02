@@ -10,9 +10,9 @@ class ActivityLogHandler:
         self.cur_user_id = cur_user_id
 
     @catch_errors
-    async def get(self, cursor: int = 1, limit: int = 10, query: str = ""):
+    async def get(self, cursor: int = 1, limit: int = 10, query: str = "", from_date: str = None, to_date: str = None):
         if self.user_role if isinstance(self.user_role, UserRoles) else self.user_role != UserRoles.SUPER_ADMIN.value:
             # We can return an error or let service handle authorization. Just restricting it to admins or let it pass for now.
             pass
         service = ActivityLogService(session=self.session, user_role=self.user_role, cur_user_id=self.cur_user_id)
-        return await service.get(cursor=cursor, limit=limit, query=query)
+        return await service.get(cursor=cursor, limit=limit, query=query, from_date=from_date, to_date=to_date)

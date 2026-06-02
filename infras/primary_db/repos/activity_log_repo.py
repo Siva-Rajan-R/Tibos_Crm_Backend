@@ -22,7 +22,7 @@ class ActivityLogRepo:
         self.session.add_all([ActivityLog(**data.model_dump(mode='json')) for data in datas])
         return True
 
-    async def get(self, cursor: int = 1, limit: int = 10, query: str = ""):
+    async def get(self, cursor: int = 1, limit: int = 10, query: str = "", from_date: str = None, to_date: str = None):
         from sqlalchemy import select, func, desc, String, or_, cast
         from ..models.user import Users
         from math import ceil
@@ -54,6 +54,15 @@ class ActivityLogRepo:
                     cast(ActivityLog.details, String).ilike(search_pattern)
                 )
             )
+
+        from datetime import datetime
+
+        if from_date:
+            f_date = datetime.strptime(from_date, "%Y-%m-%d").date()
+            stmt = stmt.where(date_expr >= f_date)
+        if to_date:
+            t_date = datetime.strptime(to_date, "%Y-%m-%d").date()
+            stmt = stmt.where(date_expr <= t_date)
             
         stmt = stmt.order_by(desc(ActivityLog.created_at)).limit(limit).offset(offset_val)
 
