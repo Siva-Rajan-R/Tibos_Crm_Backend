@@ -153,6 +153,7 @@ async def export(data:ExportFields,bgt:BackgroundTasks,user:dict=Depends(verify_
     await ActivityLogService(session, user['role'], user['id']).log_action(
         action="EXPORT",
         entity_type="ORDER",
+        entity_id="ALL",
         details={"fields_exported": data.fields}
     )
 
@@ -286,6 +287,7 @@ async def export_tracking_report(data:OrderTrackingReportSchema,user:dict=Depend
     await ActivityLogService(session, user['role'], user['id']).log_action(
         action="EXPORT",
         entity_type="ORDER_TRACKING_REPORT",
+        entity_id="ALL",
         details={}
     )
 
@@ -364,6 +366,7 @@ async def export_payment_pending_report(data:PaymentPendingReportSchema,user:dic
     await ActivityLogService(session, user['role'], user['id']).log_action(
         action="EXPORT",
         entity_type="ORDER_PAYMENT_PENDING_REPORT",
+        entity_id="ALL",
         details={}
     )
 
@@ -440,6 +443,7 @@ async def export_distributor_projection_report(data:DistributorProjectionReportS
     await ActivityLogService(session, user['role'], user['id']).log_action(
         action="EXPORT",
         entity_type="ORDER_DISTRIBUTOR_PROJECTION_REPORT",
+        entity_id="ALL",
         details={}
     )
 
@@ -510,6 +514,7 @@ async def export_pending_invoice_report(days_threshold: Optional[int] = Query(0)
     await ActivityLogService(session, user['role'], user['id']).log_action(
         action="EXPORT",
         entity_type="ORDER_PENDING_INVOICES_REPORT",
+        entity_id="ALL",
         details={}
     )
 
@@ -547,6 +552,7 @@ async def export_activation_alerts_report(days_before: int = 2, days_after: int 
     await ActivityLogService(session, user['role'], user['id']).log_action(
         action="EXPORT",
         entity_type="ORDER_ACTIVATION_ALERTS_REPORT",
+        entity_id="ALL",
         details={}
     )
 

@@ -110,6 +110,7 @@ async def export(data:ExportFields,bgt:BackgroundTasks,user:dict=Depends(verify_
     await ActivityLogService(session, user['role'], user['id']).log_action(
         action="EXPORT",
         entity_type="PRODUCT",
+        entity_id="ALL",
         details={"fields_exported": data.fields}
     )
 

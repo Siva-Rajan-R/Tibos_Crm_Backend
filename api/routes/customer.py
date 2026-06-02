@@ -96,7 +96,8 @@ async def export(data:ExportFields,bgt:BackgroundTasks,user:dict=Depends(verify_
     from infras.primary_db.services.activity_log_service import ActivityLogService
     await ActivityLogService(session, user['role'], user['id']).log_action(
         action="EXPORT",
-        entity_type="ACCOUNT",
+        entity_type="CUSTOMER",
+        entity_id="ALL",
         details={"fields_exported": data.fields}
     )
 
