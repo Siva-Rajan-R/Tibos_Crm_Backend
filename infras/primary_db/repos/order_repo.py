@@ -2615,6 +2615,76 @@ class OrdersRepo(BaseRepoModel):
 
 
 
+    async def get_owner_sales_report(self, from_date, to_date, date_by, cur_user_id, user_role):
+        conditions = []
+        if from_date:
+            from_dt = datetime.combine(from_date, datetime.min.time())
+            if date_by.value == "ACTIVATION_DATE":
+                conditions.append(Orders.activation_date >= from_dt)
+            elif date_by.value == "ORDER_DATE":
+                conditions.append(Orders.order_date >= from_dt)
+            else:
+                conditions.append(Orders.created_at >= from_dt)
+        if to_date:
+            to_dt = datetime.combine(to_date, datetime.max.time())
+            if date_by.value == "ACTIVATION_DATE":
+                conditions.append(Orders.activation_date <= to_dt)
+            elif date_by.value == "ORDER_DATE":
+                conditions.append(Orders.order_date <= to_dt)
+            else:
+                conditions.append(Orders.created_at <= to_dt)
+        
+        # Removed owner_id check since Orders does not have owner_id
+        
+        owner_label = func.coalesce(Customers.owner, "Unknown").label("owner_name")
+        product_type = Products.product_type.label("product_type")
+        
+        stmt = (
+            select(
+                owner_label,
+                customer_final_price.label("customer_price"),
+                Orders.logistic_info["purchase_type"].astext.label("purchase_type"),
+                product_type
+            )
+            .select_from(Orders)
+            .join(Customers, Customers.id == Orders.customer_id, isouter=True)
+            .join(Products, Products.id == Orders.product_id, isouter=True)
+            .where(*conditions)
+        )
+        
+        result = await self.session.execute(stmt)
+        rows = result.all()
+        
+        owner_map = {}
+        for row in rows:
+            o_name = row.owner_name
+            c_price = float(row.customer_price or 0)
+            val = c_price
+            p_type = row.product_type
+            purchase_type = row.purchase_type
+            
+            if o_name not in owner_map:
+                owner_map[o_name] = {
+                    "owner_name": o_name,
+                    "total_order_value": 0,
+                    "net_new_customer_value": 0,
+                    "product_types": {}
+                }
+            
+            owner_map[o_name]["total_order_value"] += val
+            
+            if purchase_type == "NET-NEW-CUSTOMER":
+                owner_map[o_name]["net_new_customer_value"] += val
+                
+            if p_type:
+                if p_type not in owner_map[o_name]["product_types"]:
+                    owner_map[o_name]["product_types"][p_type] = 0
+                owner_map[o_name]["product_types"][p_type] += val
+                
+        return {"owners": list(owner_map.values())}
+
+
+
 class OrderTrackingReportRepo(OrdersRepo):
     async def get(self, **kwargs):
         # We only return data for the first page since it's a summary
@@ -2751,5 +2821,7 @@ class ActivationAlertReportRepo(OrdersRepo):
             "data": upcoming + overdue,
             "next_cursor": None
         }
+
+
 
 

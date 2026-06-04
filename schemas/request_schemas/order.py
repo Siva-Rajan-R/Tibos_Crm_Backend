@@ -165,3 +165,8 @@ class DistributorProjectionReportSchema(BaseModel):
     to_date: Optional[date]=None
     starting_month: Optional[str] = None
     date_by: Optional[OrderFilterDateByEnum] = OrderFilterDateByEnum.ACTIVATION_DATE
+
+class OwnerSalesReportSchema(BaseModel):
+    from_date: Optional[date] = None
+    to_date: Optional[date] = None
+    date_by: Optional[OrderFilterDateByEnum] = OrderFilterDateByEnum.ACTIVATION_DATE

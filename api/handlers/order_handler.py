@@ -449,3 +449,22 @@ class HandleOrdersRequest:
             ),
             data=res
         )
+
+
+    @catch_errors
+    async def get_owner_sales_report(self, data):
+        from infras.primary_db.services.order_service import OrdersService
+        report = await OrdersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_owner_sales_report(
+            from_date=data.from_date,
+            to_date=data.to_date,
+            date_by=data.date_by
+        )
+        return SuccessResponseTypDict(
+            detail=BaseResponseTypDict(
+                msg="Owner Sales Report Fetched successfully",
+                status_code=200,
+                success=True
+            ),
+            data=report
+        )
+

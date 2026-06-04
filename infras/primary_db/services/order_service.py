@@ -631,3 +631,9 @@ class OrdersService(BaseServiceModel):
 
 
 
+
+
+    async def get_owner_sales_report(self, from_date, to_date, date_by):
+        from infras.primary_db.repos.order_repo import OrdersRepo
+        return await OrdersRepo(session=self.session, user_role=self.user_role, cur_user_id=self.cur_user_id).get_owner_sales_report(from_date, to_date, date_by, self.cur_user_id, self.user_role)
+

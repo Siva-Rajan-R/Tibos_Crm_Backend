@@ -1,11 +1,11 @@
 from fastapi import Depends,APIRouter,Query,Form,UploadFile,Query,File,Request,BackgroundTasks,HTTPException
-from schemas.request_schemas.order import AddOrderSchema,UpdateOrderSchema,RecoverOrderSchema,OrderBulkDeleteSchema,OrderTrackingReportSchema,PaymentPendingReportSchema,DistributorProjectionReportSchema
+from schemas.request_schemas.order import OwnerSalesReportSchema, AddOrderSchema,UpdateOrderSchema,RecoverOrderSchema,OrderBulkDeleteSchema,OrderTrackingReportSchema,PaymentPendingReportSchema,DistributorProjectionReportSchema
 from infras.primary_db.main import get_pg_db_session,AsyncSession
 from api.dependencies.token_verification import verify_user
 from ..handlers.order_handler import HandleOrdersRequest
 from typing import Optional,List
 from core.data_formats.enums.dd_enums import ImportExportTypeEnum
-from schemas.request_schemas.order import OrderFilterSchema
+from schemas.request_schemas.order import OwnerSalesReportSchema, OrderFilterSchema
 from models.response_models.req_res_models import SuccessResponseTypDict,BaseResponseTypDict
 from core.utils.export_func import create_excel_export
 from infras.primary_db.repos.order_repo import (
@@ -563,3 +563,10 @@ async def get_activation_alerts_export_fields(user:dict=Depends(verify_user)):
     if user['role']!=UserRoles.SUPER_ADMIN.value:
         raise HTTPException(status_code=401, detail="Insufficient Permission")
     return SuccessResponseTypDict(detail=BaseResponseTypDict(msg="Success", status_code=200, success=True), data=list(ACTIVATION_ALERT_REPORT_MAPPER.values()))
+
+
+
+@router.post("/report/owner-sales")
+async def get_owner_sales_report(data: OwnerSalesReportSchema, user:dict=Depends(verify_user), session:AsyncSession=Depends(get_pg_db_session)):
+    return await HandleOrdersRequest(session=session, user_role=user['role'], cur_user_id=user['id']).get_owner_sales_report(data=data)
+
