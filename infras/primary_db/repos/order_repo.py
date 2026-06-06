@@ -1696,18 +1696,15 @@ class OrdersRepo(BaseRepoModel):
 
         # 2) Payment pending:
         #    Has completed invoice but payment is pending
-        #    Value = customer_price_with_gst - total_paid
+        #    Value = customer_final_price
         payment_pending_val = func.coalesce(func.sum(
             case(
                 (
                     and_(
+                        Orders.activated == True,
                         func.coalesce(invoice_agg_subq.c.has_completed_invoice, False) == True,
-                        func.coalesce(invoice_agg_subq.c.has_pending_payment, False) == True,
                     ),
-                    func.greatest(
-                        func.round(cast(customer_final_price_inc_gst, Numeric)) - func.coalesce(invoice_agg_subq.c.total_paid, 0),
-                        0
-                    )
+                    customer_final_price
                 ),
                 else_=0
             )
@@ -1770,13 +1767,10 @@ class OrdersRepo(BaseRepoModel):
                     case(
                         (
                             and_(
+                                Orders.activated == True,
                                 func.coalesce(invoice_agg_subq.c.has_completed_invoice, False) == True,
-                                func.coalesce(invoice_agg_subq.c.has_pending_payment, False) == True,
                             ),
-                            func.greatest(
-                                func.round(cast(customer_final_price_inc_gst, Numeric)) - func.coalesce(invoice_agg_subq.c.total_paid, 0),
-                                0
-                            )
+                            customer_final_price
                         ),
                         else_=0
                     )
@@ -1857,9 +1851,8 @@ class OrdersRepo(BaseRepoModel):
                 cart_owners[owner_name_key]["activation_done_invoice_pending"] += total_price
                 
             # 2) Payment pending
-            if has_completed_invoice and has_pending_payment:
-                pending_val = max(gst_price - total_paid, 0)
-                cart_owners[owner_name_key]["payment_pending"] += pending_val
+            if o.get("activated") == True and has_completed_invoice:
+                cart_owners[owner_name_key]["payment_pending"] += total_price
                 
             # 3) PO received, activation need to done
             if o.get("activated") == False and all_invoices_incompleted:
@@ -2616,23 +2609,20 @@ class OrdersRepo(BaseRepoModel):
 
 
     async def get_owner_sales_report(self, from_date, to_date, date_by, cur_user_id, user_role):
-        conditions = []
+        date_by_val = date_by.value if hasattr(date_by, 'value') else date_by
+        
+        if date_by_val == "ACTIVATION_DATE":
+            date_field = cast(Orders.delivery_info["delivery_date"].astext, Date)
+        elif date_by_val == "REQUESTED_DATE":
+            date_field = cast(Orders.delivery_info["requested_date"].astext, Date)
+        else:
+            date_field = func.date(func.timezone("Asia/Kolkata", Orders.created_at))
+
+        conditions = [Orders.is_deleted == False]
         if from_date:
-            from_dt = datetime.combine(from_date, datetime.min.time())
-            if date_by.value == "ACTIVATION_DATE":
-                conditions.append(Orders.activation_date >= from_dt)
-            elif date_by.value == "ORDER_DATE":
-                conditions.append(Orders.order_date >= from_dt)
-            else:
-                conditions.append(Orders.created_at >= from_dt)
+            conditions.append(date_field >= from_date)
         if to_date:
-            to_dt = datetime.combine(to_date, datetime.max.time())
-            if date_by.value == "ACTIVATION_DATE":
-                conditions.append(Orders.activation_date <= to_dt)
-            elif date_by.value == "ORDER_DATE":
-                conditions.append(Orders.order_date <= to_dt)
-            else:
-                conditions.append(Orders.created_at <= to_dt)
+            conditions.append(date_field <= to_date)
         
         # Removed owner_id check since Orders does not have owner_id
         
