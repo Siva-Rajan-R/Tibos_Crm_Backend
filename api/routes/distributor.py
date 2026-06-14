@@ -166,6 +166,14 @@ async def get_searched_distributors(q:str=Query(...),user:dict=Depends(verify_us
     ).search(query=q)
 
 
+@router.get('/{distributor_id}/discount-history')
+async def get_distributor_discount_history(distributor_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+    return await HandleDistributorRequest(
+        session=session,
+        user_role=user['role'],
+        cur_user_id=user['id']
+    ).get_discount_history(distributor_id=distributor_id)
+
 @router.get('/{distributor_id}')
 async def get_distributor_by_id(distributor_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleDistributorRequest(

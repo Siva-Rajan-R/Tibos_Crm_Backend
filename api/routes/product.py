@@ -168,6 +168,14 @@ async def get_searched_product(q:str=Query(...),user:dict=Depends(verify_user),s
         cur_user_id=user['id']
     ).search(query=q)
 
+@router.get('/{product_id}/pricing-history')
+async def get_product_pricing_history(product_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+    return await HandleProductsRequest(
+        session=session,
+        user_role=user['role'],
+        cur_user_id=user['id']
+    ).get_pricing_history(product_id=product_id)
+
 @router.get('/{product_id}')
 async def get_product_by_id(product_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleProductsRequest(

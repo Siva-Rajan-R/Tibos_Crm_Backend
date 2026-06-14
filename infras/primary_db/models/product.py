@@ -23,3 +23,13 @@ class Products(PG_BASE):
 
     order_cart=relationship("CartOrdersProduct",back_populates="product")
     order=relationship("Orders",back_populates="product",cascade="all, delete-orphan")
+
+class ProductPricingHistory(PG_BASE):
+    __tablename__="product_pricing_history"
+    id=Column(BigInteger,primary_key=True,autoincrement=True)
+    product_id=Column(String,ForeignKey("products.id",ondelete="CASCADE"),nullable=False)
+    price=Column(Float,nullable=False)
+    created_at=Column(TIMESTAMP(timezone=True),server_default=func.now())
+    created_by=Column(String,ForeignKey('users.id'),nullable=True)
+    
+    product=relationship("Products")

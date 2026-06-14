@@ -209,5 +209,18 @@ class HandleDistributorRequest:
     async def get_by_id(self,distributor_id:str):
         return await DistributorService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(distributor_id=distributor_id)
 
+    @catch_errors
+    async def get_discount_history(self, distributor_id: str):
+        from infras.primary_db.repos.distri_repo import DistributorsRepo
+        history = await DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_discount_history(distributor_id=distributor_id)
+        return SuccessResponseTypDict(
+            detail=BaseResponseTypDict(
+                status_code=200,
+                success=True,
+                msg="Discount history fetched successfully",
+            ),
+            data={"history": history}
+        )
+
 
 

@@ -128,7 +128,17 @@ class ProductsService(BaseServiceModel):
                     old_values[key] = old_val if old_val is not None else None
                     new_values[key] = new_val if new_val is not None else None
 
-        result = await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateProductDbSchema(**data_toupdate))
+        if not new_values:
+            return SuccessResponseTypDict(
+                detail=BaseResponseTypDict(
+                    status_code=200,
+                    success=True,
+                    msg="Product updated successfully (no changes detected)"
+                )
+            )
+
+        new_values['product_id'] = data.product_id
+        result = await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).update(data=UpdateProductDbSchema(**new_values))
         if result and not isinstance(result, dict) or (isinstance(result, dict) and result.get("success") is not False):
             details = {"updated_fields": list(data_toupdate.keys())}
             if old_values or new_values:

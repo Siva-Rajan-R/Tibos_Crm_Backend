@@ -34,4 +34,12 @@ class DistributorsPayments(PG_BASE):
     deleted_by=Column(String,ForeignKey('users.id'))
     deleted_at=Column(DateTime(timezone=True),nullable=True)
 
+class DistributorDiscountHistory(PG_BASE):
+    __tablename__="distributor_discount_history"
+    id=Column(BigInteger,primary_key=True,autoincrement=True)
+    distributor_id=Column(String,ForeignKey("distributors.id",ondelete="CASCADE"),nullable=False)
+    discounts=Column(JSONB,nullable=False)
+    created_at=Column(TIMESTAMP(timezone=True),server_default=func.now())
+    created_by=Column(String,ForeignKey('users.id'),nullable=True)
     
+    distributor=relationship("Distributors")

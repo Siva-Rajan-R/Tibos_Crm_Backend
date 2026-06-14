@@ -1711,24 +1711,28 @@ class OrdersRepo(BaseRepoModel):
         ), 0)
 
         # 3) PO received, activation need to done:
-        #    activated=False AND all invoices INCOMPLETED (or no invoice)
+        #    activated=False
         po_received_activation_pending = func.coalesce(func.sum(
             case(
                 (
-                    and_(
-                        Orders.activated == False,
-                        func.coalesce(invoice_agg_subq.c.all_invoices_incompleted, True) == True,
-                    ),
+                    Orders.activated == False,
                     customer_final_price
                 ),
                 else_=0
             )
         ), 0)
 
+        # --- Product type label ---
+        product_type_label = func.coalesce(
+            func.nullif(func.trim(Products.product_type), ''),
+            'Others'
+        ).label("product_type")
+
         # --- Main aggregation query ---
         report_stmt = (
             select(
                 owner_label,
+                product_type_label,
                 func.round(cast(activation_done_invoice_pending, Numeric)).label("activation_done_invoice_pending"),
                 func.round(cast(payment_pending_val, Numeric), 2).label("payment_pending"),
                 func.round(cast(po_received_activation_pending, Numeric)).label("po_received_activation_pending"),
@@ -1742,8 +1746,8 @@ class OrdersRepo(BaseRepoModel):
             .join(Customers, Customers.id == Orders.customer_id, isouter=True)
             .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
             .where(*conditions)
-            .group_by(owner_label)
-            .order_by(owner_label)
+            .group_by(owner_label, product_type_label)
+            .order_by(owner_label, product_type_label)
         )
 
         owner_rows = (await self.session.execute(report_stmt)).mappings().all()
@@ -1778,10 +1782,7 @@ class OrdersRepo(BaseRepoModel):
                 func.round(cast(func.coalesce(func.sum(
                     case(
                         (
-                            and_(
-                                Orders.activated == False,
-                                func.coalesce(invoice_agg_subq.c.all_invoices_incompleted, True) == True,
-                            ),
+                            Orders.activated == False,
                             customer_final_price
                         ),
                         else_=0
@@ -1809,15 +1810,38 @@ class OrdersRepo(BaseRepoModel):
             grand_total["po_received_activation_pending"], 2
         )
 
-        owners_data = []
+        owners_dict = {}
         for row in owner_rows:
-            owners_data.append({
-                "owner_name": row["owner_name"],
-                "activation_done_invoice_pending": float(row["activation_done_invoice_pending"] or 0),
-                "payment_pending": float(row["payment_pending"] or 0),
-                "po_received_activation_pending": float(row["po_received_activation_pending"] or 0),
-                "grand_total": float(row["grand_total"] or 0),
-            })
+            o_name = row["owner_name"]
+            p_type = row["product_type"]
+            
+            if o_name not in owners_dict:
+                owners_dict[o_name] = {
+                    "owner_name": o_name,
+                    "activation_done_invoice_pending": 0.0,
+                    "payment_pending": 0.0,
+                    "po_received_activation_pending": 0.0,
+                    "grand_total": 0.0,
+                    "product_breakdown": {}
+                }
+            
+            owners_dict[o_name]["activation_done_invoice_pending"] += float(row["activation_done_invoice_pending"] or 0)
+            owners_dict[o_name]["payment_pending"] += float(row["payment_pending"] or 0)
+            owners_dict[o_name]["po_received_activation_pending"] += float(row["po_received_activation_pending"] or 0)
+            owners_dict[o_name]["grand_total"] += float(row["grand_total"] or 0)
+            
+            if p_type not in owners_dict[o_name]["product_breakdown"]:
+                owners_dict[o_name]["product_breakdown"][p_type] = {
+                    "activation_done_invoice_pending": 0.0,
+                    "payment_pending": 0.0,
+                    "po_received_activation_pending": 0.0,
+                    "grand_total": 0.0
+                }
+            
+            owners_dict[o_name]["product_breakdown"][p_type]["activation_done_invoice_pending"] += float(row["activation_done_invoice_pending"] or 0)
+            owners_dict[o_name]["product_breakdown"][p_type]["payment_pending"] += float(row["payment_pending"] or 0)
+            owners_dict[o_name]["product_breakdown"][p_type]["po_received_activation_pending"] += float(row["po_received_activation_pending"] or 0)
+            owners_dict[o_name]["product_breakdown"][p_type]["grand_total"] += float(row["grand_total"] or 0)
 
         # --- Retrieve and aggregate Cart Orders ---
         cart_mapped_orders = await self._get_filtered_cart_orders(
@@ -1827,76 +1851,77 @@ class OrdersRepo(BaseRepoModel):
             date_by=date_by
         )
         
-        cart_owners = {}
         for o in cart_mapped_orders:
             owner_name_key = o.get("owner_name") or "Others"
-            if owner_name_key not in cart_owners:
-                cart_owners[owner_name_key] = {
+            if owner_name_key not in owners_dict:
+                owners_dict[owner_name_key] = {
+                    "owner_name": owner_name_key,
                     "activation_done_invoice_pending": 0.0,
                     "payment_pending": 0.0,
                     "po_received_activation_pending": 0.0,
+                    "grand_total": 0.0,
+                    "product_breakdown": {}
                 }
                 
             invoices = o.get("status_info") or []
             has_completed_invoice = any(inv.get("invoice_status") == "COMPLETED" for inv in invoices)
             all_invoices_incompleted = all(inv.get("invoice_status") == "INCOMPLETED" for inv in invoices)
-            has_pending_payment = any(inv.get("invoice_status") == "COMPLETED" and inv.get("payment_status") not in ("PAID", "FULL PAYMENT RECEIVED") for inv in invoices)
             
-            total_price = o.get("total_price") or 0.0
-            gst_price = round(total_price * 1.18)
-            total_paid = sum(float(inv.get("paid_amount") or 0) for inv in invoices)
+            products_list = o.get("products") or []
             
-            # 1) Activation done, invoice need to raise
-            if o.get("activated") == True and all_invoices_incompleted:
-                cart_owners[owner_name_key]["activation_done_invoice_pending"] += total_price
+            for p in products_list:
+                p_price = float(p.get("customer_price") or 0.0)
+                p_type = p.get("product_type") or "Mixed"
                 
-            # 2) Payment pending
-            if o.get("activated") == True and has_completed_invoice:
-                cart_owners[owner_name_key]["payment_pending"] += total_price
+                if p_type not in owners_dict[owner_name_key]["product_breakdown"]:
+                    owners_dict[owner_name_key]["product_breakdown"][p_type] = {
+                        "activation_done_invoice_pending": 0.0,
+                        "payment_pending": 0.0,
+                        "po_received_activation_pending": 0.0,
+                        "grand_total": 0.0
+                    }
+                    
+                val_1 = val_2 = val_3 = 0.0
                 
-            # 3) PO received, activation need to done
-            if o.get("activated") == False and all_invoices_incompleted:
-                cart_owners[owner_name_key]["po_received_activation_pending"] += total_price
+                if o.get("activated") == True and all_invoices_incompleted:
+                    val_1 = p_price
+                if o.get("activated") == True and has_completed_invoice:
+                    val_2 = p_price
+                if o.get("activated") == False:
+                    val_3 = p_price
+                    
+                owners_dict[owner_name_key]["activation_done_invoice_pending"] += val_1
+                owners_dict[owner_name_key]["payment_pending"] += val_2
+                owners_dict[owner_name_key]["po_received_activation_pending"] += val_3
+                owners_dict[owner_name_key]["grand_total"] += val_1 + val_2 + val_3
+                
+                owners_dict[owner_name_key]["product_breakdown"][p_type]["activation_done_invoice_pending"] += val_1
+                owners_dict[owner_name_key]["product_breakdown"][p_type]["payment_pending"] += val_2
+                owners_dict[owner_name_key]["product_breakdown"][p_type]["po_received_activation_pending"] += val_3
+                owners_dict[owner_name_key]["product_breakdown"][p_type]["grand_total"] += val_1 + val_2 + val_3
 
-        # --- Merge standard Orders and Cart Orders ---
-        owners_dict = {row["owner_name"]: row for row in owners_data}
-        for owner, cart_vals in cart_owners.items():
-            if owner in owners_dict:
-                owners_dict[owner]["activation_done_invoice_pending"] += cart_vals["activation_done_invoice_pending"]
-                owners_dict[owner]["payment_pending"] += cart_vals["payment_pending"]
-                owners_dict[owner]["po_received_activation_pending"] += cart_vals["po_received_activation_pending"]
-                owners_dict[owner]["grand_total"] = round(
-                    owners_dict[owner]["activation_done_invoice_pending"] +
-                    owners_dict[owner]["payment_pending"] +
-                    owners_dict[owner]["po_received_activation_pending"],
-                    2
-                )
-            else:
-                grand_total_owner = round(
-                    cart_vals["activation_done_invoice_pending"] +
-                    cart_vals["payment_pending"] +
-                    cart_vals["po_received_activation_pending"],
-                    2
-                )
-                owners_dict[owner] = {
-                    "owner_name": owner,
-                    "activation_done_invoice_pending": cart_vals["activation_done_invoice_pending"],
-                    "payment_pending": cart_vals["payment_pending"],
-                    "po_received_activation_pending": cart_vals["po_received_activation_pending"],
-                    "grand_total": grand_total_owner
-                }
-                
+                grand_total["activation_done_invoice_pending"] += val_1
+                grand_total["payment_pending"] += val_2
+                grand_total["po_received_activation_pending"] += val_3
+                grand_total["grand_total"] += val_1 + val_2 + val_3
+
         owners_data = sorted(list(owners_dict.values()), key=lambda x: x["owner_name"])
         
-        grand_total["activation_done_invoice_pending"] += sum(v["activation_done_invoice_pending"] for v in cart_owners.values())
-        grand_total["payment_pending"] += sum(v["payment_pending"] for v in cart_owners.values())
-        grand_total["po_received_activation_pending"] += sum(v["po_received_activation_pending"] for v in cart_owners.values())
-        grand_total["grand_total"] = round(
-            grand_total["activation_done_invoice_pending"] +
-            grand_total["payment_pending"] +
-            grand_total["po_received_activation_pending"],
-            2
-        )
+        for owner in owners_data:
+            owner["activation_done_invoice_pending"] = round(owner["activation_done_invoice_pending"], 2)
+            owner["payment_pending"] = round(owner["payment_pending"], 2)
+            owner["po_received_activation_pending"] = round(owner["po_received_activation_pending"], 2)
+            owner["grand_total"] = round(owner["grand_total"], 2)
+            for p_type, breakdown in owner["product_breakdown"].items():
+                breakdown["activation_done_invoice_pending"] = round(breakdown["activation_done_invoice_pending"], 2)
+                breakdown["payment_pending"] = round(breakdown["payment_pending"], 2)
+                breakdown["po_received_activation_pending"] = round(breakdown["po_received_activation_pending"], 2)
+                breakdown["grand_total"] = round(breakdown["grand_total"], 2)
+        
+        grand_total["activation_done_invoice_pending"] = round(grand_total["activation_done_invoice_pending"], 2)
+        grand_total["payment_pending"] = round(grand_total["payment_pending"], 2)
+        grand_total["po_received_activation_pending"] = round(grand_total["po_received_activation_pending"], 2)
+        grand_total["grand_total"] = round(grand_total["grand_total"], 2)
 
         return {
             "owners": owners_data,

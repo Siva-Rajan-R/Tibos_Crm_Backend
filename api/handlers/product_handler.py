@@ -195,5 +195,18 @@ class HandleProductsRequest:
     async def get_by_id(self,product_id:str):
         return await ProductsService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(product_id=product_id)
 
+    @catch_errors
+    async def get_pricing_history(self, product_id: str):
+        from infras.primary_db.repos.product_repo import ProductsRepo
+        history = await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_pricing_history(product_id=product_id)
+        return SuccessResponseTypDict(
+            detail=BaseResponseTypDict(
+                status_code=200,
+                success=True,
+                msg="Pricing history fetched successfully",
+            ),
+            data={"history": history}
+        )
+
 
 

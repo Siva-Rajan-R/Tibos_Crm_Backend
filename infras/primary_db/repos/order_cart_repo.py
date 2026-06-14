@@ -42,6 +42,7 @@ class OrdersCartRepo(BaseRepoModel):
                     func.json_build_object(
                         "id",CartOrdersProduct.id,
                         "product_id", CartOrdersProduct.product_id,
+                        "product_type", Products.product_type,
                         "additional_discount", CartOrdersProduct.additional_discount,
                         "additional_price", CartOrdersProduct.additional_price,
                         "unit_price", CartOrdersProduct.unit_price,
