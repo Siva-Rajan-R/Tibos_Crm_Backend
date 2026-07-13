@@ -213,10 +213,10 @@ class HandleCustomersRequest:
         return await CustomersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(active=active,cursor=cursor,limit=limit,query=query)
         
     @catch_errors
-    async def search(self,query:str):
+    async def search(self,query:str,offset:int=0):
         # res=await CustomerSearch().search_document(query=query,limit=30,page=1,cursor=1)
         # return res
-        return await CustomersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).search(query=query)
+        return await CustomersService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).search(query=query,offset=offset)
 
     @catch_errors
     async def get_by_id(self,customer_id:str):

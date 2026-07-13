@@ -270,8 +270,8 @@ class DistributorService(BaseServiceModel):
         return await DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(cursor=cursor,limit=limit,query=query,include_deleted=include_deleted)
         
     @catch_errors
-    async def search(self,query:str):
-        return await DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).search(query=query)
+    async def search(self,query:str,offset:int=0):
+        return await DistributorsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).search(query=query,offset=offset)
 
     @catch_errors
     async def get_by_id(self,distributor_id:str,include_delete:bool=False):

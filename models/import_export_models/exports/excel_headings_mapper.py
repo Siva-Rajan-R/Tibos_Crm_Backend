@@ -9,6 +9,7 @@ PRODUCTS_MAPPER={
     'part_number': 'part_number',
     'price': 'product_price',
     'product_type': 'product_type',
+    'financial_year':'financial_year',
     'product_created_at':'product_created_at'
 }
 

@@ -14,6 +14,7 @@ class Products(PG_BASE):
     price=Column(Float,nullable=False)
     available_qty=Column(Integer,nullable=False)
     product_type=Column(String,nullable=False)
+    financial_year=Column(Integer,nullable=True)
 
     created_at= Column(TIMESTAMP(timezone=True),server_default=func.now())
 
@@ -31,5 +32,5 @@ class ProductPricingHistory(PG_BASE):
     price=Column(Float,nullable=False)
     created_at=Column(TIMESTAMP(timezone=True),server_default=func.now())
     created_by=Column(String,ForeignKey('users.id'),nullable=True)
-    
-    product=relationship("Products")
+
+    product=relationship("Products")

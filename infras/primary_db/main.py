@@ -17,6 +17,21 @@ async def init_pg_db():
         ic("🔃 Initializing Pg DB...")
         async with PG_ENGINE.begin() as conn:
             await conn.run_sync(PG_BASE.metadata.create_all)
+            # lightweight migrations for columns added after the table was first created
+            await conn.execute(text("ALTER TABLE products ADD COLUMN IF NOT EXISTS financial_year INTEGER"))
+            # backfill FY from names like '... FY-2026' / 'fy 2026' ((?i) = case-insensitive match)
+            await conn.execute(text(
+                r"UPDATE products SET financial_year=CAST(substring(name from '(?i)\mfy[- ]?([0-9]{4})') AS INTEGER) "
+                r"WHERE financial_year IS NULL AND name ~* '\mfy[- ]?[0-9]{4}'"
+            ))
+            # products that don't mention any FY belong to the old 2025 pricing year
+            await conn.execute(text("UPDATE products SET financial_year=2025 WHERE financial_year IS NULL"))
+            # freshworks-style lead qualification fields
+            await conn.execute(text("ALTER TABLE leads ADD COLUMN IF NOT EXISTS company VARCHAR"))
+            await conn.execute(text("ALTER TABLE leads ADD COLUMN IF NOT EXISTS job_title VARCHAR"))
+            await conn.execute(text("ALTER TABLE leads ADD COLUMN IF NOT EXISTS rating VARCHAR"))
+            await conn.execute(text("ALTER TABLE leads ADD COLUMN IF NOT EXISTS expected_value FLOAT"))
+            await conn.execute(text("ALTER TABLE leads ADD COLUMN IF NOT EXISTS city VARCHAR"))
             await conn.commit()
         ic("✅ Pg Database Initialized Successfully")
     except Exception as e:

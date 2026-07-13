@@ -141,7 +141,7 @@ async def export(bgt:BackgroundTasks,user:dict=Depends(verify_user)):
     )
 
 @router.get('')
-async def get_all_product(q:str=Query(''),cursor:Optional[str]=Query("1"),page:Optional[str]=Query("1"),limit:Optional[int]=Query(10),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+async def get_all_product(q:str=Query(''),cursor:Optional[str]=Query("1"),page:Optional[str]=Query("1"),limit:Optional[int]=Query(10),year:Optional[int]=Query(None),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     ic(cursor)
     ic(page)
     try:
@@ -158,15 +158,15 @@ async def get_all_product(q:str=Query(''),cursor:Optional[str]=Query("1"),page:O
         session=session,
         user_role=user['role'],
         cur_user_id=user['id']
-    ).get(cursor=cursor,limit=limit,query=q,page=page)
+    ).get(cursor=cursor,limit=limit,query=q,page=page,year=year)
 
 @router.get('/search',response_model=FinalResponseModel)
-async def get_searched_product(q:str=Query(...),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+async def get_searched_product(q:str=Query(...),offset:int=Query(0),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleProductsRequest(
         session=session,
         user_role=user['role'],
         cur_user_id=user['id']
-    ).search(query=q)
+    ).search(query=q,offset=offset)
 
 @router.get('/{product_id}/pricing-history')
 async def get_product_pricing_history(product_id:str,user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):

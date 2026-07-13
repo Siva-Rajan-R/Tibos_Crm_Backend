@@ -18,6 +18,17 @@ from ..models.ui_id import TablesUiLId
 from core.utils.ui_id_generator import generate_ui_id
 from core.constants import UI_ID_STARTING_DIGIT,LUI_ID_PRODUCT_PREFIX
 from ...search_engine.models.product import ProductSearch
+import re
+
+# products that don't mention any FY belong to the old 2025 pricing year
+DEFAULT_FINANCIAL_YEAR=2025
+
+
+def derive_financial_year(name:str)->int:
+    """Extract the financial year from product names like '... FY-2026'.
+    Falls back to DEFAULT_FINANCIAL_YEAR when the name doesn't mention one."""
+    match=re.search(r'\bFY[-\s]?(\d{4})',name or '',re.IGNORECASE)
+    return int(match.group(1)) if match else DEFAULT_FINANCIAL_YEAR
 
 
 class ProductsService(BaseServiceModel):
@@ -33,6 +44,9 @@ class ProductsService(BaseServiceModel):
         prod_id:str=generate_uuid()
         lui_id:str=(await self.session.execute(select(TablesUiLId.product_luiid))).scalar_one_or_none()
         cur_uiid=generate_ui_id(prefix=LUI_ID_PRODUCT_PREFIX,last_id=lui_id)
+
+        if data.financial_year is None:
+            data.financial_year=derive_financial_year(data.name)
 
         search_fields=AddSearchFields(
             ui_id=cur_uiid,
@@ -67,6 +81,14 @@ class ProductsService(BaseServiceModel):
             # if (await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_part_number(part_number=data.get('part_number'))):
             #     skipped_items.append(data)
             #     continue
+
+            # normalise/derive the financial year (excel may give '2026.0', empty, or omit the column)
+            fy=data.get('financial_year')
+            try:
+                fy=int(float(fy)) if fy not in (None,'') else None
+            except (TypeError,ValueError):
+                fy=None
+            data['financial_year']=fy if fy else derive_financial_year(str(data.get('name','')))
 
             prod_id:str=generate_uuid()
             cur_uiid=generate_ui_id(prefix=LUI_ID_PRODUCT_PREFIX,last_id=lui_id)
@@ -190,17 +212,21 @@ class ProductsService(BaseServiceModel):
             )
         return result
 
-    @catch_errors   
-    async def get(self,cursor:int=1,limit:int=10,query:str='',include_deleted:Optional[bool]=False):
-        return await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(cursor=cursor,limit=limit,query=query,include_deleted=include_deleted)
+    @catch_errors
+    async def get(self,cursor:int=1,limit:int=10,query:str='',include_deleted:Optional[bool]=False,year:Optional[int]=None):
+        return await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(cursor=cursor,limit=limit,query=query,include_deleted=include_deleted,year=year)
     
     @catch_errors
-    async def search(self, query: str):
-        return await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).search(query=query)
+    async def search(self, query: str, offset: int = 0):
+        return await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).search(query=query,offset=offset)
     
     @catch_errors
     async def get_by_id(self,product_id:str,include_delete:bool=False):
         return await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(product_id=product_id,include_delete=include_delete)
+
+    @catch_errors
+    async def get_pricing_history(self,product_id:str):
+        return await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_pricing_history(product_id=product_id)
 
 
 

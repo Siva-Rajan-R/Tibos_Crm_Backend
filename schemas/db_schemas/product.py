@@ -12,7 +12,8 @@ class AddProductDbSchema(BaseModel):
     available_qty:int
     part_number:str
     product_type:str
-    
+    financial_year:Optional[int]=None
+
 class UpdateProductDbSchema(BaseModel):
     product_id:str
     name:Optional[str]=None
@@ -21,3 +22,4 @@ class UpdateProductDbSchema(BaseModel):
     available_qty:Optional[int]=None
     product_type:Optional[str]=None
     part_number:Optional[str]=None
+    financial_year:Optional[int]=None

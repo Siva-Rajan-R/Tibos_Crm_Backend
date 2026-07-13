@@ -10,6 +10,7 @@ class AddProductSchema(BaseModel):
     available_qty:int
     part_number:str
     product_type:str
+    financial_year:Optional[int]=None
 
 class UpdateProductSchema(BaseModel):
     product_id:str
@@ -19,6 +20,7 @@ class UpdateProductSchema(BaseModel):
     available_qty:Optional[int]=None
     product_type:Optional[str]=None
     part_number:Optional[str]=None
+    financial_year:Optional[int]=None
 
 class AddSearchFields(BaseModel):
     ui_id:str
@@ -42,6 +44,7 @@ class ResponseSearch(BaseModel):
     id:str
     name:str
     price:float
+    financial_year:Optional[int]=None
 
 class FinalResponseModel(BaseModel):
     products:List[ResponseSearch]

@@ -17,6 +17,13 @@ class Leads(PG_BASE):
     assigned_to = Column(String, nullable=True)
     description = Column(String,nullable=True)
 
+    # freshworks-style qualification fields
+    company = Column(String, nullable=True)
+    job_title = Column(String, nullable=True)
+    rating = Column(String, nullable=True)          # HOT / WARM / COLD
+    expected_value = Column(Float, nullable=True)   # expected deal value
+    city = Column(String, nullable=True)
+
     last_contacted = Column(TIMESTAMP(timezone=True))
     next_followup = Column(TIMESTAMP(timezone=True))
 

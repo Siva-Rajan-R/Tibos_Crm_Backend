@@ -210,33 +210,27 @@ class CustomersRepo(BaseRepoModel):
         }
         
     
-    async def search(self,query:str):
-        search_term=f"%{query.lower()}%"
-        queried_customers=(await self.session.execute(
+    async def search(self,query:str,offset:int=0):
+        from .search_utils import build_search_filter,SEARCH_PAGE_SIZE
+        condition,rank=build_search_filter(
+            query,
+            fields=[Customers.id,Customers.ui_id,Customers.name,Customers.email,Customers.industry,Customers.website_url,Customers.mobile_number,Customers.sector,Customers.gst_number,Customers.owner,Customers.tenant_id,Customers.secondary_domain],
+            rank_fields=[Customers.name,Customers.email],
+        )
+        stmt=(
             select(
                 Customers.id,
                 Customers.name,
-            ).where(
-                or_(
-                    Customers.id.ilike(search_term),
-                    Customers.ui_id.ilike(search_term),
-                    Customers.name.ilike(search_term),
-                    Customers.email.ilike(search_term),
-                    Customers.industry.ilike(search_term),
-                    func.cast(Customers.created_at,String).ilike(search_term),
-                    Customers.website_url.ilike(search_term),
-                    Customers.mobile_number.ilike(search_term),
-                    Customers.sector.ilike(search_term),
-                    Customers.gst_number.ilike(search_term),
-                    Customers.owner.ilike(search_term),
-                    Customers.tenant_id.ilike(search_term),
-                    Customers.secondary_domain.ilike(search_term)
-                ),
-                Customers.is_deleted==False
             )
-            .limit(30)
-        )).mappings().all()
+            .where(Customers.is_deleted==False)
+            .order_by(rank,Customers.name)
+            .offset(offset)
+            .limit(SEARCH_PAGE_SIZE)
+        )
+        if condition is not None:
+            stmt=stmt.where(condition)
 
+        queried_customers=(await self.session.execute(stmt)).mappings().all()
         return {'customers':queried_customers}
 
        

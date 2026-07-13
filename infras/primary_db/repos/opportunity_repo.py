@@ -202,10 +202,17 @@ class OpportunitiesRepo(BaseRepoModel):
         return {"opportunities": opp}
     
 
-    async def search(self, query: str):
-        search = f"%{query.lower()}%"
-
-        result = await self.session.execute(
+    async def search(self, query: str, offset: int = 0):
+        from .search_utils import build_search_filter,SEARCH_PAGE_SIZE
+        condition,rank=build_search_filter(
+            query,
+            fields=[
+                Opportunities.id,Opportunities.ui_id,Opportunities.name,Opportunities.product,Opportunities.status,Opportunities.description,
+                Leads.name,Leads.phone,Leads.email,Leads.status,Leads.source,Leads.description,
+            ],
+            rank_fields=[Opportunities.name,Leads.name],
+        )
+        stmt=(
             select(
                 *self.oppr_cols,
 
@@ -216,29 +223,15 @@ class OpportunitiesRepo(BaseRepoModel):
                 Leads.email
             )
             .join(Leads, Leads.id == Opportunities.lead_id)
-            .where(
-                or_(
-                    Opportunities.id.ilike(search),
-                    Opportunities.ui_id.ilike(search),
-                    Opportunities.name.ilike(search),
-                    Opportunities.product.ilike(search),
-                    Opportunities.status.ilike(search),
-                    Opportunities.description.ilike(search),
-
-                    Leads.name.ilike(search),
-                    Leads.phone.ilike(search),
-                    Leads.email.ilike(search),
-                    Leads.status.ilike(search),
-                    Leads.source.ilike(search),
-                    Leads.description.ilike(search)
-                ),
-                Opportunities.is_deleted==False
-            )
-            .limit(5)
+            .where(Opportunities.is_deleted==False)
+            .order_by(rank,Opportunities.name)
+            .offset(offset)
+            .limit(SEARCH_PAGE_SIZE)
         )
+        if condition is not None:
+            stmt=stmt.where(condition)
 
-        opportunities = result.mappings().all()
-
+        opportunities = (await self.session.execute(stmt)).mappings().all()
         return {"opportunities": opportunities}
         
 

@@ -161,12 +161,12 @@ async def get_all_customer(active:bool=Query(False),user:dict=Depends(verify_use
 
 
 @router.get('/search',response_model=FinalResponseModel)
-async def get_searched_customers(q:str=Query(...),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+async def get_searched_customers(q:str=Query(...),offset:int=Query(0),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleCustomersRequest(
         session=session,
         user_role=user['role'],
         cur_user_id=user['id']
-    ).search(query=q)
+    ).search(query=q,offset=offset)
 
 
 @router.get('/{customer_id}')

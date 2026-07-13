@@ -88,13 +88,14 @@ async def get_leads(
 async def get_leads(
     user: dict = Depends(verify_user),
     q: str = Query(""),
+    offset: int = Query(0),
     session: AsyncSession = Depends(get_pg_db_session)
 ):
     return await HandleOpportunitiesRequest(
         session=session,
         user_role=user["role"],
         cur_user_id=user['id']
-    ).search(query=q)
+    ).search(query=q, offset=offset)
 
 
 @router.get("/by-lead/{lead_id}")

@@ -161,12 +161,12 @@ async def get_all_contact(user:dict=Depends(verify_user),q:str=Query(''),page:Op
 
 
 @router.get('/search')
-async def get_all_contact(q:str=Query(...),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
+async def get_all_contact(q:str=Query(...),offset:int=Query(0),user:dict=Depends(verify_user),session:AsyncSession=Depends(get_pg_db_session)):
     return await HandleContactsRequest(
         session=session,
         user_role=user['role'],
         cur_user_id=user['id']
-    ).search(query=q)
+    ).search(query=q,offset=offset)
 
 
 @router.get('/{contact_id}')

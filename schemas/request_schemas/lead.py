@@ -14,6 +14,11 @@ class AddLeadSchema(BaseModel):
     last_contacted: Optional[date] = None
     next_followup: Optional[date] = None
     description: Optional[str] = None
+    company: Optional[str] = None
+    job_title: Optional[str] = None
+    rating: Optional[str] = None
+    expected_value: Optional[float] = None
+    city: Optional[str] = None
 
 
 class UpdateLeadSchema(BaseModel):
@@ -27,6 +32,11 @@ class UpdateLeadSchema(BaseModel):
     last_contacted: Optional[date] = None
     next_followup: Optional[date] = None
     description: Optional[str] = None
+    company: Optional[str] = None
+    job_title: Optional[str] = None
+    rating: Optional[str] = None
+    expected_value: Optional[float] = None
+    city: Optional[str] = None
 
 class RecoverLeadSchema(BaseModel):
     lead_id:str

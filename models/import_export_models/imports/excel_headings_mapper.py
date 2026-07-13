@@ -4,7 +4,9 @@ PRODUCTS_MAPPER={
     'qty':'available_qty',
     'product_type':'product_type',
     'product_price':'price',
-    'part_number':'part_number'
+    'part_number':'part_number',
+    'financial_year':'financial_year',
+    'product_year':'financial_year'
 }
 
 ACCOUNTS_MAPPER={

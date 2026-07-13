@@ -169,25 +169,28 @@ class DistributorsRepo(BaseRepoModel):
         }
         
     
-    async def search(self,query:str):
-        search_term=f"%{query.lower()}%"
-        queried_distributors=(await self.session.execute(
+    async def search(self,query:str,offset:int=0):
+        from .search_utils import build_search_filter,SEARCH_PAGE_SIZE
+        condition,rank=build_search_filter(
+            query,
+            fields=[Distributors.id,Distributors.ui_id,Distributors.name],
+            rank_fields=[Distributors.name],
+        )
+        stmt=(
             select(
                 Distributors.id,
                 Distributors.name,
                 Distributors.discounts
-            ).where(
-                or_(
-                    Distributors.id.ilike(search_term),
-                    Distributors.ui_id.ilike(search_term),
-                    Distributors.name.ilike(search_term),
-                    func.cast(Distributors.created_at,String).ilike(search_term)
-                ),
-                Distributors.is_deleted==False
             )
-            .limit(5)
-        )).mappings().all()
+            .where(Distributors.is_deleted==False)
+            .order_by(rank,Distributors.name)
+            .offset(offset)
+            .limit(SEARCH_PAGE_SIZE)
+        )
+        if condition is not None:
+            stmt=stmt.where(condition)
 
+        queried_distributors=(await self.session.execute(stmt)).mappings().all()
         return {'distributors':queried_distributors}
 
        

@@ -201,9 +201,9 @@ class HandleDistributorRequest:
         return await DistributorService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(cursor=cursor,limit=limit,query=query)
         
     @catch_errors
-    async def search(self,query:str):
+    async def search(self,query:str,offset:int=0):
         # return await DistributorSearch().search_document(query=query,limit=30,page=1,cursor=1)
-        return await DistributorService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).search(query=query)
+        return await DistributorService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).search(query=query,offset=offset)
 
     @catch_errors
     async def get_by_id(self,distributor_id:str):

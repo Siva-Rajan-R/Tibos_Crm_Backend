@@ -31,7 +31,12 @@ class LeadsRepo(BaseRepoModel):
             Leads.email.label("lead_email"),
             Leads.source.label("lead_source"),
             Leads.assigned_to.label("lead_assigned_to"),
-            Leads.status.label("lead_status")
+            Leads.status.label("lead_status"),
+            Leads.company.label("lead_company"),
+            Leads.job_title.label("lead_job_title"),
+            Leads.rating.label("lead_rating"),
+            Leads.expected_value.label("lead_expected_value"),
+            Leads.city.label("lead_city")
         )
 
     async def is_lead_exists(self,email:EmailStr,mobile_number:str):
@@ -182,10 +187,14 @@ class LeadsRepo(BaseRepoModel):
         return {"lead": lead}
     
 
-    async def search(self, query: str):
-        search = f"%{query.lower()}%"
-
-        result = await self.session.execute(
+    async def search(self, query: str, offset: int = 0):
+        from .search_utils import build_search_filter,SEARCH_PAGE_SIZE
+        condition,rank=build_search_filter(
+            query,
+            fields=[Leads.id,Leads.ui_id,Leads.name,Leads.phone,Leads.email,Leads.source,Leads.status,Leads.description,Leads.company,Leads.city],
+            rank_fields=[Leads.name,Leads.email,Leads.company],
+        )
+        stmt=(
             select(
                 Leads.id.label("lead_id"),
                 Leads.name.label("lead_name"),
@@ -196,24 +205,15 @@ class LeadsRepo(BaseRepoModel):
                 Leads.status.label("lead_status"),
                 Leads.next_followup.label("lead_next_followup"),
             )
-            .where(
-                or_(
-                    Leads.id.ilike(search),
-                    Leads.ui_id.ilike(search),
-                    Leads.name.ilike(search),
-                    Leads.phone.ilike(search),
-                    Leads.email.ilike(search),
-                    Leads.source.ilike(search),
-                    Leads.status.ilike(search),
-                    Leads.description.ilike(search)
-                ),
-                Leads.is_deleted==False
-            )
-            .limit(5)
+            .where(Leads.is_deleted==False)
+            .order_by(rank,Leads.name)
+            .offset(offset)
+            .limit(SEARCH_PAGE_SIZE)
         )
+        if condition is not None:
+            stmt=stmt.where(condition)
 
-        leads = result.mappings().all()
-
+        leads = (await self.session.execute(stmt)).mappings().all()
         return {"leads": leads}
 
     async def get_lead_raw(self, lead_id: str):

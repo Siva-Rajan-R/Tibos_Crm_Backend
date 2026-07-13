@@ -170,8 +170,8 @@ class HandleProductsRequest:
             )
         )   
 
-    @catch_errors   
-    async def get(self,cursor:Optional[Union[None,int]]=1,limit:int=10,query:str='',page:Optional[Union[int,None]]=1):
+    @catch_errors
+    async def get(self,cursor:Optional[Union[None,int]]=1,limit:int=10,query:str='',page:Optional[Union[int,None]]=1,year:Optional[int]=None):
         if cursor is None:
             raise HTTPException(
                 status_code=400,
@@ -184,29 +184,26 @@ class HandleProductsRequest:
             )
         
         # return await ProductSearch().search_document(query=query,limit=limit,page=page,cursor=cursor)
-        return await ProductsService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(cursor=cursor,limit=limit,query=query)
+        return await ProductsService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get(cursor=cursor,limit=limit,query=query,year=year)
     
     @catch_errors
-    async def search(self, query: str):
+    async def search(self, query: str, offset: int = 0):
         # return await ProductSearch().search_document(query=query,limit=30,page=1,cursor=1)
-        return await ProductsService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).search(query=query)
+        return await ProductsService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).search(query=query,offset=offset)
     
     @catch_errors
     async def get_by_id(self,product_id:str):
         return await ProductsService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(product_id=product_id)
 
     @catch_errors
-    async def get_pricing_history(self, product_id: str):
-        from infras.primary_db.repos.product_repo import ProductsRepo
-        history = await ProductsRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_pricing_history(product_id=product_id)
-        return SuccessResponseTypDict(
-            detail=BaseResponseTypDict(
-                status_code=200,
-                success=True,
-                msg="Pricing history fetched successfully",
-            ),
-            data={"history": history}
-        )
+    async def get_pricing_history(self,product_id:str):
+        res = await ProductsService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_pricing_history(product_id=product_id)
+        if isinstance(res,ErrorResponseTypDict):
+            raise HTTPException(
+                status_code=res.status_code,
+                detail=res.model_dump(mode='json')
+            )
+        return res
 
 
 

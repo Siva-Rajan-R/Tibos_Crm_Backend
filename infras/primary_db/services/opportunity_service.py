@@ -129,8 +129,8 @@ class OpportunitiesService(BaseServiceModel):
         return await OpportunitiesRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_lead(lead_id=lead_id)
     
     @catch_errors
-    async def search(self, query: str):
-        return await OpportunitiesRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).search(query=query)
+    async def search(self, query: str, offset: int = 0):
+        return await OpportunitiesRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).search(query=query,offset=offset)
         
     @catch_errors
     async def get_by_id(self, opportunity_id:str):

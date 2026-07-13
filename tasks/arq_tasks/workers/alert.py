@@ -173,28 +173,33 @@ async def send_pending_dues_alert(ctx, force=False):
         return
 
     ic(f"[alert] sending pending dues alert to {recipients}")
-    
-    sender_email = await _get_sender_email(session, global_cfg)
-    success = await _send_pending_dues_email(
-        session=session,
-        recipients=recipients,
-        categories=categories,
-        sender_email=sender_email
-    )
+
+    # NOTE: must use a FRESH session here — the one above was closed by its
+    # `async with` block; reusing a closed session silently opens a new
+    # transaction that is never committed/closed (leaks 'idle in transaction')
+    async with AsyncLocalSession() as session:
+        sender_email = await _get_sender_email(session, global_cfg)
+        success = await _send_pending_dues_email(
+            session=session,
+            recipients=recipients,
+            categories=categories,
+            sender_email=sender_email
+        )
 
     if success:
         await _mark_sent(redis, dedup_key)
         ic("[alert] pending dues alert sent successfully")
-        
+
         # SSE Notification
-        await _notify_recipients(
-            session=session,
-            recipients=recipients,
-            title="Pending Dues Alert",
-            description="The daily pending dues breakdown has been generated.",
-            type="Alert",
-            url=f"{FRONTEND_URL}/orders"
-        )
+        async with AsyncLocalSession() as session:
+            await _notify_recipients(
+                session=session,
+                recipients=recipients,
+                title="Pending Dues Alert",
+                description="The daily pending dues breakdown has been generated.",
+                type="Alert",
+                url=f"{FRONTEND_URL}/orders"
+            )
     else:
         ic("[alert] pending dues alert FAILED to send")
 
@@ -467,7 +472,9 @@ async def send_pending_invoice_alert(ctx, force=False):
     )
 
     ic(f"[alert] sending pending invoice alert ({len(flagged_orders)} orders) to {recipients}")
-    sender_email = await _get_sender_email(session, global_cfg)
+    # fresh session — the earlier ones were closed by their `async with` blocks
+    async with AsyncLocalSession() as session:
+        sender_email = await _get_sender_email(session, global_cfg)
     success = await send_email(
         client_ip="scheduler",
         reciver_emails=recipients,
@@ -658,7 +665,9 @@ async def send_activation_date_alert(ctx, force=False):
 
     total_flagged = len(upcoming_orders) + len(overdue_orders)
     ic(f"[alert] sending activation date alert ({total_flagged} orders) to {recipients}")
-    sender_email = await _get_sender_email(session, global_cfg)
+    # fresh session — the earlier ones were closed by their `async with` blocks
+    async with AsyncLocalSession() as session:
+        sender_email = await _get_sender_email(session, global_cfg)
     success = await send_email(
         client_ip="scheduler",
         reciver_emails=recipients,

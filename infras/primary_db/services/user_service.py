@@ -37,9 +37,12 @@ class UserService(BaseServiceModel):
         ic(f"🔃 Creating Default Super-Admin... {DEFAULT_SUPERADMIN_INFO} {type(DEFAULT_SUPERADMIN_INFO)}")
         for superadmins in DEFAULT_SUPERADMIN_INFO:
             user_obj=UserRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id)
-            if (await user_obj.isuser_exists(user_id_email=superadmins['email'])):
+            # check both active AND soft-deleted users — email is unique across both,
+            # so trying to re-add a soft-deleted admin crashes startup with a duplicate-key error
+            if (await user_obj.isuser_exists(user_id_email=superadmins['email'])) or \
+               (await user_obj.isuser_exists(user_id_email=superadmins['email'],include_deleted=True)):
                 ic("✅ Default Super-Admin Already Exists")
-                return
+                continue
             lui_id:str=(await self.session.execute(select(TablesUiLId.user_luiid))).scalar_one_or_none()
             cur_uiid=generate_ui_id(prefix=LUI_ID_USER_PREFIX,last_id=lui_id)
             await UserRepo(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).add(

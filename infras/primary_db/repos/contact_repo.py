@@ -170,28 +170,29 @@ class ContactsRepo(BaseRepoModel):
         }
 
 
-    async def search(self,query:str):
-        search_term=f"%{query.lower()}%"
-        queried_contacts=(await self.session.execute(
+    async def search(self,query:str,offset:int=0):
+        from .search_utils import build_search_filter,SEARCH_PAGE_SIZE
+        condition,rank=build_search_filter(
+            query,
+            fields=[Contacts.name,Contacts.id,Contacts.ui_id,Contacts.email,Contacts.mobile_number,Customers.name,Customers.email,Customers.website_url],
+            rank_fields=[Contacts.name,Contacts.email],
+        )
+        stmt=(
             select(
                 Contacts.id,
-                Contacts.name.label('contact_name'), 
-            ).where(
-                or_(
-                    Contacts.name.ilike(search_term),
-                    Contacts.id.ilike(search_term),
-                    Contacts.email.ilike(search_term),
-                    Contacts.mobile_number.ilike(search_term),
-                    func.cast(Contacts.created_at,String).ilike(search_term),
-                    Customers.name.ilike(search_term),
-                    Customers.email.ilike(search_term),
-                    Contacts.ui_id.ilike(search_term),
-                    Customers.website_url.ilike(search_term)
-                ),
-                Contacts.is_deleted==False
-            ).limit(5)
-        )).mappings().all()
+                Contacts.name.label('contact_name'),
+            )
+            # explicit join — searching customer fields without it produced a cross join
+            .join(Customers,Customers.id==Contacts.customer_id,isouter=True)
+            .where(Contacts.is_deleted==False)
+            .order_by(rank,Contacts.name)
+            .offset(offset)
+            .limit(SEARCH_PAGE_SIZE)
+        )
+        if condition is not None:
+            stmt=stmt.where(condition)
 
+        queried_contacts=(await self.session.execute(stmt)).mappings().all()
         return {'contacts':queried_contacts}
         
     async def get_by_id(self,contact_id:str,include_delete:bool=False):

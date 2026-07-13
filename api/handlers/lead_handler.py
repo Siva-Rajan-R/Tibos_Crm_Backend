@@ -169,8 +169,8 @@ class HandleLeadsRequest:
         return await LeadsService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).get_by_id(lead_id=lead_id)
     
     @catch_errors
-    async def search(self, query: str):
-        return await LeadsService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).search(query=query)
+    async def search(self, query: str, offset: int = 0):
+        return await LeadsService(session=self.session,user_role=self.user_role,cur_user_id=self.cur_user_id).search(query=query,offset=offset)
 
     @catch_errors
     async def convert_to_opportunity(self, lead_id: str):
