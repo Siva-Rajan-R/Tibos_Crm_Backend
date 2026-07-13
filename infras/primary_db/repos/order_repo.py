@@ -105,6 +105,7 @@ class OrdersRepo(BaseRepoModel):
             remaining_days.label("remaining_days"),
             last_order_delivery_date.label("last_order_date"),
             customer_amount_with_gst.label('customer_amount_with_gst'),
+            customer_final_price_inc_gst.label('customer_final_price_inc_gst'),
             func.date(expiry_date).label("last_order_expiry_date"),
             self.subquery.c.status_info,
             self.subquery.c.total_paid_amount,
@@ -827,9 +828,16 @@ class OrdersRepo(BaseRepoModel):
                 payment_status = inv.get("payment_status")
                 paid_amount = float(inv.get("paid_amount") or 0)
                 
-                cust_total_inc_gst = round(order_total_price * 1.18)
+                from decimal import Decimal, ROUND_HALF_UP
+                
+                if o.get("is_cart"):
+                    order_price_dec = Decimal(str(order_total_price))
+                    cust_total_inc_gst = int((order_price_dec * Decimal('1.18')).quantize(Decimal('1'), rounding=ROUND_HALF_UP))
+                else:
+                    cust_total_inc_gst = int(o.get("customer_final_price_inc_gst") or 0)
+                
                 count = len(invoices)
-                per_invoice_amt = round(cust_total_inc_gst / count) if count > 0 else 0
+                per_invoice_amt = int((Decimal(str(cust_total_inc_gst)) / Decimal(str(count))).quantize(Decimal('1'), rounding=ROUND_HALF_UP)) if count > 0 else 0
                 
                 remaining_bal = max(per_invoice_amt - paid_amount, 0)
                 if payment_status in (PaymentStatus.PAID.value, PaymentStatus.FULL_PAYMENT_RECEIVED.value):
@@ -1715,7 +1723,7 @@ class OrdersRepo(BaseRepoModel):
         po_received_activation_pending = func.coalesce(func.sum(
             case(
                 (
-                    Orders.activated == False,
+                    Orders.activated.isnot(True),
                     customer_final_price
                 ),
                 else_=0
@@ -1782,7 +1790,7 @@ class OrdersRepo(BaseRepoModel):
                 func.round(cast(func.coalesce(func.sum(
                     case(
                         (
-                            Orders.activated == False,
+                            Orders.activated.isnot(True),
                             customer_final_price
                         ),
                         else_=0
@@ -1887,7 +1895,7 @@ class OrdersRepo(BaseRepoModel):
                     val_1 = p_price
                 if o.get("activated") == True and has_completed_invoice:
                     val_2 = p_price
-                if o.get("activated") == False:
+                if not o.get("activated"):
                     val_3 = p_price
                     
                 owners_dict[owner_name_key]["activation_done_invoice_pending"] += val_1
@@ -1975,13 +1983,7 @@ class OrdersRepo(BaseRepoModel):
                 OrdersPaymentInvoiceInfo.order_id,
                 func.count().label("total_invoices"),
                 func.count().filter(
-                    and_(
-                        OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value,
-                        OrdersPaymentInvoiceInfo.payment_status.notin_([
-                            PaymentStatus.PAID.value,
-                            PaymentStatus.FULL_PAYMENT_RECEIVED.value
-                        ])
-                    )
+                    OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value
                 ).label("matching_invoices")
             )
             .group_by(OrdersPaymentInvoiceInfo.order_id)
@@ -1992,24 +1994,37 @@ class OrdersRepo(BaseRepoModel):
         invoice_total_value = func.round(
             cast(customer_final_price_inc_gst, Numeric) / func.nullif(invoice_stats_subq.c.matching_invoices, 0)
         )
+        
+        # --- Order Value = full order amount without GST
+        order_total_value = func.round(
+            cast(customer_final_price, Numeric) / func.nullif(invoice_stats_subq.c.matching_invoices, 0)
+        )
 
         # --- Pending Value = expected invoice amount minus paid amount ---
         split_expected_amount = func.round(
             cast(customer_final_price_inc_gst, Numeric) / func.nullif(invoice_stats_subq.c.total_invoices, 0)
         )
-        invoice_pending_value = func.greatest(
-            split_expected_amount - func.coalesce(OrdersPaymentInvoiceInfo.paid_amount, 0),
-            0
+        invoice_pending_value = case(
+            (
+                OrdersPaymentInvoiceInfo.payment_status.in_([
+                    PaymentStatus.NOT_PAID.value,
+                    PaymentStatus.GST_PENDING.value,
+                    PaymentStatus.HALF_PAYMENT_RECEIVED.value,
+                    PaymentStatus.SHORT_PAYMENT_RECEIVED.value,
+                    PaymentStatus.TDS_PENDING.value
+                ]),
+                func.greatest(
+                    split_expected_amount - func.coalesce(OrdersPaymentInvoiceInfo.paid_amount, 0),
+                    0
+                )
+            ),
+            else_=0.0
         )
 
-        # --- Conditions: only COMPLETED invoices with pending payment ---
+        # --- Conditions: COMPLETED invoices ---
         conditions = [
             Orders.is_deleted == False,
             OrdersPaymentInvoiceInfo.invoice_status == InvoiceStatus.COMPLETED.value,
-            OrdersPaymentInvoiceInfo.payment_status.notin_([
-                PaymentStatus.PAID.value,
-                PaymentStatus.FULL_PAYMENT_RECEIVED.value
-            ]),
         ]
 
         if from_date:
@@ -2022,12 +2037,25 @@ class OrdersRepo(BaseRepoModel):
 
         if min_days_pending is not None and min_days_pending > 0:
             conditions.append(days_pending >= min_days_pending)
+            conditions.append(
+                OrdersPaymentInvoiceInfo.payment_status.notin_([
+                    PaymentStatus.PAID.value,
+                    PaymentStatus.FULL_PAYMENT_RECEIVED.value
+                ])
+            )
 
         # --- Owner-level totals subquery ---
         owner_totals_subq = (
             select(
                 owner_label.label("owner_name_key"),
                 func.count().label("owner_invoice_count"),
+                func.count().filter(
+                    OrdersPaymentInvoiceInfo.payment_status.notin_([
+                        PaymentStatus.PAID.value,
+                        PaymentStatus.FULL_PAYMENT_RECEIVED.value
+                    ])
+                ).label("owner_pending_invoice_count"),
+                func.round(cast(func.coalesce(func.sum(order_total_value), 0), Numeric), 2).label("owner_order_value"),
                 func.round(cast(func.coalesce(func.sum(invoice_total_value), 0), Numeric), 2).label("owner_invoice_amount"),
                 func.round(cast(func.coalesce(func.sum(invoice_pending_value), 0), Numeric), 2).label("owner_pending_amount")
             )
@@ -2048,7 +2076,29 @@ class OrdersRepo(BaseRepoModel):
                 owner_label,
                 Customers.name.label("customer_name"),
                 Orders.ui_id.label("order_id"),
+                Products.name.label("product_name"),
+                Orders.quantity,
+                Orders.delivery_info['requested_date'].astext.label("requested_date"),
+                Orders.delivery_info['delivery_date'].astext.label("activation_date"),
+                Orders.created_at,
+                Orders.logistic_info['distributor_type'].astext.label("distributor_type"),
+                Distributors.name.label("distributor_name"),
+                distri_discount.label("distributor_discount"),
+                Orders.vendor_commision,
+                Orders.additional_discount,
+                distri_final_price.label("distributor_price"),
+                customer_final_price.label("customer_price"),
+                Orders.additional_price,
+                Orders.unit_price,
+                profit_loss_price.label("profit_loss"),
                 func.count().label("invoice_count"),
+                func.count().filter(
+                    OrdersPaymentInvoiceInfo.payment_status.notin_([
+                        PaymentStatus.PAID.value,
+                        PaymentStatus.FULL_PAYMENT_RECEIVED.value
+                    ])
+                ).label("pending_invoice_count"),
+                func.round(cast(func.coalesce(func.sum(order_total_value), 0), Numeric), 2).label("order_value"),
                 func.round(cast(func.coalesce(func.sum(invoice_total_value), 0), Numeric), 2).label("invoice_amount"),
                 func.round(cast(func.coalesce(func.sum(invoice_pending_value), 0), Numeric), 2).label("pending_amount")
             )
@@ -2059,7 +2109,7 @@ class OrdersRepo(BaseRepoModel):
             .join(Distributors, Distributors.id == Orders.distributor_id, isouter=True)
             .join(invoice_stats_subq, invoice_stats_subq.c.order_id == Orders.id)
             .where(*conditions)
-            .group_by(owner_label, Customers.name, Orders.ui_id)
+            .group_by(Orders.id, Customers.id, Products.id, Distributors.id, owner_label)
             .order_by(owner_label, Customers.name, Orders.ui_id)
         )
 
@@ -2069,6 +2119,8 @@ class OrdersRepo(BaseRepoModel):
         summary_stmt = select(
             owner_totals_subq.c.owner_name_key.label("owner_name"),
             owner_totals_subq.c.owner_invoice_count,
+            owner_totals_subq.c.owner_pending_invoice_count,
+            owner_totals_subq.c.owner_order_value,
             owner_totals_subq.c.owner_invoice_amount,
             owner_totals_subq.c.owner_pending_amount
         ).order_by("owner_name")
@@ -2080,6 +2132,8 @@ class OrdersRepo(BaseRepoModel):
             owner_summaries.append({
                 "owner_name": s["owner_name"],
                 "total_invoice_count": int(s["owner_invoice_count"] or 0),
+                "total_pending_invoice_count": int(s["owner_pending_invoice_count"] or 0),
+                "total_order_value": float(s["owner_order_value"] or 0),
                 "total_invoice_amount": float(s["owner_invoice_amount"] or 0),
                 "total_pending_amount": float(s["owner_pending_amount"] or 0),
             })
@@ -2088,6 +2142,13 @@ class OrdersRepo(BaseRepoModel):
         grand_total_stmt = (
             select(
                 func.count().label("invoice_count"),
+                func.count().filter(
+                    OrdersPaymentInvoiceInfo.payment_status.notin_([
+                        PaymentStatus.PAID.value,
+                        PaymentStatus.FULL_PAYMENT_RECEIVED.value
+                    ])
+                ).label("pending_invoice_count"),
+                func.round(cast(func.coalesce(func.sum(order_total_value), 0), Numeric), 2).label("order_value"),
                 func.round(cast(func.coalesce(func.sum(invoice_total_value), 0), Numeric), 2).label("invoice_amount"),
                 func.round(cast(func.coalesce(func.sum(invoice_pending_value), 0), Numeric), 2).label("pending_amount")
             )
@@ -2109,13 +2170,32 @@ class OrdersRepo(BaseRepoModel):
                 "owner_name": row["owner_name"],
                 "customer_name": row["customer_name"],
                 "order_id": row["order_id"],
+                "product_name": row["product_name"],
+                "quantity": row["quantity"],
+                "requested_date": row["requested_date"],
+                "activation_date": row["activation_date"],
+                "created_at": row["created_at"].isoformat() if row["created_at"] else None,
+                "distributor_type": row["distributor_type"],
+                "distributor_name": row["distributor_name"],
+                "distributor_discount": row["distributor_discount"],
+                "vendor_commision": row["vendor_commision"],
+                "additional_discount": row["additional_discount"],
+                "distributor_price": float(row["distributor_price"] or 0),
+                "customer_price": float(row["customer_price"] or 0),
+                "additional_price": float(row["additional_price"] or 0),
+                "unit_price": float(row["unit_price"] or 0),
+                "profit_loss": float(row["profit_loss"] or 0),
                 "invoice_count": int(row["invoice_count"] or 0),
+                "pending_invoice_count": int(row["pending_invoice_count"] or 0),
+                "order_value": float(row["order_value"] or 0),
                 "invoice_amount": float(row["invoice_amount"] or 0),
                 "pending_amount": float(row["pending_amount"] or 0),
             })
 
         grand_total = {
             "invoice_count": int(gt_row["invoice_count"] or 0) if gt_row else 0,
+            "pending_invoice_count": int(gt_row["pending_invoice_count"] or 0) if gt_row else 0,
+            "order_value": float(gt_row["order_value"] or 0) if gt_row else 0,
             "invoice_amount": float(gt_row["invoice_amount"] or 0) if gt_row else 0,
             "pending_amount": float(gt_row["pending_amount"] or 0) if gt_row else 0,
         }
@@ -2140,51 +2220,81 @@ class OrdersRepo(BaseRepoModel):
             total_invoices_count = len(invoices)
             matching_completed_pending_invoices = []
             for inv in invoices:
-                if inv.get("invoice_status") == "COMPLETED" and inv.get("payment_status") not in ("PAID", "FULL PAYMENT RECEIVED"):
+                if inv.get("invoice_status") == "COMPLETED":
                     # Apply min_days_pending filter if applicable
-                    inv_date_str = inv.get("invoice_date")
-                    days_p = 0
-                    if inv_date_str:
-                        if isinstance(inv_date_str, (datetime, date)):
-                            inv_date = inv_date_str if isinstance(inv_date_str, date) else inv_date_str.date()
-                        else:
-                            try:
-                                inv_date = datetime.strptime(str(inv_date_str)[:10], "%Y-%m-%d").date()
-                            except Exception:
-                                inv_date = None
-                        if inv_date:
-                            days_p = max((today - inv_date).days, 0)
-                    if min_days_pending is not None and min_days_pending > 0 and days_p < min_days_pending:
-                        continue
+                    if min_days_pending is not None and min_days_pending > 0:
+                        if inv.get("payment_status") in ("PAID", "FULL PAYMENT RECEIVED"):
+                            continue
+                        inv_date_str = inv.get("invoice_date")
+                        days_p = 0
+                        if inv_date_str:
+                            if isinstance(inv_date_str, (datetime, date)):
+                                inv_date = inv_date_str if isinstance(inv_date_str, date) else inv_date_str.date()
+                            else:
+                                try:
+                                    inv_date = datetime.strptime(str(inv_date_str)[:10], "%Y-%m-%d").date()
+                                except Exception:
+                                    inv_date = None
+                            if inv_date:
+                                days_p = max((today - inv_date).days, 0)
+                        if days_p < min_days_pending:
+                            continue
                     matching_completed_pending_invoices.append(inv)
             
             if not matching_completed_pending_invoices:
                 continue
                 
             matching_count = len(matching_completed_pending_invoices)
-            total_price_inc_gst = round(o.get("total_price", 0.0) * 1.18)
+            from decimal import Decimal, ROUND_HALF_UP
+            total_price_dec = Decimal(str(o.get("total_price", 0.0)))
+            total_price_inc_gst = int((total_price_dec * Decimal('1.18')).quantize(Decimal('1'), rounding=ROUND_HALF_UP))
+            total_price_no_gst = int(total_price_dec.quantize(Decimal('1'), rounding=ROUND_HALF_UP))
             
             # Invoice values:
             order_invoice_count = matching_count
+            order_pending_invoice_count = 0
+            order_order_value = 0.0
             order_invoice_amount = 0.0
             order_pending_amount = 0.0
             
             for inv in matching_completed_pending_invoices:
+                if inv.get("payment_status") not in ("PAID", "FULL PAYMENT RECEIVED"):
+                    order_pending_invoice_count += 1
                 # split values
-                invoice_total_value = total_price_inc_gst / matching_count if matching_count > 0 else 0.0
-                split_expected_amount = total_price_inc_gst / total_invoices_count if total_invoices_count > 0 else 0.0
-                invoice_pending_value = max(split_expected_amount - float(inv.get("paid_amount") or 0), 0.0)
+                matching_count_dec = Decimal(str(matching_count)) if matching_count > 0 else Decimal('1')
+                tot_inv_count_dec = Decimal(str(total_invoices_count)) if total_invoices_count > 0 else Decimal('1')
                 
+                order_total_value = float((Decimal(str(total_price_no_gst)) / matching_count_dec).quantize(Decimal('1'), rounding=ROUND_HALF_UP)) if matching_count > 0 else 0.0
+                invoice_total_value = float((Decimal(str(total_price_inc_gst)) / matching_count_dec).quantize(Decimal('1'), rounding=ROUND_HALF_UP)) if matching_count > 0 else 0.0
+                split_expected_amount = float((Decimal(str(total_price_inc_gst)) / tot_inv_count_dec).quantize(Decimal('1'), rounding=ROUND_HALF_UP)) if total_invoices_count > 0 else 0.0
+                
+                payment_stat = inv.get("payment_status")
+                if payment_stat in (
+                    PaymentStatus.NOT_PAID.value,
+                    PaymentStatus.GST_PENDING.value,
+                    PaymentStatus.HALF_PAYMENT_RECEIVED.value,
+                    PaymentStatus.SHORT_PAYMENT_RECEIVED.value,
+                    PaymentStatus.TDS_PENDING.value
+                ):
+                    invoice_pending_value = max(split_expected_amount - float(inv.get("paid_amount") or 0), 0.0)
+                else:
+                    invoice_pending_value = 0.0
+                
+                order_order_value += order_total_value
                 order_invoice_amount += invoice_total_value
                 order_pending_amount += invoice_pending_value
                 
             if owner not in cart_owner_aggs:
                 cart_owner_aggs[owner] = {
                     "total_invoice_count": 0,
+                    "total_pending_invoice_count": 0,
+                    "total_order_value": 0.0,
                     "total_invoice_amount": 0.0,
                     "total_pending_amount": 0.0
                 }
             cart_owner_aggs[owner]["total_invoice_count"] += order_invoice_count
+            cart_owner_aggs[owner]["total_pending_invoice_count"] += order_pending_invoice_count
+            cart_owner_aggs[owner]["total_order_value"] += order_order_value
             cart_owner_aggs[owner]["total_invoice_amount"] += order_invoice_amount
             cart_owner_aggs[owner]["total_pending_amount"] += order_pending_amount
             
@@ -2193,7 +2303,24 @@ class OrdersRepo(BaseRepoModel):
                 "owner_name": owner,
                 "customer_name": o.get("customer_name") or "",
                 "order_id": o.get("ui_id") or "",
+                "product_name": ", ".join([p.get("product_name") for p in (o.get("products") or []) if p.get("product_name")]),
+                "quantity": sum([int(p.get("quantity") or 0) for p in (o.get("products") or [])]),
+                "requested_date": o.get("delivery_info", {}).get("requested_date"),
+                "activation_date": o.get("delivery_info", {}).get("delivery_date"),
+                "created_at": o.get("created_at"),
+                "distributor_type": o.get("logistic_info", {}).get("distributor_type"),
+                "distributor_name": o.get("distributor_name"),
+                "distributor_discount": o.get("distributor_discount"),
+                "vendor_commision": o.get("vendor_commision"),
+                "additional_discount": o.get("additional_discount"),
+                "distributor_price": o.get("distributor_price"),
+                "customer_price": o.get("customer_price"),
+                "additional_price": o.get("additional_price"),
+                "unit_price": o.get("unit_price"),
+                "profit_loss": o.get("profit_loss"),
                 "invoice_count": order_invoice_count,
+                "pending_invoice_count": order_pending_invoice_count,
+                "order_value": round(order_order_value, 2),
                 "invoice_amount": round(order_invoice_amount, 2),
                 "pending_amount": round(order_pending_amount, 2),
             })
@@ -2203,12 +2330,16 @@ class OrdersRepo(BaseRepoModel):
         for owner, cart_vals in cart_owner_aggs.items():
             if owner in owner_sum_dict:
                 owner_sum_dict[owner]["total_invoice_count"] += cart_vals["total_invoice_count"]
+                owner_sum_dict[owner]["total_pending_invoice_count"] += cart_vals["total_pending_invoice_count"]
+                owner_sum_dict[owner]["total_order_value"] = round(owner_sum_dict[owner].get("total_order_value", 0) + cart_vals["total_order_value"], 2)
                 owner_sum_dict[owner]["total_invoice_amount"] = round(owner_sum_dict[owner]["total_invoice_amount"] + cart_vals["total_invoice_amount"], 2)
                 owner_sum_dict[owner]["total_pending_amount"] = round(owner_sum_dict[owner]["total_pending_amount"] + cart_vals["total_pending_amount"], 2)
             else:
                 owner_sum_dict[owner] = {
                     "owner_name": owner,
                     "total_invoice_count": cart_vals["total_invoice_count"],
+                    "total_pending_invoice_count": cart_vals["total_pending_invoice_count"],
+                    "total_order_value": round(cart_vals["total_order_value"], 2),
                     "total_invoice_amount": round(cart_vals["total_invoice_amount"], 2),
                     "total_pending_amount": round(cart_vals["total_pending_amount"], 2),
                 }
@@ -2216,6 +2347,8 @@ class OrdersRepo(BaseRepoModel):
 
         # Update grand_total
         grand_total["invoice_count"] += sum(v["total_invoice_count"] for v in cart_owner_aggs.values())
+        grand_total["pending_invoice_count"] += sum(v["total_pending_invoice_count"] for v in cart_owner_aggs.values())
+        grand_total["order_value"] = round(grand_total.get("order_value", 0) + sum(v["total_order_value"] for v in cart_owner_aggs.values()), 2)
         grand_total["invoice_amount"] = round(grand_total["invoice_amount"] + sum(v["total_invoice_amount"] for v in cart_owner_aggs.values()), 2)
         grand_total["pending_amount"] = round(grand_total["pending_amount"] + sum(v["total_pending_amount"] for v in cart_owner_aggs.values()), 2)
 
@@ -2540,7 +2673,7 @@ class OrdersRepo(BaseRepoModel):
                 .join(Customers, Orders.customer_id == Customers.id)
                 .where(
                     and_(
-                        Orders.activated == False,
+                        Orders.activated.isnot(True),
                         Orders.is_deleted == False,
                         cast(Orders.delivery_info['delivery_date'].astext, Date) >= start_date_expr if start_date_expr is not None else True,
                         cast(Orders.delivery_info['delivery_date'].astext, Date) <= end_date_expr if end_date_expr is not None else True
